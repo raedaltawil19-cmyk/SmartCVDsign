@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import CVPreview from "@/components/CVPreview";
+import CVAgent from "@/components/CVAgent";
 import { ArrowRight, Download, Loader2, RefreshCw, Eye, X } from "lucide-react";
 
 const A4_W = 794;
@@ -150,6 +151,8 @@ export default function Builder() {
           </div>
         )}
       </div>
+
+      <CVAgent data={data} onApply={(d) => setData(d)} />
 
       {showPreview && (
         <div className="no-print fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col">
