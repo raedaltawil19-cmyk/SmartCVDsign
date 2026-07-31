@@ -128,8 +128,8 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <div ref={panelRef} className="no-print flex-1 overflow-auto p-6 bg-slate-200/60">
-            <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }}>
+          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible">
+            <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
               <div className="cv-scale-wrapper" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
                 <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
                   <CVPreview templateId={templateId} data={data} editable={true} actions={actions} />
