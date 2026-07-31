@@ -87,7 +87,7 @@ export default function Builder() {
     setRegenerating(true);
     try {
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: CV_PROCESS_PROMPT + "\n\nFörbättra och förfina följande befintliga CV-innehåll (behåll det på svenska, gör det mer naturligt och konkret, ta bort klyschor):\n" + flat,
+        prompt: "Förbättra och förfina följande befintliga CV-innehåll på svenska. Gör det mer naturligt och konkret, ta bort eventuella klyschor — men SAMMANFATTA INTE och FÖRKORTA INTE: bevara ALL information, alla ansvarsområden och resultat i sin helhet.\n\n" + flat,
         response_json_schema: CV_SCHEMA
       });
       setData(mergeCV(res));
