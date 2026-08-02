@@ -46,6 +46,11 @@ const DICT = {
   "builder.close": { ar: "إغلاق", sv: "Stäng", en: "Close" },
   "builder.pageBoundary": { ar: "— حدود الصفحة —", sv: "— Sidgräns —", en: "— Page boundary —" },
   "builder.printLocked": { ar: "سجّل الدخول لطباعة أو تنزيل السيرة", sv: "Logga in för att skriva ut eller ladda ner CV", en: "Log in to print or download the CV" },
+  "builder.aiEdit": { ar: "تعديل ذكي", sv: "AI-redigering", en: "AI edit" },
+  "builder.manualEdit": { ar: "تعديل يدوي", sv: "Redigera manuellt", en: "Manual edit" },
+  "builder.changeTemplate": { ar: "تغيير القالب", sv: "Byt mall", en: "Change template" },
+  "builder.matchJob": { ar: "مطابقة إعلان وظيفي", sv: "Matcha annons", en: "Match job ad" },
+  "builder.more": { ar: "المزيد", sv: "Fler verktyg", en: "More" },
 
   "corner.login": { ar: "دخول", sv: "Logga in", en: "Log in" },
   "corner.register": { ar: "حساب جديد", sv: "Skapa konto", en: "Sign up" },

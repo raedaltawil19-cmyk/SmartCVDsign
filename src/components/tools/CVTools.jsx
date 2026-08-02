@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
-import JobMatchModal from "./JobMatchModal";
 import CoverLetterModal from "./CoverLetterModal";
 import QualityModal from "./QualityModal";
 import JobSuggestionsModal from "./JobSuggestionsModal";
@@ -13,10 +12,12 @@ import SalaryAdvisorModal from "./SalaryAdvisorModal";
 import LinkedInImportModal from "./LinkedInImportModal";
 import CompanyTailoringModal from "./CompanyTailoringModal";
 import CourseAdvisorModal from "./CourseAdvisorModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale, GraduationCap } from "lucide-react";
+import { Wrench, Loader2, MoreHorizontal, Mail, ShieldCheck, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale, GraduationCap } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
-export default function CVTools({ data, onApply }) {
+export default function CVTools({ data, onApply, iconOnly = false }) {
   const { toast } = useToast();
+  const { t, dir } = useLanguage();
   const { llm } = useServices();
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState(null);
@@ -63,15 +64,21 @@ export default function CVTools({ data, onApply }) {
         <button
           onClick={() => setOpen((v) => !v)}
           disabled={!!busy}
-          className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-40"
+          title={iconOnly ? t("builder.more") : undefined}
+          className={iconOnly
+            ? "group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors disabled:opacity-40"
+            : "inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-40"}
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
-          <span>أدوات</span>
+          {busy ? <Loader2 className={iconOnly ? "w-5 h-5 animate-spin" : "w-4 h-4 animate-spin"} /> : iconOnly ? <MoreHorizontal className="w-5 h-5" /> : <Wrench className="w-4 h-4" />}
+          {!iconOnly && <span>أدوات</span>}
+          {iconOnly && (
+            <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 ${dir === "rtl" ? "right-full mr-2" : "left-full ml-2"} whitespace-nowrap text-[11px] bg-slate-900 text-white px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-50`}>{t("builder.more")}</span>
+          )}
         </button>
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute left-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 text-right" dir="rtl">
+            <div className={`absolute ${iconOnly ? (dir === "rtl" ? "right-0" : "left-0") : "left-0"} mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 text-right`} dir="rtl">
               <div className="px-3 pt-1.5 pb-1.5 text-[11px] text-slate-400 uppercase tracking-wide flex items-center gap-1.5"><Languages className="w-3 h-3" /> لغة السيرة</div>
               <div className="flex gap-1.5 px-2 pb-2">
                 <button onClick={() => setLang("sv")} className="flex-1 text-[12px] px-2 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">Svenska</button>
@@ -86,7 +93,6 @@ export default function CVTools({ data, onApply }) {
               <div className="h-px bg-slate-100 my-1" />
               <Item icon={Briefcase} label="وظائف مقترحة (سويدية)" onClick={() => { setModal("jobsugg"); setOpen(false); }} />
               <Item icon={Scale} label="تخصيص للشركة (ثقافة)" onClick={() => { setModal("company"); setOpen(false); }} />
-              <Item icon={Target} label="مطابقة إعلان وظيفي" onClick={() => { setModal("job"); setOpen(false); }} />
               <Item icon={Mail} label="رسالة مقدمة (Personligt brev)" onClick={() => { setModal("cover"); setOpen(false); }} />
               <Item icon={CalendarRange} label="كشف فجوات التوظيف" onClick={() => { setModal("gap"); setOpen(false); }} />
               <Item icon={Award} label="مُحسّن الإنجازات" onClick={() => { setModal("achieve"); setOpen(false); }} />
@@ -108,7 +114,6 @@ export default function CVTools({ data, onApply }) {
         </div>
       )}
 
-      {modal === "job" && <JobMatchModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
       {modal === "cover" && <CoverLetterModal data={data} onClose={() => setModal(null)} />}
       {modal === "quality" && <QualityModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
       {modal === "jobsugg" && <JobSuggestionsModal data={data} onClose={() => setModal(null)} />}

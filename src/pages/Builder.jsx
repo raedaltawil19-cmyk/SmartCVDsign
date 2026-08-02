@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { emptyCV, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import { emptyCV, mergeCV, DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
-import CVTools from "@/components/tools/CVTools";
+import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, RefreshCw, Eye, X, LayoutGrid, Save } from "lucide-react";
+import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 
 const A4_W = 794;
@@ -31,8 +31,8 @@ export default function Builder() {
   const [showLayout, setShowLayout] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewScale, setPreviewScale] = useState(1);
+  const [mode, setMode] = useState("preview");
+  const [agentOpen, setAgentOpen] = useState(false);
   const panelRef = useRef(null);
   const [scale, setScale] = useState(0.6);
   const [currentCvId, setCurrentCvId] = useState(incoming?.cvId || paramCvId || null);
@@ -46,11 +46,6 @@ export default function Builder() {
   useEffect(() => {
     setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
   }, [templateId]);
-
-  const openPreview = () => {
-    setPreviewScale(Math.min(1, (window.innerWidth - 80) / A4_W));
-    setShowPreview(true);
-  };
 
   useEffect(() => {
     const el = panelRef.current;
@@ -221,30 +216,20 @@ export default function Builder() {
             <span>{t("builder.back")}</span>
           </button>
           <div className="flex items-center gap-2">
-            <select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white outline-none focus:border-[#1B4FD8]"
-            >
-              {TEMPLATES.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.namn}</option>)}
-            </select>
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">{t("builder.layout")}</span>
             </button>
-            <button onClick={regenerate} disabled={regenerating || processing} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-40">
-              {regenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              <span className="hidden sm:inline">{t("builder.improve")}</span>
-            </button>
-            <CVTools data={data} onApply={(d) => setData(d)} />
             <button onClick={() => setSaveOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Save className="w-4 h-4" />
               <span>{t("builder.save")}</span>
             </button>
-            <button onClick={openPreview} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <Eye className="w-4 h-4" />
-              <span>{t("builder.preview")}</span>
-            </button>
+            {mode === "edit" && (
+              <button onClick={() => setMode("preview")} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                <Eye className="w-4 h-4" />
+                <span>{t("builder.preview")}</span>
+              </button>
+            )}
             <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors">
               {authChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <span>{t("builder.pdf")}</span>
@@ -261,25 +246,42 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible">
-            <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
-              <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
-                <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                  <CVPreview templateId={templateId} data={data} editable={true} actions={actions} layout={layout} />
-                </div>
-                <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
-                  <div className="border-t-2 border-dashed border-rose-300/80" />
-                  <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">{t("builder.pageBoundary")}</span>
+          <>
+            <CVSideToolbar
+              mode={mode}
+              onManualEdit={() => setMode("edit")}
+              onToggleAgent={() => setAgentOpen((v) => !v)}
+              agentOpen={agentOpen}
+              onImprove={regenerate}
+              regenerating={regenerating}
+              processing={processing}
+              data={data}
+              onApply={(d) => setData(d)}
+              templateId={templateId}
+              onTemplateChange={setTemplateId}
+            />
+            <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible">
+              <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
+                <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
+                  <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
+                    <CVPreview templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
+                  </div>
+                  {mode === "edit" && (
+                    <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
+                      <div className="border-t-2 border-dashed border-rose-300/80" />
+                      <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">{t("builder.pageBoundary")}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
       <div className="print-notice">{t("builder.printLocked")}</div>
 
-      <CVAgent data={data} onApply={(d) => setData(d)} />
+      <CVAgent open={agentOpen} onClose={() => setAgentOpen(false)} data={data} onApply={(d) => setData(d)} />
 
       {showLayout && (
         <LayoutEditor
@@ -299,32 +301,6 @@ export default function Builder() {
         />
       )}
 
-      {showPreview && (
-        <div className="no-print fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col">
-          <div className="shrink-0 flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200">
-            <span className="font-medium text-slate-900">{t("builder.previewTitle")}</span>
-            <div className="flex items-center gap-2">
-              <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors">
-                <Download className="w-4 h-4" />
-                <span>{t("builder.downloadPdf")}</span>
-              </button>
-              <button onClick={() => setShowPreview(false)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <X className="w-4 h-4" />
-                <span>{t("builder.close")}</span>
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto p-6 flex justify-center bg-slate-100">
-            <div style={{ width: A4_W * previewScale, height: A4_H * previewScale }}>
-              <div style={{ transform: `scale(${previewScale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
-                <div className="bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                  <CVPreview templateId={templateId} data={data} editable={false} actions={actions} layout={layout} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
