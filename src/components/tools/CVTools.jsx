@@ -7,7 +7,8 @@ import QualityModal from "./QualityModal";
 import JobSuggestionsModal from "./JobSuggestionsModal";
 import ATSAnalyzerModal from "./ATSAnalyzerModal";
 import AchievementOptimizerModal from "./AchievementOptimizerModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award } from "lucide-react";
+import GapDetectorModal from "./GapDetectorModal";
+import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange } from "lucide-react";
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
@@ -94,6 +95,7 @@ export default function CVTools({ data, onApply }) {
               <Item icon={Briefcase} label="وظائف مقترحة (سويدية)" onClick={() => { setModal("jobsugg"); setOpen(false); }} />
               <Item icon={Target} label="مطابقة إعلان وظيفي" onClick={() => { setModal("job"); setOpen(false); }} />
               <Item icon={Mail} label="رسالة مقدمة (Personligt brev)" onClick={() => { setModal("cover"); setOpen(false); }} />
+              <Item icon={CalendarRange} label="كشف فجوات التوظيف" onClick={() => { setModal("gap"); setOpen(false); }} />
               <Item icon={Award} label="مُحسّن الإنجازات" onClick={() => { setModal("achieve"); setOpen(false); }} />
               <Item icon={Gauge} label="محلّل توافق ATS" onClick={() => { setModal("ats"); setOpen(false); }} />
               <Item icon={ShieldCheck} label="فحص جودة النص" onClick={() => { setModal("quality"); setOpen(false); }} />
@@ -116,6 +118,7 @@ export default function CVTools({ data, onApply }) {
       {modal === "jobsugg" && <JobSuggestionsModal data={data} onClose={() => setModal(null)} />}
       {modal === "ats" && <ATSAnalyzerModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
       {modal === "achieve" && <AchievementOptimizerModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
+      {modal === "gap" && <GapDetectorModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
     </>
   );
 }

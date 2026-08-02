@@ -147,6 +147,18 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
     },
 
+    /** Generate a professional Swedish explanation for an employment gap (no invented facts). */
+    async generateGapExplanation({ category, durationText, custom }) {
+      const prompt =
+        `Skriv en kort, professionell förklaring på svenska (1–2 meningar, första person) till ett karriäruppehåll.\n` +
+        `Kategori: ${category}\n` +
+        `Längd på uppehållet: ${durationText}\n` +
+        (custom ? `Användarens egna anteckning att väva in naturligt: "${custom}"\n` : "") +
+        `Regler: Formuleringen ska vara ärlig, naturlig och professionell. HITTA INGET på fakta — undvik specifika platser, årskurs eller program om de inte nämns i anteckningen. Om kategorin är Studier/Frilans/etc. får det beskrivas generellt. Returnera ENDAST meningen (ingen rubrik, inga citationstecken).`;
+      const res = await base44.integrations.Core.InvokeLLM({ prompt });
+      return typeof res === "string" ? res.trim() : String(res || "");
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =
