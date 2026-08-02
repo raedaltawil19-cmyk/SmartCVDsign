@@ -33,6 +33,19 @@ export default function Builder() {
   const [currentCvId, setCurrentCvId] = useState(incoming?.cvId || paramCvId || null);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [authChecking, setAuthChecking] = useState(false);
+
+  const persistDraft = () => {
+    sessionStorage.setItem("pending_cv", JSON.stringify({ data, templateId, layout }));
+  };
+  const nextUrl = () => window.location.pathname + window.location.search;
+  const guard = async () => {
+    const ok = await base44.auth.isAuthenticated();
+    if (ok) return true;
+    persistDraft();
+    base44.auth.redirectToLogin(nextUrl());
+    return false;
+  };
 
   useEffect(() => {
     setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
@@ -99,6 +112,21 @@ export default function Builder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (incoming?.text || incoming?.fileUrl || incoming?.cvId || paramCvId) return;
+    const pending = sessionStorage.getItem("pending_cv");
+    if (!pending) return;
+    try {
+      const p = JSON.parse(pending);
+      if (p.data) setData(mergeCV(p.data));
+      if (p.templateId) setTemplateId(p.templateId);
+      if (p.layout) setLayout(p.layout);
+      toast({ title: "أكمل ما بدأته", description: "تمت استعادة مسودة سيرتك بعد تسجيل الدخول." });
+    } catch (e) {}
+    sessionStorage.removeItem("pending_cv");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setField = (k, v) => setData((d) => ({ ...d, [k]: v }));
   const setContact = (k, v) => setData((d) => ({ ...d, kontakt: { ...d.kontakt, [k]: v } }));
   const setExp = (i, k, v) => setData((d) => { const a = [...d.erfarenhet]; a[i] = { ...a[i], [k]: v }; return { ...d, erfarenhet: a }; });
@@ -116,7 +144,12 @@ export default function Builder() {
 
   const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak };
 
-  const exportPDF = () => window.print();
+  const exportPDF = async () => {
+    setAuthChecking(true);
+    const ok = await guard();
+    setAuthChecking(false);
+    if (ok) window.print();
+  };
 
   const regenerate = async () => {
     const flat = JSON.stringify(data);
@@ -139,6 +172,12 @@ export default function Builder() {
     const titel = (name && name.trim()) || data.titel || "Min CV";
     setSaving(true);
     try {
+      const ok = await base44.auth.isAuthenticated();
+      if (!ok) {
+        persistDraft();
+        base44.auth.redirectToLogin(nextUrl());
+        return;
+      }
       const payload = { titel, data, templateId, layout };
       if (currentCvId) {
         await base44.entities.SavedCV.update(currentCvId, payload);
