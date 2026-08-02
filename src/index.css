@@ -98,6 +98,25 @@
 /* === Print === */
 @media print {
   .no-print { display: none !important; }
+  .cv-builder-root {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  .cv-builder-panel {
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+  .cv-scale-parent {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
   .cv-scale-wrapper {
     transform: none !important;
     width: 210mm !important;

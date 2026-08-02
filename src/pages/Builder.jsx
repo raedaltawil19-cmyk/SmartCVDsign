@@ -226,7 +226,7 @@ export default function Builder() {
   };
 
   return (
-    <div dir={dir} className="h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div dir={dir} className="cv-builder-root h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
         <div className="px-5 py-3 flex items-center justify-between gap-3">
           <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
@@ -264,7 +264,7 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <div ref={panelRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 flex">
+          <div ref={panelRef} className="cv-builder-panel flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 flex">
             <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30">
               <CVSideToolbar
                 mode={mode}
@@ -286,7 +286,7 @@ export default function Builder() {
                 onZoomFit={zoomFit}
               />
             </div>
-            <div style={{ width: A4_W * scale, height: contentH * scale }} className="m-auto">
+            <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
               <div ref={wrapperRef} className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
                 <CVPages templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
               </div>
