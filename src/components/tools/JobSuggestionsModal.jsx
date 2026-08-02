@@ -27,9 +27,13 @@ export default function JobSuggestionsModal({ data, onClose }) {
   const [regions, setRegions] = useState([]);     // selected county taxonomy ids
   const [municipalities, setMunicipalities] = useState([]); // selected municipality taxonomy ids
   const [locations, setLocations] = useState(null);
+  const [locationsLoading, setLocationsLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke("GetLocations").then(setLocations).catch(() => setLocations(null));
+    base44.functions.invoke("GetLocations")
+      .then((res) => setLocations(res?.data || res))
+      .catch(() => setLocations(null))
+      .finally(() => setLocationsLoading(false));
   }, []);
 
   const regionOptions = useMemo(() => (locations?.regions || []).map((r) => ({ id: r.id, label: r.label })), [locations]);
@@ -130,7 +134,7 @@ export default function JobSuggestionsModal({ data, onClose }) {
           </label>
 
           <div className="mt-4 space-y-3">
-            <MultiSelectFilter label="المقاطعة (län)" options={regionOptions} selected={regions} onChange={setRegions} placeholder="كل المقاطعات" />
+            <MultiSelectFilter label="المقاطعة (län)" options={regionOptions} selected={regions} onChange={setRegions} placeholder="كل المقاطعات" emptyText={locationsLoading ? "نجلب المقاطعات..." : "لا خيارات"} />
             <MultiSelectFilter
               label="البلدية (kommun)"
               options={municipalityOptions}
