@@ -51,6 +51,9 @@ const DICT = {
   "builder.changeTemplate": { ar: "تغيير القالب", sv: "Byt mall", en: "Change template" },
   "builder.matchJob": { ar: "مطابقة إعلان وظيفي", sv: "Matcha annons", en: "Match job ad" },
   "builder.more": { ar: "المزيد", sv: "Fler verktyg", en: "More" },
+  "builder.zoomIn": { ar: "تكبير", sv: "Zooma in", en: "Zoom in" },
+  "builder.zoomOut": { ar: "تصغير", sv: "Zooma ut", en: "Zoom out" },
+  "builder.fitWidth": { ar: "ملاءمة العرض", sv: "Anpassa bredd", en: "Fit width" },
 
   "corner.login": { ar: "دخول", sv: "Logga in", en: "Log in" },
   "corner.register": { ar: "حساب جديد", sv: "Skapa konto", en: "Sign up" },

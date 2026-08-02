@@ -34,7 +34,13 @@ export default function Builder() {
   const [mode, setMode] = useState("preview");
   const [agentOpen, setAgentOpen] = useState(false);
   const panelRef = useRef(null);
-  const [scale, setScale] = useState(0.6);
+  const [fitScale, setFitScale] = useState(0.6);
+  const [userZoom, setUserZoom] = useState(null);
+  const scale = userZoom ?? fitScale;
+  const zoomIn = () => setUserZoom((s) => Math.min(2, Math.round(((s ?? fitScale) + 0.1) * 10) / 10));
+  const zoomOut = () => setUserZoom((s) => Math.max(0.3, Math.round(((s ?? fitScale) - 0.1) * 10) / 10));
+  const zoomReset = () => setUserZoom(1);
+  const zoomFit = () => setUserZoom(null);
   const [currentCvId, setCurrentCvId] = useState(incoming?.cvId || paramCvId || null);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -50,7 +56,7 @@ export default function Builder() {
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    const update = () => setScale(Math.max(0.3, Math.min(1.5, (el.clientWidth - 48) / A4_W)));
+    const update = () => setFitScale(Math.max(0.3, Math.min(1.5, (el.clientWidth - 48) / A4_W)));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -260,6 +266,12 @@ export default function Builder() {
                 onApply={(d) => setData(d)}
                 templateId={templateId}
                 onTemplateChange={setTemplateId}
+                scale={scale}
+                isFit={userZoom === null}
+                onZoomIn={zoomIn}
+                onZoomOut={zoomOut}
+                onZoomReset={zoomReset}
+                onZoomFit={zoomFit}
               />
             </div>
             <div style={{ width: A4_W * scale, height: A4_H * scale }} className="print:w-auto print:h-auto">

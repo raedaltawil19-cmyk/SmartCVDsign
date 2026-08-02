@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n";
-import { Sparkles, Pencil, LayoutTemplate, Target, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, Pencil, LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize } from "lucide-react";
 import CVTools from "./CVTools";
 import JobMatchModal from "./JobMatchModal";
 import TemplatePickerModal from "./TemplatePickerModal";
@@ -17,6 +17,12 @@ export default function CVSideToolbar({
   onApply,
   templateId,
   onTemplateChange,
+  scale,
+  isFit,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+  onZoomFit,
 }) {
   const { t, dir } = useLanguage();
   const [jobOpen, setJobOpen] = useState(false);
@@ -40,7 +46,19 @@ export default function CVSideToolbar({
 
   return (
     <>
-      <div className="no-print shrink-0 w-14 flex flex-col items-center gap-1.5 py-3 bg-white rounded-2xl shadow-lg border border-slate-200">
+      <div className="no-print shrink-0 w-14 flex flex-col items-center gap-1 py-2 bg-white rounded-2xl shadow-lg border border-slate-200">
+        <div className="flex flex-col items-center gap-0.5">
+          <button onClick={onZoomIn} title={t("builder.zoomIn")} className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+            <Plus className="w-4 h-4" />
+          </button>
+          <button onClick={isFit ? onZoomReset : onZoomFit} title={isFit ? "100%" : t("builder.fitWidth")} className={`w-10 h-7 rounded-lg flex items-center justify-center text-[11px] font-semibold transition-colors ${isFit ? "text-slate-500 hover:bg-slate-100" : "bg-[#1B4FD8] text-white"}`}>
+            {isFit ? <Maximize className="w-3.5 h-3.5" /> : `${Math.round(scale * 100)}%`}
+          </button>
+          <button onClick={onZoomOut} title={t("builder.zoomOut")} className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+            <Minus className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="w-8 h-px bg-slate-200 my-0.5" />
         <Btn icon={Sparkles} label={t("builder.aiEdit")} onClick={onToggleAgent} active={agentOpen} />
         <Btn icon={Pencil} label={t("builder.manualEdit")} onClick={onManualEdit} active={mode === "edit"} />
         <Btn icon={LayoutTemplate} label={t("builder.changeTemplate")} onClick={() => setTplOpen(true)} />
