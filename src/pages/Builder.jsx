@@ -35,7 +35,7 @@ export default function Builder() {
   const [agentOpen, setAgentOpen] = useState(false);
   const panelRef = useRef(null);
   const [fitScale, setFitScale] = useState(0.6);
-  const [userZoom, setUserZoom] = useState(null);
+  const [userZoom, setUserZoom] = useState(1);
   const scale = userZoom ?? fitScale;
   const zoomIn = () => setUserZoom((s) => Math.min(2, Math.round(((s ?? fitScale) + 0.1) * 10) / 10));
   const zoomOut = () => setUserZoom((s) => Math.max(0.3, Math.round(((s ?? fitScale) - 0.1) * 10) / 10));
