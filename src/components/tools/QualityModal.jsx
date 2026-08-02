@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import { X, Loader2, ShieldCheck, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const SCHEMA = {
@@ -31,6 +31,7 @@ const SEV = {
 
 export default function QualityModal({ data, onApply, onClose }) {
   const { toast } = useToast();
+  const { llm } = useServices();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [applied, setApplied] = useState(false);
@@ -39,7 +40,7 @@ export default function QualityModal({ data, onApply, onClose }) {
     setBusy(true); setResult(null); setApplied(false);
     try {
       const prompt = `Granska följande CV (JSON) på svenska ur ett kvalitetsperspektiv.\n${JSON.stringify(data)}\n\nIdentifiera problem: AI-klyschor (t.ex. "passionerad", "mångsidig", "resultatorienterad", "drivs av"), passiva formuleringar, ospecifika beskrivningar, upprepningar, och uppenbara språkfel. Ange severity (high/medium/low), vilket fält det gäller, och ett kort meddelande. Beräkna score (0-100, högre = bättre). Skapa sedan en förbättrad version (cv) där problemen åtgärdats — men SAMMANFATTA INTE och FÖRKORTA INTE, bevara all information. Returnera JSON enligt schemat.`;
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: SCHEMA });
+      const res = await llm.completeJson({ prompt, schema: SCHEMA });
       setResult(res);
     } catch (e) {
       toast({ title: "Kunde inte granska", variant: "destructive" });

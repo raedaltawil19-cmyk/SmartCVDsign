@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import { X, Loader2, Briefcase, ExternalLink, Search, Sparkles, MapPin, Clock } from "lucide-react";
 
 function buildQuery(data) {
@@ -13,6 +13,7 @@ function buildQuery(data) {
 
 export default function JobSuggestionsModal({ data, onClose }) {
   const { toast } = useToast();
+  const { jobs: jobsService } = useServices();
   const [q, setQ] = useState(() => buildQuery(data));
   const [remote, setRemote] = useState(false);
   const [days, setDays] = useState(14);
@@ -25,7 +26,7 @@ export default function JobSuggestionsModal({ data, onClose }) {
     if (!q.trim()) { toast({ title: "أدخل كلمات البحث أولاً", variant: "destructive" }); return; }
     setFetching(true); setMatches(null);
     try {
-      const res = await base44.functions.invoke("SearchJobs", { q: q.trim(), remote, publishedDays: days, limit: 20 });
+      const res = await jobsService.search({ q: q.trim(), remote, publishedDays: days, limit: 20 });
       const list = res.data?.jobs || [];
       setJobs(list);
       if (list.length === 0) {
@@ -44,8 +45,7 @@ export default function JobSuggestionsModal({ data, onClose }) {
     setMatching(true);
     try {
       const jobsInput = list.map(j => ({ id: j.id, rubrik: j.rubrik, arbetsgivare: j.arbetsgivare, plats: [j.kommun, j.lan].filter(Boolean).join(", "), beskrivning: j.beskrivning.slice(0, 500), krav: j.erfarenhetKrav }));
-      const prompt = `Här är kandidatens CV som JSON:\n${JSON.stringify(data)}\n\nHär är en lista med svenska jobbannonser:\n${JSON.stringify(jobsInput)}\n\nBedöm hur väl kandidatens erfarenheter, färdigheter och profil matchar varje annons. Returnera en JSON-array där varje element har: id (motsvarande annonsens id), matchPercent (0-100), reason (en kort mening på svenska om varför det passar eller vad som saknas). Bevara ordningen för alla id. Returnera endast JSON.`;
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: { type: "object", properties: { results: { type: "array", items: { type: "object", properties: { id: { type: "string" }, matchPercent: { type: "number" }, reason: { type: "string" } } } } } } });
+      const res = await jobsService.rank(data, jobsInput);
       const arr = res.results || [];
       const byId = {};
       arr.forEach(r => { byId[r.id] = r; });

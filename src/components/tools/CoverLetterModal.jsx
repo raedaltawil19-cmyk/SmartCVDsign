@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import CoverLetterTemplate from "./CoverLetterTemplate";
 import { X, Loader2, Download, Mail } from "lucide-react";
 
@@ -14,6 +14,7 @@ const CL_SCHEMA = {
 
 export default function CoverLetterModal({ data, onClose }) {
   const { toast } = useToast();
+  const { llm } = useServices();
   const [ad, setAd] = useState("");
   const [busy, setBusy] = useState(false);
   const [letter, setLetter] = useState(null);
@@ -23,7 +24,7 @@ export default function CoverLetterModal({ data, onClose }) {
     setBusy(true);
     try {
       const prompt = `Skriv ett personligt brev på svenska baserat på följande CV (JSON):\n${JSON.stringify(data)}\n${ad ? `\nAnpassa brevet mot denna jobbannons:\n"""\n${ad}\n"""` : "Skriv ett generellt, professionellt brev."}\n\nBrevet ska vara varmt och mänskligt — inte stelt, utan AI-klyschor (undvik "passionerad", "mångsidig", "resultatorienterad"). 3–4 stycken i löpande form. Börja med rubriken "Personligt brev". Skilj stycken med dubbla radbrytningar (\\n\\n). Returnera JSON enligt schemat.`;
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: CL_SCHEMA });
+      const res = await llm.completeJson({ prompt, schema: CL_SCHEMA });
       setLetter(res);
     } catch (e) {
       toast({ title: "Kunde inte skapa brevet", variant: "destructive" });

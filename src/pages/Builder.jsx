@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
-import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import { emptyCV, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
 import CVTools from "@/components/tools/CVTools";
@@ -18,6 +18,7 @@ export default function Builder() {
   const navigate = useNavigate();
   const { cvId: paramCvId } = useParams();
   const { toast } = useToast();
+  const { llm, cvRepository, auth, export: exportSvc } = useServices();
   const incoming = location.state;
 
   const [data, setData] = useState(emptyCV);
@@ -35,17 +36,8 @@ export default function Builder() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(false);
 
-  const persistDraft = () => {
-    sessionStorage.setItem("pending_cv", JSON.stringify({ data, templateId, layout }));
-  };
   const nextUrl = () => window.location.pathname + window.location.search;
-  const guard = async () => {
-    const ok = await base44.auth.isAuthenticated();
-    if (ok) return true;
-    persistDraft();
-    base44.auth.redirectToLogin(nextUrl());
-    return false;
-  };
+  const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
 
   useEffect(() => {
     setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
@@ -69,19 +61,14 @@ export default function Builder() {
   const runProcess = useCallback(async (text, fileUrl) => {
     setProcessing(true);
     try {
-      const prompt = CV_PROCESS_PROMPT + "\n\nAnvändarens inmatning (kan vara på valfritt språk, arrangera och översätt till svenska):\n" + (text || "(se filen)");
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        file_urls: fileUrl ? [fileUrl] : undefined,
-        response_json_schema: CV_SCHEMA
-      });
-      setData(mergeCV(res));
+      const merged = await llm.processCV({ text, fileUrl });
+      setData(merged);
     } catch (e) {
       toast({ title: "Kunde inte läsa in informationen", description: "Försök igen eller redigera manuellt.", variant: "destructive" });
     } finally {
       setProcessing(false);
     }
-  }, [toast]);
+  }, [toast, llm]);
 
   useEffect(() => {
     if (incoming?.text || incoming?.fileUrl) {
@@ -96,7 +83,7 @@ export default function Builder() {
     (async () => {
       setProcessing(true);
       try {
-        const rec = await base44.entities.SavedCV.get(id);
+        const rec = await cvRepository.get(id);
         if (rec) {
           if (rec.data) setData(mergeCV(rec.data));
           if (rec.templateId) setTemplateId(rec.templateId);
@@ -114,16 +101,15 @@ export default function Builder() {
 
   useEffect(() => {
     if (incoming?.text || incoming?.fileUrl || incoming?.cvId || paramCvId) return;
-    const pending = sessionStorage.getItem("pending_cv");
-    if (!pending) return;
+    const p = auth.restoreDraft();
+    if (!p) return;
     try {
-      const p = JSON.parse(pending);
       if (p.data) setData(mergeCV(p.data));
       if (p.templateId) setTemplateId(p.templateId);
       if (p.layout) setLayout(p.layout);
       toast({ title: "أكمل ما بدأته", description: "تمت استعادة مسودة سيرتك بعد تسجيل الدخول." });
     } catch (e) {}
-    sessionStorage.removeItem("pending_cv");
+    auth.clearDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -148,18 +134,14 @@ export default function Builder() {
     setAuthChecking(true);
     const ok = await guard();
     setAuthChecking(false);
-    if (ok) window.print();
+    if (ok) exportSvc.print();
   };
 
   const regenerate = async () => {
-    const flat = JSON.stringify(data);
     setRegenerating(true);
     try {
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt: "Förbättra och förfina följande befintliga CV-innehåll på svenska. Gör det mer naturligt och konkret, ta bort eventuella klyschor — men SAMMANFATTA INTE och FÖRKORTA INTE: bevara ALL information, alla ansvarsområden och resultat i sin helhet.\n\n" + flat,
-        response_json_schema: CV_SCHEMA
-      });
-      setData(mergeCV(res));
+      const merged = await llm.regenerateCV(data);
+      setData(merged);
       toast({ title: "Förbättrat", description: "Texten har förfinats." });
     } catch (e) {
       toast({ title: "Kunde inte förbättra", variant: "destructive" });
@@ -172,19 +154,15 @@ export default function Builder() {
     const titel = (name && name.trim()) || data.titel || "Min CV";
     setSaving(true);
     try {
-      const ok = await base44.auth.isAuthenticated();
-      if (!ok) {
-        persistDraft();
-        base44.auth.redirectToLogin(nextUrl());
-        return;
-      }
+      const ok = await auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
+      if (!ok) return;
       const payload = { titel, data, templateId, layout };
       if (currentCvId) {
-        await base44.entities.SavedCV.update(currentCvId, payload);
+        await cvRepository.update(currentCvId, payload);
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
-        const rec = await base44.entities.SavedCV.create(payload);
+        const rec = await cvRepository.create(payload);
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
         toast({ title: "تم حفظ السيرة", description: titel });

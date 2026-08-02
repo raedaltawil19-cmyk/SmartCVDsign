@@ -7,6 +7,7 @@ import { AuthProvider } from '@/lib/AuthContext';
 import Home from '@/pages/Home';
 import Builder from '@/pages/Builder';
 import ScrollToTop from './components/ScrollToTop';
+import ServicesProvider from '@/providers/ServicesProvider';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -28,7 +29,9 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <ScrollToTop />
-          <AuthenticatedApp />
+          <ServicesProvider>
+            <AuthenticatedApp />
+          </ServicesProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>

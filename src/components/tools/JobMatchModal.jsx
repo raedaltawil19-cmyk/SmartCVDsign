@@ -2,6 +2,7 @@ import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import { X, Loader2, Target, CheckCircle2, AlertTriangle, Link2, FileText, Download as DownloadIcon } from "lucide-react";
 
 const SCHEMA = {
@@ -61,6 +62,7 @@ const STATUS = {
 
 export default function JobMatchModal({ data, onApply, onClose }) {
   const { toast } = useToast();
+  const { llm } = useServices();
   const [mode, setMode] = useState("text"); // "text" | "link"
   const [ad, setAd] = useState("");
   const [url, setUrl] = useState("");
@@ -105,7 +107,7 @@ export default function JobMatchModal({ data, onApply, onClose }) {
     setBusy(true); setResult(null); setApplied(false);
     try {
       const prompt = `Här är kandidatens CV som JSON:\n${JSON.stringify(data)}\n\nHär är en svensk jobbannons:\n"""\n${content}\n"""\n\nUtför en svensk ATS-analys:\n1. matchPercent: hur väl CV:t matchar annonsen (0-100).\n2. swedishKeywords: de viktigaste nyckelorden för den svenska arbetsmarknaden i denna annons (8–15), med importance (high/medium/low) och present (true om de finns i CV:t, false annars).\n3. requirements: annonsens konkreta krav/önskemål, var och en med status matched/partial/missing och en kort note om vad som matchar/saknas i kandidatens erfarenhet.\n4. weak: svaga formuleringar i CV:t som bör stärkas.\n5. cv: en uppdaterad version av CV:t som integrerar SAKNADE nyckelord NATURLIGT i befintliga erfarenheter — hitta inte på nya jobb, lägg endast till relevanta färdigheter som rimligen kan finnas. Bevara ALL information. SAMMANFATTA INTE.\nReturnera JSON enligt schemat.`;
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: SCHEMA });
+      const res = await llm.completeJson({ prompt, schema: SCHEMA });
       setResult(res);
     } catch (e) {
       toast({ title: "Kunde inte analysera", variant: "destructive" });

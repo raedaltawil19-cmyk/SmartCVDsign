@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { runCVTransform } from "@/lib/cvTransform";
-import { exportCVPNG } from "@/lib/exportImage";
 import { useToast } from "@/components/ui/use-toast";
+import { useServices } from "@/hooks/useServices";
 import JobMatchModal from "./JobMatchModal";
 import CoverLetterModal from "./CoverLetterModal";
 import QualityModal from "./QualityModal";
@@ -10,6 +9,7 @@ import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languag
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
+  const { llm, export: exportSvc } = useServices();
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState(null);
   const [busy, setBusy] = useState("");
@@ -18,7 +18,7 @@ export default function CVTools({ data, onApply }) {
     setBusy(label);
     setOpen(false);
     try {
-      const updated = await runCVTransform(data, instruction);
+      const updated = await llm.transformCV(data, instruction);
       onApply(updated);
       toast({ title: successMsg });
     } catch (e) {
@@ -46,7 +46,7 @@ export default function CVTools({ data, onApply }) {
     setOpen(false);
     setBusy("PNG");
     try {
-      await exportCVPNG("cv.png");
+      await exportSvc.exportPNG("cv.png");
       toast({ title: "PNG nedladdad" });
     } catch (e) {
       toast({ title: "Kunde inte exportera PNG", variant: "destructive" });
