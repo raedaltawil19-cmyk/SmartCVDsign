@@ -13,11 +13,11 @@ import SalaryAdvisorModal from "./SalaryAdvisorModal";
 import LinkedInImportModal from "./LinkedInImportModal";
 import CompanyTailoringModal from "./CompanyTailoringModal";
 import CourseAdvisorModal from "./CourseAdvisorModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale, GraduationCap } from "lucide-react";
+import { Wrench, Loader2, Target, Mail, ShieldCheck, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale, GraduationCap } from "lucide-react";
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
-  const { llm, export: exportSvc } = useServices();
+  const { llm } = useServices();
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState(null);
   const [busy, setBusy] = useState("");
@@ -48,19 +48,6 @@ export default function CVTools({ data, onApply }) {
       kort: "Gör texterna i hela CV:t mer koncisa — strama formuleringar, inga utfyllnader — UTAN att ta bort fakta eller information."
     };
     if (map[tone]) run("Bearbetar", map[tone], "Ton uppdaterad");
-  };
-
-  const png = async () => {
-    setOpen(false);
-    setBusy("PNG");
-    try {
-      await exportSvc.exportPNG("cv.png");
-      toast({ title: "PNG nedladdad" });
-    } catch (e) {
-      toast({ title: "Kunde inte exportera PNG", variant: "destructive" });
-    } finally {
-      setBusy("");
-    }
   };
 
   const Item = ({ icon: Icon, label, onClick }) => (
@@ -109,7 +96,6 @@ export default function CVTools({ data, onApply }) {
               <Item icon={Linkedin} label="استيراد من LinkedIn" onClick={() => { setModal("linkedin"); setOpen(false); }} />
               <Item icon={Gauge} label="محلّل توافق ATS" onClick={() => { setModal("ats"); setOpen(false); }} />
               <Item icon={ShieldCheck} label="فحص جودة النص" onClick={() => { setModal("quality"); setOpen(false); }} />
-              <Item icon={ImageIcon} label="تنزيل كصورة PNG" onClick={png} />
             </div>
           </>
         )}

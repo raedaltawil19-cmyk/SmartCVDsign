@@ -37,6 +37,40 @@ function MiniPreview({ id }) {
       </div>
     );
   }
+  if (id === "creative") {
+    return (
+      <div dir="ltr" className="w-full h-full bg-white flex flex-col" style={{ fontFamily: "system-ui" }}>
+        <div className="p-1.5" style={{ background: "#0d9488" }}>
+          <div className="h-1.5 w-14 bg-white rounded" />
+          <div className="h-1 w-10 bg-white/70 rounded mt-1" />
+        </div>
+        <div className="flex flex-1">
+          <div className="flex-1 p-2 space-y-1">
+            {[0.6, 0.4].map((w, i) => <div key={i} className="h-1 rounded bg-slate-200" style={{ width: `${w * 100}%` }} />)}
+          </div>
+          <div className="w-[35%] p-2 space-y-1.5" style={{ background: "#f0fdfa" }}>
+            {[0.8, 0.6].map((w, i) => <div key={i} className="h-1 rounded bg-teal-200" style={{ width: `${w * 100}%` }} />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (id === "nordic") {
+    return (
+      <div dir="ltr" className="w-full h-full bg-white p-3 flex flex-col" style={{ fontFamily: "system-ui" }}>
+        <div className="h-2 w-2/3 bg-slate-800 rounded-sm" />
+        <div className="h-1 w-1/3 bg-slate-300 rounded mt-1" />
+        <div className="h-px w-full bg-slate-200 my-2.5" />
+        <div className="space-y-1.5">
+          {[0.7, 0.5, 0.6].map((w, i) => <div key={i} className="h-1 rounded bg-slate-200" style={{ width: `${w * 100}%` }} />)}
+        </div>
+        <div className="h-px w-full bg-slate-200 my-2.5" />
+        <div className="space-y-1.5">
+          {[0.6, 0.4].map((w, i) => <div key={i} className="h-1 rounded bg-slate-200" style={{ width: `${w * 100}%` }} />)}
+        </div>
+      </div>
+    );
+  }
   return (
     <div dir="ltr" className="w-full h-full bg-white flex" style={{ fontFamily: "system-ui" }}>
       <div className="w-1/3 bg-slate-50 p-2 space-y-1">

@@ -84,7 +84,9 @@ Returnera endast giltig JSON enligt schemat.`;
 export const TEMPLATES = [
   { id: "stockholm", namn: "Stockholm", tagline: "Skandinavisk, luftig och ATS-vänlig" },
   { id: "executive", namn: "Executive", tagline: "Exklusiv och hierarkisk" },
-  { id: "techpro", namn: "Tech Pro", tagline: "Kompakt med kompetensstaplar" }
+  { id: "techpro", namn: "Tech Pro", tagline: "Kompakt med kompetensstaplar" },
+  { id: "creative", namn: "Creative Edge", tagline: "Färgstark och modern" },
+  { id: "nordic", namn: "Nordic Minimal", tagline: "Minimal, luftig och elegant" }
 ];
 
 export const SECTIONS = [
@@ -98,7 +100,9 @@ export const SECTIONS = [
 export const DEFAULT_LAYOUTS = {
   stockholm: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
   executive: { main: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], sidebar: [] },
-  techpro: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] }
+  techpro: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+  creative: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+  nordic: { main: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], sidebar: [] }
 };
 
 export function normalizeLayout(layout, templateId) {

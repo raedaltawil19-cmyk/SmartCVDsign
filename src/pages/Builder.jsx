@@ -245,7 +245,7 @@ export default function Builder() {
       {showLayout && (
         <LayoutEditor
           layout={layout}
-          hasSidebar={templateId !== "executive"}
+          hasSidebar={templateId !== "executive" && templateId !== "nordic"}
           onChange={setLayout}
           onClose={() => setShowLayout(false)}
         />
