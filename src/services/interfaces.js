@@ -40,6 +40,7 @@ export const LLM_INTERFACE = defineInterface(PORT.LLM, [
   "estimateSalary",
   "importLinkedIn",
   "tailorCompany",
+  "recommendCourses",
 ]);
 
 export const CV_REPOSITORY_INTERFACE = defineInterface(PORT.CV_REPOSITORY, [

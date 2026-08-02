@@ -367,6 +367,40 @@ export function createLLMService() {
       return { culture: res?.culture, cv: res?.cv || {}, changes: res?.changes || [] };
     },
 
+    /** Recommend real online courses to address a set of weak skills for a role. */
+    async recommendCourses({ jobTitle, weakSkills }) {
+      const schema = {
+        type: "object",
+        properties: {
+          courses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                provider: { type: "string" },
+                url: { type: "string" },
+                level: { type: "string", enum: ["Nybörjare", "Medel", "Avancerad"] },
+                reason: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+      const prompt =
+        `Rekommendera 3–6 konkreta, verifierbara onlinekurser som adresserar specifika svaga färdigheter för en "${jobTitle || "yrkesverksam"}" på den svenska arbetsmarknaden.\n` +
+        `Svaga färdigheter att täcka: ${(weakSkills && weakSkills.length ? weakSkills.join(", ") : "allmän branschrelevant kompetens")}.\n\n` +
+        `För varje kurs: title, provider (t.ex. Coursera, edX, Udemy, LinkedIn Learning, Pluralsight, Khan Academy), url (riktig kurslänk om känd), level, reason (svenska, 1 mening varför den hjälper för denna roll/färdighet).\n` +
+        `Returnera giltig JSON enligt schemat. Hitta INTE på plattformar som inte finns — håll dig till välkända plattformar.`;
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: schema,
+        add_context_from_internet: true,
+        model: "gemini_3_flash",
+      });
+      return res?.courses || [];
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =
