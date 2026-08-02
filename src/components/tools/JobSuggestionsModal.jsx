@@ -134,7 +134,7 @@ export default function JobSuggestionsModal({ data, onClose }) {
           </label>
 
           <div className="mt-4 space-y-3">
-            <MultiSelectFilter label="المقاطعة (län)" options={regionOptions} selected={regions} onChange={setRegions} placeholder="كل المقاطعات" emptyText={locationsLoading ? "نجلب المقاطعات..." : "لا خيارات"} />
+            <MultiSelectFilter label="المقاطعة (län)" options={regionOptions} selected={regions} onChange={setRegions} placeholder="كل المقاطعات" emptyText={locationsLoading ? "نجلب المقاطعات..." : "لا خيارات"} selectAllLabel="تحديد كل المقاطعات" />
             <MultiSelectFilter
               label="البلدية (kommun)"
               options={municipalityOptions}
@@ -142,6 +142,7 @@ export default function JobSuggestionsModal({ data, onClose }) {
               onChange={setMunicipalities}
               placeholder="كل البلديات"
               emptyText={regionLanCodes.size ? "لا بلديات في هذه المقاطعات" : "لا بلديات"}
+              selectAllLabel="تحديد كل البلديات المرتبطة"
             />
             {regionLanCodes.size > 0 && (
               <p className="text-[11px] text-slate-400 leading-relaxed">البلديات معروضة حسب المقاطعات المختارة. أفرغ المقاطعات لعرض كل السويد.</p>

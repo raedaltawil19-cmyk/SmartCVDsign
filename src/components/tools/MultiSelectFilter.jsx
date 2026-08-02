@@ -6,7 +6,7 @@ import { ChevronDown, Check, Search, X } from "lucide-react";
  * options: [{ id, label, groupLabel? }]
  * selected: string[] of ids
  */
-export default function MultiSelectFilter({ label, options, selected, onChange, placeholder = "اختر...", emptyText = "لا خيارات" }) {
+export default function MultiSelectFilter({ label, options, selected, onChange, placeholder = "اختر...", emptyText = "لا خيارات", selectAllLabel }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef(null);
@@ -29,6 +29,16 @@ export default function MultiSelectFilter({ label, options, selected, onChange, 
   };
 
   const count = selected.length;
+
+  const allFilteredIds = filtered.map((o) => o.id);
+  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.includes(id));
+  const toggleAll = () => {
+    if (allSelected) {
+      onChange(selected.filter((id) => !allFilteredIds.includes(id)));
+    } else {
+      onChange(Array.from(new Set([...selected, ...allFilteredIds])));
+    }
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -74,6 +84,17 @@ export default function MultiSelectFilter({ label, options, selected, onChange, 
           </div>
           <div className="max-h-56 overflow-auto">
             {filtered.length === 0 && <div className="text-[12px] text-slate-400 text-center py-3">{emptyText}</div>}
+            {selectAllLabel && filtered.length > 0 && (
+              <button
+                onClick={toggleAll}
+                className="w-full flex items-center gap-2 text-right px-2 py-1.5 rounded-lg hover:bg-slate-50 text-[12px] font-medium text-[#1B4FD8] border-b border-slate-100 mb-1"
+              >
+                <span className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${allSelected ? "bg-[#1B4FD8] border-[#1B4FD8]" : "border-[#1B4FD8]"}`}>
+                  {allSelected && <Check className="w-3 h-3 text-white" />}
+                </span>
+                <span>{allSelected ? "إلغاء تحديد الكل" : selectAllLabel}</span>
+              </button>
+            )}
             {filtered.map((o) => {
               const sel = selected.includes(o.id);
               return (
