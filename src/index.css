@@ -107,14 +107,14 @@
   }
   /* Hide everything; show only print area */
   body * { visibility: hidden; }
-  .cv-print-area, .cv-print-area * { visibility: visible; }
+  .cv-print-area, .cv-print-area * { visibility: visible !important; }
   .no-print { display: none !important; }
 
   /* Cover letter mode */
-  .cl-print-area, .cl-print-area * { visibility: visible; }
+  .cl-print-area, .cl-print-area * { visibility: visible !important; }
   body.cl-mode .cv-print-area, body.cl-mode .cv-print-area * { visibility: hidden !important; }
   .cl-print-area {
-    position: fixed !important;
+    position: absolute !important;
     left: 0 !important; top: 0 !important;
     width: 210mm !important;
     min-height: 297mm !important;
@@ -123,11 +123,10 @@
     overflow: visible !important;
   }
 
-  /* CV print area: fixed overlay, no scale, full A4 width */
+  /* CV print area: absolute (NOT fixed) so content flows across pages */
   .cv-print-area {
     display: block !important;
-    visibility: visible !important;
-    position: fixed !important;
+    position: absolute !important;
     left: 0 !important; top: 0 !important;
     width: 210mm !important;
     min-height: 297mm !important;
@@ -135,10 +134,9 @@
     box-shadow: none !important;
     overflow: visible !important;
     background: white !important;
-    z-index: 9999 !important;
   }
 
-  /* Kill the preview scale wrapper */
+  /* Kill the preview scale wrapper transform */
   .cv-scale-wrapper {
     transform: none !important;
     width: auto !important;

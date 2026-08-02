@@ -47,8 +47,8 @@ export default function CVPages({ templateId, data, editable, actions, layout, m
         ))}
       </div>
 
-      {/* ── Print only: full-width, no transform — hidden on screen via CSS visibility ── */}
-      <div className="cv-print-area" style={{ position: "absolute", top: 0, left: 0, visibility: "hidden", pointerEvents: "none" }}>
+      {/* ── Print only: hidden on screen (display:none), shown in print (display:block) ── */}
+      <div className="cv-print-area hidden print:block" style={{ width: A4_W }}>
         <CVPreview templateId={templateId} data={data} editable={false} actions={actions} layout={layout} />
       </div>
     </>
