@@ -78,7 +78,7 @@ export default function CVTools({ data, onApply, iconOnly = false }) {
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className={`absolute ${iconOnly ? (dir === "rtl" ? "right-0" : "left-0") : "left-0"} mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 text-right`} dir="rtl">
+            <div className={`absolute ${iconOnly ? (dir === "rtl" ? "right-0" : "left-0") : "left-0"} mt-2 w-72 max-h-[80vh] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 text-right`} dir="rtl">
               <div className="px-3 pt-1.5 pb-1.5 text-[11px] text-slate-400 uppercase tracking-wide flex items-center gap-1.5"><Languages className="w-3 h-3" /> لغة السيرة</div>
               <div className="flex gap-1.5 px-2 pb-2">
                 <button onClick={() => setLang("sv")} className="flex-1 text-[12px] px-2 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">Svenska</button>
