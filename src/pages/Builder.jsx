@@ -5,6 +5,7 @@ import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES } from "@/lib
 import { useToast } from "@/components/ui/use-toast";
 import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
+import CVTools from "@/components/tools/CVTools";
 import { ArrowRight, Download, Loader2, RefreshCw, Eye, X } from "lucide-react";
 
 const A4_W = 794;
@@ -120,6 +121,7 @@ export default function Builder() {
               {regenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               <span className="hidden sm:inline">حسّن</span>
             </button>
+            <CVTools data={data} onApply={(d) => setData(d)} />
             <button onClick={openPreview} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Eye className="w-4 h-4" />
               <span>معاينة</span>
@@ -142,9 +144,13 @@ export default function Builder() {
         {!processing && (
           <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible">
             <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
-              <div className="cv-scale-wrapper" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
+              <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
                 <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
                   <CVPreview templateId={templateId} data={data} editable={true} actions={actions} />
+                </div>
+                <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
+                  <div className="border-t-2 border-dashed border-rose-300/80" />
+                  <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">— حدود الصفحة —</span>
                 </div>
               </div>
             </div>

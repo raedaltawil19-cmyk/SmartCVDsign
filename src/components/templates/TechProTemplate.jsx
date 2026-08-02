@@ -31,7 +31,7 @@ export default function TechProTemplate({ data: d, editable, actions }) {
             <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>Arbetslivserfarenhet</h2>
             <div className="space-y-5">
               {d.erfarenhet.map((e, i) => (
-                <div key={i} className="relative">
+                <div key={i} className="relative cv-keep">
                   <div className="flex justify-between items-baseline gap-3">
                     <h3 className="text-[13.5px] font-bold text-slate-900"><EditText value={e.roll} editable={editable} onChange={(v) => actions.setExp(i, "roll", v)} placeholder="Roll" /></h3>
                     <span className="text-[11px] px-2 py-0.5 rounded text-white font-medium whitespace-nowrap" style={{ background: BLUE }}><EditText value={e.period} editable={editable} onChange={(v) => actions.setExp(i, "period", v)} placeholder="Period" /></span>
@@ -48,7 +48,7 @@ export default function TechProTemplate({ data: d, editable, actions }) {
             <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>Utbildning</h2>
             <div className="space-y-4">
               {d.utbildning.map((u, i) => (
-                <div key={i} className="relative">
+                <div key={i} className="relative cv-keep">
                   <div className="flex justify-between items-baseline gap-3">
                     <h3 className="text-[13px] font-bold text-slate-900"><EditText value={u.examen} editable={editable} onChange={(v) => actions.setEdu(i, "examen", v)} placeholder="Examen" /></h3>
                     <span className="text-[11px] text-slate-400 whitespace-nowrap"><EditText value={u.period} editable={editable} onChange={(v) => actions.setEdu(i, "period", v)} placeholder="Period" /></span>
@@ -67,7 +67,7 @@ export default function TechProTemplate({ data: d, editable, actions }) {
             <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3" style={{ color: BLUE }}>Färdigheter</h2>
             <div className="space-y-3">
               {d.fardigheter.map((f, i) => (
-                <div key={i} className="relative">
+                <div key={i} className="relative cv-keep">
                   <div className="flex items-center justify-between mb-1">
                     <EditText value={f.namn} editable={editable} onChange={(v) => actions.setSkill(i, "namn", v)} className="text-[12px] font-medium text-slate-700" placeholder="Färdighet" />
                     {editable && <button onClick={() => actions.removeSkill(i)} className="no-print"><X className="w-3 h-3 text-slate-300" /></button>}

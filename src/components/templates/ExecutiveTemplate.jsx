@@ -37,7 +37,7 @@ export default function ExecutiveTemplate({ data: d, editable, actions }) {
           <h2 className="text-[11px] tracking-[0.3em] uppercase font-semibold mb-4 text-center pb-2 border-b border-slate-200" style={{ color: GOLD }}>Arbetslivserfarenhet</h2>
           <div className="space-y-6">
             {d.erfarenhet.map((e, i) => (
-              <div key={i} className="relative text-center">
+              <div key={i} className="relative text-center cv-keep">
                 <h3 className="text-[15px] font-semibold text-slate-900"><EditText value={e.roll} editable={editable} onChange={(v) => actions.setExp(i, "roll", v)} placeholder="Roll" /></h3>
                 <div className="text-[12.5px] text-slate-500 italic"><EditText value={e.foretag} editable={editable} onChange={(v) => actions.setExp(i, "foretag", v)} placeholder="Företag" /></div>
                 <div className="text-[11.5px] mb-1" style={{ color: GOLD }}><EditText value={e.period} editable={editable} onChange={(v) => actions.setExp(i, "period", v)} placeholder="Period" /></div>
@@ -53,7 +53,7 @@ export default function ExecutiveTemplate({ data: d, editable, actions }) {
           <h2 className="text-[11px] tracking-[0.3em] uppercase font-semibold mb-4 text-center pb-2 border-b border-slate-200" style={{ color: GOLD }}>Utbildning</h2>
           <div className="space-y-5">
             {d.utbildning.map((u, i) => (
-              <div key={i} className="relative text-center">
+              <div key={i} className="relative text-center cv-keep">
                 <h3 className="text-[15px] font-semibold text-slate-900"><EditText value={u.examen} editable={editable} onChange={(v) => actions.setEdu(i, "examen", v)} placeholder="Examen" /></h3>
                 <div className="text-[12.5px] text-slate-500 italic"><EditText value={u.skola} editable={editable} onChange={(v) => actions.setEdu(i, "skola", v)} placeholder="Skola" /></div>
                 <div className="text-[11.5px] mb-1" style={{ color: GOLD }}><EditText value={u.period} editable={editable} onChange={(v) => actions.setEdu(i, "period", v)} placeholder="Period" /></div>

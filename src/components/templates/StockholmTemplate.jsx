@@ -55,7 +55,7 @@ export default function StockholmTemplate({ data: d, editable, actions }) {
           <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-3">Arbetslivserfarenhet</h2>
           <div className="space-y-5">
             {d.erfarenhet.map((e, i) => (
-              <div key={i} className="relative">
+              <div key={i} className="relative cv-keep">
                 <div className="flex justify-between items-baseline gap-3">
                   <h3 className="text-[14px] font-semibold text-slate-900"><EditText value={e.roll} editable={editable} onChange={(v) => actions.setExp(i, "roll", v)} placeholder="Roll" /></h3>
                   <span className="text-[11.5px] text-slate-400 whitespace-nowrap"><EditText value={e.period} editable={editable} onChange={(v) => actions.setExp(i, "period", v)} placeholder="Period" /></span>
@@ -72,7 +72,7 @@ export default function StockholmTemplate({ data: d, editable, actions }) {
           <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-3">Utbildning</h2>
           <div className="space-y-4">
             {d.utbildning.map((u, i) => (
-              <div key={i} className="relative">
+              <div key={i} className="relative cv-keep">
                 <div className="flex justify-between items-baseline gap-3">
                   <h3 className="text-[14px] font-semibold text-slate-900"><EditText value={u.examen} editable={editable} onChange={(v) => actions.setEdu(i, "examen", v)} placeholder="Examen" /></h3>
                   <span className="text-[11.5px] text-slate-400 whitespace-nowrap"><EditText value={u.period} editable={editable} onChange={(v) => actions.setEdu(i, "period", v)} placeholder="Period" /></span>
