@@ -46,7 +46,7 @@ export default function CVSideToolbar({
 
   return (
     <>
-      <div className="no-print shrink-0 w-14 flex flex-col items-center gap-1 py-2 bg-white rounded-2xl shadow-lg border border-slate-200">
+      <div className="no-print shrink-0 w-14 flex flex-col items-center gap-1 py-2 bg-white rounded-2xl shadow-lg border border-slate-200 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="flex flex-col items-center gap-0.5">
           <button onClick={onZoomIn} title={t("builder.zoomIn")} className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <Plus className="w-4 h-4" />
