@@ -87,6 +87,30 @@ export const TEMPLATES = [
   { id: "techpro", namn: "Tech Pro", tagline: "Kompakt med kompetensstaplar" }
 ];
 
+export const SECTIONS = [
+  { key: "profil", label: "Profil" },
+  { key: "erfarenhet", label: "Arbetslivserfarenhet" },
+  { key: "utbildning", label: "Utbildning" },
+  { key: "fardigheter", label: "Färdigheter" },
+  { key: "sprak", label: "Språk" }
+];
+
+export const DEFAULT_LAYOUTS = {
+  stockholm: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+  executive: { main: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], sidebar: [] },
+  techpro: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] }
+};
+
+export function normalizeLayout(layout, templateId) {
+  const def = DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm;
+  const valid = new Set(SECTIONS.map(s => s.key));
+  const clean = { main: (layout?.main || def.main).filter(k => valid.has(k)), sidebar: (layout?.sidebar || def.sidebar).filter(k => valid.has(k)) };
+  const placed = new Set([...clean.main, ...clean.sidebar]);
+  for (const k of def.main) if (!placed.has(k)) { clean.main.push(k); placed.add(k); }
+  for (const k of def.sidebar) if (!placed.has(k)) { clean.sidebar.push(k); placed.add(k); }
+  return clean;
+}
+
 export function mergeCV(res) {
   const r = res || {};
   return {

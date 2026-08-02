@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES } from "@/lib/cvModel";
+import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
 import CVTools from "@/components/tools/CVTools";
-import { ArrowRight, Download, Loader2, RefreshCw, Eye, X } from "lucide-react";
+import LayoutEditor from "@/components/tools/LayoutEditor";
+import { ArrowRight, Download, Loader2, RefreshCw, Eye, X, LayoutGrid } from "lucide-react";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -19,12 +20,18 @@ export default function Builder() {
 
   const [data, setData] = useState(emptyCV);
   const [templateId, setTemplateId] = useState(incoming?.templateId || "stockholm");
+  const [layout, setLayout] = useState(() => DEFAULT_LAYOUTS[incoming?.templateId || "stockholm"] || DEFAULT_LAYOUTS.stockholm);
+  const [showLayout, setShowLayout] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
   const panelRef = useRef(null);
   const [scale, setScale] = useState(0.6);
+
+  useEffect(() => {
+    setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
+  }, [templateId]);
 
   const openPreview = () => {
     setPreviewScale(Math.min(1, (window.innerWidth - 80) / A4_W));
@@ -117,6 +124,10 @@ export default function Builder() {
             >
               {TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.namn}</option>)}
             </select>
+            <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">ترتيب</span>
+            </button>
             <button onClick={regenerate} disabled={regenerating || processing} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-40">
               {regenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               <span className="hidden sm:inline">حسّن</span>
@@ -146,7 +157,7 @@ export default function Builder() {
             <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
               <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
                 <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                  <CVPreview templateId={templateId} data={data} editable={true} actions={actions} />
+                  <CVPreview templateId={templateId} data={data} editable={true} actions={actions} layout={layout} />
                 </div>
                 <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
                   <div className="border-t-2 border-dashed border-rose-300/80" />
@@ -159,6 +170,15 @@ export default function Builder() {
       </div>
 
       <CVAgent data={data} onApply={(d) => setData(d)} />
+
+      {showLayout && (
+        <LayoutEditor
+          layout={layout}
+          hasSidebar={templateId !== "executive"}
+          onChange={setLayout}
+          onClose={() => setShowLayout(false)}
+        />
+      )}
 
       {showPreview && (
         <div className="no-print fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col">
@@ -179,7 +199,7 @@ export default function Builder() {
             <div style={{ width: A4_W * previewScale, height: A4_H * previewScale }}>
               <div style={{ transform: `scale(${previewScale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
                 <div className="bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                  <CVPreview templateId={templateId} data={data} editable={false} actions={actions} />
+                  <CVPreview templateId={templateId} data={data} editable={false} actions={actions} layout={layout} />
                 </div>
               </div>
             </div>
