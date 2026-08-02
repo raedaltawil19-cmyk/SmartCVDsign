@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
-import CVPreview from "@/components/CVPreview";
+import CVPages from "@/components/CVPages";
 import CVAgent from "@/components/CVAgent";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
@@ -34,6 +34,8 @@ export default function Builder() {
   const [mode, setMode] = useState("preview");
   const [agentOpen, setAgentOpen] = useState(false);
   const panelRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [contentH, setContentH] = useState(A4_H);
   const [fitScale, setFitScale] = useState(0.6);
   const [userZoom, setUserZoom] = useState(1);
   const scale = userZoom ?? fitScale;
@@ -62,6 +64,16 @@ export default function Builder() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [processing]);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const update = () => setContentH(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data, mode, templateId, layout, processing]);
 
   const runProcess = useCallback(async (text, fileUrl) => {
     setProcessing(true);
@@ -274,11 +286,9 @@ export default function Builder() {
                 onZoomFit={zoomFit}
               />
             </div>
-            <div style={{ width: A4_W * scale, height: A4_H * scale }} className="print:w-auto print:h-auto">
-              <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
-                <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                  <CVPreview templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
-                </div>
+            <div style={{ width: A4_W * scale, height: contentH * scale }} className="print:w-auto print:h-auto">
+              <div ref={wrapperRef} className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
+                <CVPages templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} mode={mode} />
                 {mode === "edit" && (
                   <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
                     <div className="border-t-2 border-dashed border-rose-300/80" />
