@@ -159,6 +159,65 @@ export function createLLMService() {
       return typeof res === "string" ? res.trim() : String(res || "");
     },
 
+    /** Interview Assistant — generate expected questions + suggested answers + questions to ask the employer. */
+    async generateInterviewPrep({ cv, jobAd, difficulty, language }) {
+      const langName = language === "en" ? "English" : "Swedish (svenska)";
+      const diffMap = { easy: "Lätt / Easy — introduktionsnivå, avsedd för att värma upp.", medium: "Medium — standardnivå för en kvalificerad kandidat.", advanced: "Avancerad / Advanced — djupa, tekniska och strategiska frågor för seniora roller." };
+      const schema = {
+        type: "object",
+        properties: {
+          behavioral: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                question: { type: "string" },
+                suggestedAnswer: { type: "string" },
+              },
+            },
+          },
+          technical: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                question: { type: "string" },
+                suggestedAnswer: { type: "string" },
+              },
+            },
+          },
+          general: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                question: { type: "string" },
+                suggestedAnswer: { type: "string" },
+              },
+            },
+          },
+          questionsToAsk: {
+            type: "array",
+            items: { type: "string" },
+          },
+        },
+      };
+      const prompt =
+        `Du är en erfaren rekryterare och intervjukoordinator. Förbered en intervjuträning baserad på kandidatens CV och en jobbannons.\n\n` +
+        `Allt innehåll ska vara på ${langName}.\n` +
+        `Svårighetsgrad: ${diffMap[difficulty] || diffMap.medium}\n\n` +
+        `CV (JSON):\n${JSON.stringify(cv)}\n\n` +
+        (jobAd ? `Jobbannons:\n${jobAd}\n\n` : "") +
+        `Regler:\n` +
+        `- Förslagna svar ska vara förstagperson, professionella och bygga plausibelt på kandidatens faktiska erfarenhet i CV:t. HITTA INGET på fakta som inte finns — referera hellre generellt eller använd typiska exempel.\n` +
+        `- Generera 3–5 "behavioral"-frågor (övrigt om musik- och situationsbaserade frågor).\n` +
+        `- Generera 3–5 tekniska frågor relaterade till de färdigheter och roller som framgår av CV:t (om CV:t är icke-tekniskt, gör dem branschspecifika/professionella).\n` +
+        `- Generera 2–3 allmänna/öppningsfrågor ("Berätta om dig själv", motivation, etc.).\n` +
+        `- Generera 4–6 väl genomtänkta frågor som kandidaten bör ställa till arbetsgivaren (questionsToAsk) — korta, professionella strängar.\n` +
+        `Returnera giltig JSON enligt schemat. Alla textfält på ${langName}.`;
+      return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =
