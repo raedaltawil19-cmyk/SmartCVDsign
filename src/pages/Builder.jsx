@@ -37,7 +37,7 @@ export default function Builder() {
   const wrapperRef = useRef(null);
   const [contentH, setContentH] = useState(A4_H);
   const [fitScale, setFitScale] = useState(0.6);
-  const [userZoom, setUserZoom] = useState(1);
+  const [userZoom, setUserZoom] = useState(null);
   const scale = userZoom ?? fitScale;
   const zoomIn = () => setUserZoom((s) => Math.min(2, Math.round(((s ?? fitScale) + 0.1) * 10) / 10));
   const zoomOut = () => setUserZoom((s) => Math.max(0.3, Math.round(((s ?? fitScale) - 0.1) * 10) / 10));
@@ -264,7 +264,7 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible flex">
+          <div ref={panelRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible flex">
             <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30 print:hidden">
               <CVSideToolbar
                 mode={mode}

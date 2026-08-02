@@ -138,6 +138,8 @@
 }
 
 .cv-print-area .cv-keep { break-inside: avoid; }
+.cv-print-area h1, .cv-print-area h2, .cv-print-area h3, .cv-print-area h4 { break-after: avoid; }
+.cv-print-area p, .cv-print-area li { break-inside: avoid; }
 
 .print-notice { display: none; }
 @media print {
