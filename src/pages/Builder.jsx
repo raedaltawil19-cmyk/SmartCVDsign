@@ -55,7 +55,7 @@ export default function Builder() {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [processing]);
 
   const runProcess = useCallback(async (text, fileUrl) => {
     setProcessing(true);
