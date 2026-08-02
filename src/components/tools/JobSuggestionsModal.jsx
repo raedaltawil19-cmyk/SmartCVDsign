@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
+import { base44 } from "@/api/base44Client";
+import MultiSelectFilter from "./MultiSelectFilter";
 import { X, Loader2, Briefcase, ExternalLink, Search, Sparkles, MapPin, Clock } from "lucide-react";
 
 function buildQuery(data) {
@@ -22,12 +24,32 @@ export default function JobSuggestionsModal({ data, onClose }) {
   const [matching, setMatching] = useState(false);
   const [jobs, setJobs] = useState(null);   // raw ads
   const [matches, setMatches] = useState(null); // ranked with score
+  const [regions, setRegions] = useState([]);     // selected county taxonomy ids
+  const [municipalities, setMunicipalities] = useState([]); // selected municipality taxonomy ids
+  const [locations, setLocations] = useState(null);
+
+  useEffect(() => {
+    base44.functions.invoke("GetLocations").then(setLocations).catch(() => setLocations(null));
+  }, []);
+
+  const regionOptions = useMemo(() => (locations?.regions || []).map((r) => ({ id: r.id, label: r.label })), [locations]);
+  const regionLanCodes = useMemo(() => {
+    const set = new Set();
+    (locations?.regions || []).forEach((r) => { if (regions.includes(r.id)) set.add(r.lanCode); });
+    return set;
+  }, [locations, regions]);
+  const municipalityOptions = useMemo(() => {
+    const all = locations?.municipalities || [];
+    const list = regionLanCodes.size ? all.filter((m) => regionLanCodes.has(m.lanCode)) : all;
+    const regionLabel = (lan) => (locations?.regions || []).find((r) => r.lanCode === lan)?.label || "";
+    return list.map((m) => ({ id: m.id, label: m.label, groupLabel: regionLabel(m.lanCode) }));
+  }, [locations, regionLanCodes]);
 
   const search = async () => {
     if (!q.trim()) { toast({ title: "أدخل كلمات البحث أولاً", variant: "destructive" }); return; }
     setFetching(true); setMatches(null);
     try {
-      const res = await jobsService.search({ q: q.trim(), remote, publishedDays: days, limit: 20 });
+      const res = await jobsService.search({ q: q.trim(), remote, publishedDays: days, limit: 20, regions, municipalities });
       const list = res.data?.jobs || [];
       setJobs(list);
       if (list.length === 0) {
@@ -106,6 +128,21 @@ export default function JobSuggestionsModal({ data, onClose }) {
             <span>العمل عن بُعد فقط</span>
             <input type="checkbox" checked={remote} onChange={(e) => setRemote(e.target.checked)} className="w-4 h-4 accent-[#1B4FD8]" />
           </label>
+
+          <div className="mt-4 space-y-3">
+            <MultiSelectFilter label="المقاطعة (län)" options={regionOptions} selected={regions} onChange={setRegions} placeholder="كل المقاطعات" />
+            <MultiSelectFilter
+              label="البلدية (kommun)"
+              options={municipalityOptions}
+              selected={municipalities}
+              onChange={setMunicipalities}
+              placeholder="كل البلديات"
+              emptyText={regionLanCodes.size ? "لا بلديات في هذه المقاطعات" : "لا بلديات"}
+            />
+            {regionLanCodes.size > 0 && (
+              <p className="text-[11px] text-slate-400 leading-relaxed">البلديات معروضة حسب المقاطعات المختارة. أفرغ المقاطعات لعرض كل السويد.</p>
+            )}
+          </div>
 
           <div className="flex-1" />
           <button onClick={search} disabled={fetching || matching || !q.trim()} className="w-full inline-flex items-center justify-center gap-1.5 text-sm px-4 py-2.5 rounded-xl bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors disabled:opacity-40">

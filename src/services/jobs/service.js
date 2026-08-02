@@ -19,12 +19,12 @@ export function createJobsService({ llm }) {
   const service = {
     name: "jobs",
 
-    search({ q, remote, publishedDays, limit } = {}) {
-      const key = cacheKey("search", q, remote, publishedDays, limit);
+    search({ q, remote, publishedDays, limit, regions, municipalities } = {}) {
+      const key = cacheKey("search", q, remote, publishedDays, limit, JSON.stringify(regions || []), JSON.stringify(municipalities || []));
       const cached = getCached(key);
       if (cached) return Promise.resolve(cached);
       return base44.functions
-        .invoke("SearchJobs", { q, remote, publishedDays, limit })
+        .invoke("SearchJobs", { q, remote, publishedDays, limit, regions, municipalities })
         .then((res) => {
           setCached(key, res, SEARCH_TTL);
           return res;

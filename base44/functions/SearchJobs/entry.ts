@@ -16,11 +16,15 @@ export default async function(req) {
     const publishedDays = Math.min(Math.max(Number(body?.publishedDays) || 14, 1), 60);
     const remote = body?.remote === true ? "true" : null;
     const limit = Math.min(Math.max(Number(body?.limit) || 20, 1), 50);
+    const regions = Array.isArray(body?.regions) ? body.regions.map(String).filter(Boolean) : [];
+    const municipalities = Array.isArray(body?.municipalities) ? body.municipalities.map(String).filter(Boolean) : [];
 
     const u = new URL("https://jobsearch.api.jobtechdev.se/search");
     if (q) u.searchParams.set("q", q);
     u.searchParams.set("published-after", String(publishedDays * 1440)); // minutes
     if (remote) u.searchParams.set("remote", remote);
+    regions.forEach((id) => u.searchParams.append("region", id));
+    municipalities.forEach((id) => u.searchParams.append("municipality", id));
     u.searchParams.set("limit", String(limit));
 
     const res = await fetch(u.toString(), {
