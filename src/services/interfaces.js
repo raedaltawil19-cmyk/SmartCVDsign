@@ -11,6 +11,7 @@ export const PORT = {
   JOBS: "jobs",
   AUTH: "auth",
   EXPORT: "export",
+  APPLICATIONS: "applications",
 };
 
 export function defineInterface(name, methods) {
@@ -55,3 +56,10 @@ export const AUTH_INTERFACE = defineInterface(PORT.AUTH, [
 ]);
 
 export const EXPORT_INTERFACE = defineInterface(PORT.EXPORT, ["print", "exportPNG"]);
+
+export const APPLICATIONS_INTERFACE = defineInterface(PORT.APPLICATIONS, [
+  "list",
+  "create",
+  "update",
+  "remove",
+]);

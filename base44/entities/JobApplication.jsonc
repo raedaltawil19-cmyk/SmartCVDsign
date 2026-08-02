@@ -1,0 +1,64 @@
+{
+  "name": "JobApplication",
+  "type": "object",
+  "properties": {
+    "rubrik": {
+      "type": "string",
+      "description": "Annonsens rubrik (jobbtitel)"
+    },
+    "arbetsgivare": {
+      "type": "string",
+      "description": "Arbetsgivarens namn"
+    },
+    "plats": {
+      "type": "string",
+      "description": "Ort / l\u00e4n"
+    },
+    "url": {
+      "type": "string",
+      "description": "L\u00e4nk till annonsen (Platsbanken m.m.)"
+    },
+    "jobAdId": {
+      "type": "string",
+      "description": "Ursprungligt annons-id fr\u00e5n JobTech (f\u00f6r att undvika dubbletter)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "saved",
+        "applied",
+        "interview",
+        "offer",
+        "rejected"
+      ],
+      "default": "saved",
+      "description": "Ans\u00f6kans status"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "Sista ans\u00f6kningsdag"
+    },
+    "anteckning": {
+      "type": "string",
+      "description": "Egna anteckningar kring ans\u00f6kan"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  },
+  "required": [
+    "rubrik"
+  ]
+}

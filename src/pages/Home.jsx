@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
@@ -88,6 +88,9 @@ export default function Home() {
             <FileText className="w-4 h-4 text-white" />
           </div>
           <span className="text-lg font-semibold tracking-tight">CVcraft</span>
+          <nav className="mr-4 flex items-center gap-1 text-sm">
+            <Link to="/applications" className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">متتبّع الطلبات</Link>
+          </nav>
         </div>
       </header>
 

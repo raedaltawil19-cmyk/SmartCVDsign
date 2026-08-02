@@ -134,3 +134,18 @@
 }
 
 .cv-print-area .cv-keep { break-inside: avoid; }
+
+/* tracker form inputs */
+.inp {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 13px;
+  background: #fff;
+  outline: none;
+}
+.inp:focus {
+  border-color: #1B4FD8;
+  box-shadow: 0 0 0 2px rgba(27, 79, 216, 0.1);
+}

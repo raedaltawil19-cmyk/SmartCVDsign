@@ -4,6 +4,7 @@ import { createCVRepository } from "@/services/cv/service";
 import { createJobsService } from "@/services/jobs/service";
 import { createAuthService } from "@/services/auth/service";
 import { createExportService } from "@/services/export/service";
+import { createApplicationsService } from "@/services/applications/service";
 import {
   assertImplements,
   LLM_INTERFACE,
@@ -11,6 +12,7 @@ import {
   JOBS_INTERFACE,
   AUTH_INTERFACE,
   EXPORT_INTERFACE,
+  APPLICATIONS_INTERFACE,
 } from "@/services/interfaces";
 
 /**
@@ -40,7 +42,11 @@ export function ServicesProvider({ children }) {
     const jobs = createJobsService({ llm });
     assertImplements(jobs, JOBS_INTERFACE);
 
-    return { llm, cvRepository, jobs, auth, export: exporter };
+    // Applications depends on auth for the login guard, not imported.
+    const applications = createApplicationsService({ auth });
+    assertImplements(applications, APPLICATIONS_INTERFACE);
+
+    return { llm, cvRepository, jobs, auth, export: exporter, applications };
   }, []);
 
   return (

@@ -13,7 +13,8 @@ function buildQuery(data) {
 
 export default function JobSuggestionsModal({ data, onClose }) {
   const { toast } = useToast();
-  const { jobs: jobsService } = useServices();
+  const { jobs: jobsService, applications, auth } = useServices();
+  const [trackedIds, setTrackedIds] = useState({});
   const [q, setQ] = useState(() => buildQuery(data));
   const [remote, setRemote] = useState(false);
   const [days, setDays] = useState(14);
@@ -57,6 +58,25 @@ export default function JobSuggestionsModal({ data, onClose }) {
       toast({ title: "عرض الوظائف بدون ترتيب المطابقة", variant: "destructive" });
     } finally {
       setMatching(false);
+    }
+  };
+
+  const track = async (j) => {
+    try {
+      const ok = await auth.requireAuth({ nextUrl: window.location.pathname });
+      if (!ok) return;
+      await applications.create({
+        rubrik: j.rubrik,
+        arbetsgivare: j.arbetsgivare || "",
+        plats: [j.kommun, j.lan].filter(Boolean).join(", "),
+        url: j.webbadress || "",
+        jobAdId: j.id,
+        status: "saved",
+      });
+      setTrackedIds((s) => ({ ...s, [j.id]: true }));
+      toast({ title: "أُضيفت للمتابعة", description: "ستجدها في متتبّع الطلبات." });
+    } catch (e) {
+      toast({ title: "تعذّر الحفظ", description: "سجّل الدخول أولاً.", variant: "destructive" });
     }
   };
 
@@ -136,11 +156,20 @@ export default function JobSuggestionsModal({ data, onClose }) {
                 </div>
                 {j.reason && <p className="text-[13px] text-slate-600 mt-2 leading-relaxed">{j.reason}</p>}
                 {j.beskrivning && <p className="text-[12px] text-slate-500 mt-2 leading-relaxed line-clamp-3">{j.beskrivning}</p>}
-                {j.webbadress && (
-                  <a href={j.webbadress} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-[13px] text-[#1B4FD8] hover:underline">
-                    <ExternalLink className="w-3.5 h-3.5" /> افتح الإعلان على Platsbanken
-                  </a>
-                )}
+                <div className="mt-3 flex items-center gap-3 flex-wrap">
+                  {j.webbadress && (
+                    <a href={j.webbadress} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] text-[#1B4FD8] hover:underline">
+                      <ExternalLink className="w-3.5 h-3.5" /> افتح الإعلان على Platsbanken
+                    </a>
+                  )}
+                  <button
+                    onClick={() => track(j)}
+                    disabled={!!trackedIds[j.id]}
+                    className="inline-flex items-center gap-1 text-[13px] px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    {trackedIds[j.id] ? "✓ في المتتبّع" : "أضف للتتبّع"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
