@@ -18,7 +18,7 @@ export default function CornerControls() {
   const { isAuthenticated, user, logout, navigateToLogin } = useAuth();
 
   return (
-    <div className="no-print fixed bottom-4 left-4 z-40">
+    <div className="no-print fixed top-4 right-4 z-40">
       <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-lg p-1.5 flex items-center gap-1.5">
         <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
           {LANGS.map((l) => (
