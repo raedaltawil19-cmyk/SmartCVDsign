@@ -26,6 +26,9 @@ export default function Builder() {
   const incoming = location.state;
 
   const [data, setData] = useState(emptyCV);
+  const historyRef = useRef({ past: [], present: emptyCV, future: [] });
+  const skipHistoryRef = useRef(false);
+  const [histVersion, setHistVersion] = useState(0);
   const [templateId, setTemplateId] = useState(incoming?.templateId || "stockholm");
   const [layout, setLayout] = useState(() => DEFAULT_LAYOUTS[incoming?.templateId || "stockholm"] || DEFAULT_LAYOUTS.stockholm);
   const [showLayout, setShowLayout] = useState(false);
@@ -147,6 +150,40 @@ export default function Builder() {
 
   const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak };
 
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    if (data === historyRef.current.present) return;
+    historyRef.current = { past: [...historyRef.current.past, historyRef.current.present].slice(-50), present: data, future: [] };
+    setHistVersion(v => v + 1);
+  }, [data]);
+
+  const undo = useCallback(() => {
+    const { past, present, future } = historyRef.current;
+    if (past.length === 0) return;
+    const prev = past[past.length - 1];
+    historyRef.current = { past: past.slice(0, -1), present: prev, future: [present, ...future] };
+    skipHistoryRef.current = true;
+    setData(prev);
+    setHistVersion(v => v + 1);
+  }, []);
+
+  const redo = useCallback(() => {
+    const { past, present, future } = historyRef.current;
+    if (future.length === 0) return;
+    const next = future[0];
+    historyRef.current = { past: [...past, present], present: next, future: future.slice(1) };
+    skipHistoryRef.current = true;
+    setData(next);
+    setHistVersion(v => v + 1);
+  }, []);
+
+  const undoRef = useRef(undo); undoRef.current = undo;
+  const redoRef = useRef(redo); redoRef.current = redo;
+  // eslint-disable-next-line no-unused-expressions
+  void histVersion;
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
+
   const exportPDF = async () => {
     setAuthChecking(true);
     const ok = await guard();
@@ -174,6 +211,14 @@ export default function Builder() {
       if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) {
         e.preventDefault();
         exportRef.current();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoRef.current();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redoRef.current();
       }
     };
     window.addEventListener("beforeprint", onBeforePrint);
@@ -284,6 +329,10 @@ export default function Builder() {
                 onZoomOut={zoomOut}
                 onZoomReset={zoomReset}
                 onZoomFit={zoomFit}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={undo}
+                onRedo={redo}
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">

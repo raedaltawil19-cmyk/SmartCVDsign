@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n";
-import { Sparkles, Pencil, LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize } from "lucide-react";
+import { Sparkles, Pencil, LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize, Undo2, Redo2 } from "lucide-react";
 import CVTools from "./CVTools";
 import JobMatchModal from "./JobMatchModal";
 import TemplatePickerModal from "./TemplatePickerModal";
@@ -23,6 +23,10 @@ export default function CVSideToolbar({
   onZoomOut,
   onZoomReset,
   onZoomFit,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }) {
   const { t, dir } = useLanguage();
   const [jobOpen, setJobOpen] = useState(false);
@@ -58,6 +62,9 @@ export default function CVSideToolbar({
             <Minus className="w-4 h-4" />
           </button>
         </div>
+        <div className="w-8 h-px bg-slate-200 my-0.5" />
+        <Btn icon={Undo2} label={t("builder.undo")} onClick={onUndo} disabled={!canUndo} />
+        <Btn icon={Redo2} label={t("builder.redo")} onClick={onRedo} disabled={!canRedo} />
         <div className="w-8 h-px bg-slate-200 my-0.5" />
         <Btn icon={Sparkles} label={t("builder.aiEdit")} onClick={onToggleAgent} active={agentOpen} />
         <Btn icon={Pencil} label={t("builder.manualEdit")} onClick={onManualEdit} active={mode === "edit"} />

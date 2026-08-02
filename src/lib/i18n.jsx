@@ -54,6 +54,8 @@ const DICT = {
   "builder.zoomIn": { ar: "تكبير", sv: "Zooma in", en: "Zoom in" },
   "builder.zoomOut": { ar: "تصغير", sv: "Zooma ut", en: "Zoom out" },
   "builder.fitWidth": { ar: "ملاءمة العرض", sv: "Anpassa bredd", en: "Fit width" },
+  "builder.undo": { ar: "تراجع", sv: "Ångra", en: "Undo" },
+  "builder.redo": { ar: "تقدّم", sv: "Gör om", en: "Redo" },
 
   "corner.login": { ar: "دخول", sv: "Logga in", en: "Log in" },
   "corner.register": { ar: "حساب جديد", sv: "Skapa konto", en: "Sign up" },
