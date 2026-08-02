@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 export default function StatCard({ icon: Icon, label, value, sub, tone = "slate", loading }) {
   const tones = {
     slate: "bg-slate-50 text-slate-700 border-slate-200",
-    blue: "bg-[#1B4FD8]/8 text-[#0f3db0] border-[#1B4FD8]/15",
+    blue: "bg-[#000066]/8 text-[#000066] border-[#000066]/15",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
     amber: "bg-amber-50 text-amber-700 border-amber-100",
     rose: "bg-rose-50 text-rose-700 border-rose-100",

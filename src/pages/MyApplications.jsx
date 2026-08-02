@@ -89,7 +89,7 @@ export default function MyApplications() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-[#F8F9FA] text-slate-900"
+      className="min-h-screen bg-[#F5F5F5] text-slate-900"
       style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
     >
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
@@ -99,7 +99,7 @@ export default function MyApplications() {
             <span>الرئيسية</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-[#1B4FD8]" />
+            <Briefcase className="w-5 h-5 text-[#000066]" />
             <span className="font-semibold">متتبّع الطلبات</span>
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function MyApplications() {
           </div>
           <button
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-xl bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-xl bg-[#000066] text-white hover:bg-[#00003d] transition-colors"
           >
             <Plus className="w-4 h-4" /> إضافة يدوية
           </button>
@@ -186,7 +186,7 @@ export default function MyApplications() {
                         value={item.status}
                         onChange={(e) => setStatus(item, e.target.value)}
                         disabled={busy}
-                        className="text-[12px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[#1B4FD8] disabled:opacity-40"
+                        className="text-[12px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[#000066] disabled:opacity-40"
                       >
                         {STATUSES.map((s) => (
                           <option key={s.key} value={s.key}>
@@ -199,7 +199,7 @@ export default function MyApplications() {
                           href={item.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[12px] text-[#1B4FD8] hover:underline inline-flex items-center gap-1"
+                          className="text-[12px] text-[#000066] hover:underline inline-flex items-center gap-1"
                         >
                           <ExternalLink className="w-3.5 h-3.5" /> الإعلان
                         </a>
@@ -333,7 +333,7 @@ function AddDialog({ onSave, onClose, busy }) {
           <button
             onClick={() => onSave(form)}
             disabled={!form.rubrik.trim() || busy}
-            className="flex-1 text-sm px-4 py-2.5 rounded-xl bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors disabled:opacity-40"
+            className="flex-1 text-sm px-4 py-2.5 rounded-xl bg-[#000066] text-white hover:bg-[#00003d] transition-colors disabled:opacity-40"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "حفظ"}
           </button>

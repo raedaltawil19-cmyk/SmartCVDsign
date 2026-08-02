@@ -117,10 +117,10 @@ export default function Home() {
   };
 
   return (
-    <div dir={dir} className="min-h-screen bg-[#F8F9FA] text-slate-900" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div dir={dir} className="min-h-screen bg-[#F5F5F5] text-slate-900" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#1B4FD8] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#000066] flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
           <span className="text-lg font-semibold tracking-tight">CVcraft</span>
@@ -131,12 +131,12 @@ export default function Home() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-12">
-        <div className="text-center mb-12">
+        <div className="mb-12 rounded-3xl bg-[#000066] px-8 py-14 text-center text-white">
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight leading-tight">
             {t("hero.title1")}
-            <span className="block text-[#1B4FD8]">{t("hero.title2")}</span>
+            <span className="block text-[#D9E830]">{t("hero.title2")}</span>
           </h1>
-          <p className="text-slate-500 mt-4 max-w-xl mx-auto text-lg leading-relaxed">
+          <p className="text-white/80 mt-4 max-w-xl mx-auto text-lg leading-relaxed">
             {t("hero.subtitle")}
           </p>
         </div>
@@ -150,7 +150,7 @@ export default function Home() {
               <button
                 key={tpl.id}
                 onClick={() => setTemplateId(tpl.id)}
-                className={`text-right rounded-2xl border-2 p-4 transition-all bg-white ${templateId === tpl.id ? "border-[#1B4FD8] ring-4 ring-[#1B4FD8]/10 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}
+                className={`text-right rounded-2xl border-2 p-4 transition-all bg-white ${templateId === tpl.id ? "border-[#000066] ring-4 ring-[#000066]/10 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}
               >
                 <div className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 mb-3 bg-slate-50">
                   <MiniPreview id={tpl.id} />
@@ -172,16 +172,16 @@ export default function Home() {
                 onChange={(e) => setText(e.target.value)}
                 placeholder={t("home.textPlaceholder")}
                 rows={8}
-                className="w-full text-[14px] leading-relaxed resize-none border border-slate-200 rounded-xl p-3 outline-none focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10"
+                className="w-full text-[14px] leading-relaxed resize-none border border-slate-200 rounded-xl p-3 outline-none focus:border-[#000066] focus:ring-2 focus:ring-[#000066]/10"
               />
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 flex flex-col">
               <label className="text-sm font-medium text-slate-700 mb-2 block">{t("home.fileLabel")}</label>
-              <label className={`flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${file ? "border-[#1B4FD8] bg-[#1B4FD8]/5" : "border-slate-200 hover:border-slate-300"}`}>
+              <label className={`flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${file ? "border-[#000066] bg-[#000066]/5" : "border-slate-200 hover:border-slate-300"}`}>
                 <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 {file ? (
                   <>
-                    <PencilLine className="w-6 h-6 text-[#1B4FD8]" />
+                    <PencilLine className="w-6 h-6 text-[#000066]" />
                     <span className="text-sm font-medium text-slate-700 text-center px-4">{file.name}</span>
                     <span className="text-xs text-slate-400">{t("home.fileChange")}</span>
                   </>
@@ -201,7 +201,7 @@ export default function Home() {
           <button
             onClick={start}
             disabled={!canStart || busy}
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#1B4FD8] text-white font-medium shadow-lg shadow-[#1B4FD8]/20 hover:bg-[#1640b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#D9E830] text-black font-semibold shadow-lg shadow-black/10 hover:bg-[#c5d420] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowLeft className="w-5 h-5" />}
             {busy ? t("home.uploading") : t("home.start")}

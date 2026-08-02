@@ -226,7 +226,7 @@ export default function Builder() {
   };
 
   return (
-    <div dir={dir} className="h-screen bg-[#F8F9FA] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div dir={dir} className="h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
         <div className="px-5 py-3 flex items-center justify-between gap-3">
           <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
@@ -248,7 +248,7 @@ export default function Builder() {
                 <span>{t("builder.preview")}</span>
               </button>
             )}
-            <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors">
+            <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
               {authChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <span>{t("builder.pdf")}</span>
             </button>
@@ -259,7 +259,7 @@ export default function Builder() {
       <div className="flex-1 flex min-h-0">
         {processing && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
-            <Loader2 className="w-8 h-8 animate-spin text-[#1B4FD8]" />
+            <Loader2 className="w-8 h-8 animate-spin text-[#000066]" />
             <p className="text-sm">{t("builder.processing")}</p>
           </div>
         )}

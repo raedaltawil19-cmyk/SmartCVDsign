@@ -25,7 +25,7 @@ export default function CornerControls() {
             <button
               key={l.code}
               onClick={() => setLang(l.code)}
-              className={`text-[12px] font-medium px-2 py-1 rounded-md transition-colors ${lang === l.code ? "bg-white text-[#1B4FD8] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`text-[12px] font-medium px-2 py-1 rounded-md transition-colors ${lang === l.code ? "bg-white text-[#000066] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
             >
               {l.label}
             </button>
@@ -58,7 +58,7 @@ export default function CornerControls() {
             </button>
             <button
               onClick={navigateToLogin}
-              className="inline-flex items-center gap-1 text-[12px] px-2.5 py-1.5 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0]"
+              className="inline-flex items-center gap-1 text-[12px] px-2.5 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d]"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t("corner.register")}</span>

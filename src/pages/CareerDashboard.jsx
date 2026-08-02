@@ -157,10 +157,10 @@ export default function CareerDashboard() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-100 pb-16">
+    <div dir="rtl" className="min-h-screen bg-[#F5F5F5] pb-16">
       <div className="max-w-6xl mx-auto px-5 pt-8">
         <div className="flex items-center gap-2.5 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#1B4FD8] flex items-center justify-center"><BarChart3 className="w-5 h-5 text-white" /></div>
+          <div className="w-10 h-10 rounded-xl bg-[#000066] flex items-center justify-center"><BarChart3 className="w-5 h-5 text-white" /></div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">لوحة المسار المهني</h1>
             <p className="text-[12px] text-slate-500">نظرة شاملة على قوة سيرتك، نشاطك في التقديم، والسوق السويدي — تتحدّث تلقائياً.</p>
@@ -180,14 +180,14 @@ export default function CareerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Latest Saved CVs */}
           <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3 inline-flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#1B4FD8]" /> السير المحفوظة الأخيرة</h2>
+            <h2 className="text-sm font-semibold text-slate-900 mb-3 inline-flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#000066]" /> السير المحفوظة الأخيرة</h2>
             {savedCVs.length === 0 ? (
               <Empty text="لم تحفظ أي سيرة بعد. أنشئ واحدة من البانيّة." to="/builder" cta="ابدأ بناء سيرة" />
             ) : (
               <div className="space-y-2">
                 {savedCVs.slice(0, 4).map((cv) => (
-                  <Link key={cv.id} to={`/builder/${cv.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 hover:border-[#1B4FD8] hover:bg-slate-50 p-3 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-[#1B4FD8]/10 flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#0f3db0]" /></div>
+                  <Link key={cv.id} to={`/builder/${cv.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 hover:border-[#000066] hover:bg-slate-50 p-3 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-[#000066]/10 flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#00003d]" /></div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium text-slate-800 truncate">{cv.titel || cv.data?.titel || "سيرة بدون عنوان"}</div>
                       <div className="text-[11px] text-slate-400">{cv.data?.namn || ""} {cv.updated_date ? `• ${new Date(cv.updated_date).toLocaleDateString("sv-SE")}` : ""}</div>
@@ -201,7 +201,7 @@ export default function CareerDashboard() {
 
           {/* Recommended Jobs */}
           <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3 inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-[#1B4FD8]" /> وظائف موصى بها</h2>
+            <h2 className="text-sm font-semibold text-slate-900 mb-3 inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-[#000066]" /> وظائف موصى بها</h2>
             {!mainCV ? (
               <Empty text="احفظ سيرتك أولاً لنقترح وظائف تناسبك." to="/builder" cta="ابدأ بناء سيرة" />
             ) : loadingMap.jobs && !jobs ? (
@@ -215,7 +215,7 @@ export default function CareerDashboard() {
                       <div className="text-[11px] text-slate-400 truncate">{j.arbetsgivare} {j.kommun ? `• ${j.kommun}` : ""}</div>
                     </div>
                     <span className={`text-[12px] font-bold px-2 py-1 rounded-full ${(j.matchPercent || 0) >= 70 ? "bg-emerald-50 text-emerald-700" : (j.matchPercent || 0) >= 45 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>{Math.round(j.matchPercent || 0)}%</span>
-                    {j.webbadress && <a href={j.webbadress} target="_blank" rel="noreferrer" className="text-[#1B4FD8]"><ExternalLink className="w-3.5 h-3.5" /></a>}
+                    {j.webbadress && <a href={j.webbadress} target="_blank" rel="noreferrer" className="text-[#000066]"><ExternalLink className="w-3.5 h-3.5" /></a>}
                   </div>
                 ))}
               </div>
@@ -254,7 +254,7 @@ export default function CareerDashboard() {
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">{c.provider}</div>
                     {c.reason && <p className="text-[12px] text-slate-600 mt-1 leading-relaxed">{c.reason}</p>}
-                    {c.url && <a href={c.url} target="_blank" rel="noreferrer" className="text-[12px] text-[#1B4FD8] inline-flex items-center gap-1 mt-1.5"><ExternalLink className="w-3 h-3" /> افتح الدورة</a>}
+                    {c.url && <a href={c.url} target="_blank" rel="noreferrer" className="text-[12px] text-[#000066] inline-flex items-center gap-1 mt-1.5"><ExternalLink className="w-3 h-3" /> افتح الدورة</a>}
                   </div>
                 ))}
               </div>
@@ -275,7 +275,7 @@ function Empty({ text, to, cta }) {
   return (
     <div className="py-8 flex flex-col items-center gap-3 text-center">
       <p className="text-[13px] text-slate-500">{text}</p>
-      <Link to={to} className="text-[13px] px-4 py-2 rounded-xl bg-[#1B4FD8] text-white hover:bg-[#0f3db0]">{cta}</Link>
+      <Link to={to} className="text-[13px] px-4 py-2 rounded-xl bg-[#000066] text-white hover:bg-[#00003d]">{cta}</Link>
     </div>
   );
 }

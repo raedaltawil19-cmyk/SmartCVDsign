@@ -35,7 +35,7 @@ export default function CVSideToolbar({
       onClick={onClick}
       disabled={disabled}
       title={label}
-      className={`group relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${active ? "bg-[#1B4FD8] text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"} disabled:opacity-40`}
+      className={`group relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${active ? "bg-[#000066] text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"} disabled:opacity-40`}
     >
       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Icon className="w-5 h-5" />}
       <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 ${tip} whitespace-nowrap text-[11px] bg-slate-900 text-white px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-50`}>
@@ -51,7 +51,7 @@ export default function CVSideToolbar({
           <button onClick={onZoomIn} title={t("builder.zoomIn")} className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <Plus className="w-4 h-4" />
           </button>
-          <button onClick={isFit ? onZoomReset : onZoomFit} title={isFit ? "100%" : t("builder.fitWidth")} className={`w-10 h-7 rounded-lg flex items-center justify-center text-[11px] font-semibold transition-colors ${isFit ? "text-slate-500 hover:bg-slate-100" : "bg-[#1B4FD8] text-white"}`}>
+          <button onClick={isFit ? onZoomReset : onZoomFit} title={isFit ? "100%" : t("builder.fitWidth")} className={`w-10 h-7 rounded-lg flex items-center justify-center text-[11px] font-semibold transition-colors ${isFit ? "text-slate-500 hover:bg-slate-100" : "bg-[#000066] text-white"}`}>
             {isFit ? <Maximize className="w-3.5 h-3.5" /> : `${Math.round(scale * 100)}%`}
           </button>
           <button onClick={onZoomOut} title={t("builder.zoomOut")} className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors">
