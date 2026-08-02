@@ -50,7 +50,7 @@ export default function Builder() {
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    const update = () => setScale(Math.max(0.3, Math.min(1, (el.clientWidth - 120) / A4_W)));
+    const update = () => setScale(Math.max(0.3, Math.min(1.5, (el.clientWidth - 48) / A4_W)));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -246,8 +246,8 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible flex justify-center gap-4">
-            <div className="no-print self-start sticky top-6 print:hidden">
+          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible flex justify-center">
+            <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30 print:hidden">
               <CVSideToolbar
                 mode={mode}
                 onManualEdit={() => setMode("edit")}
