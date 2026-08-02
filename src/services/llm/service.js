@@ -218,6 +218,54 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
     },
 
+    /** Salary Advisor — estimate salary for the Swedish market based on role/region/experience/industry. */
+    async estimateSalary({ jobTitle, region, experience, industry }) {
+      const schema = {
+        type: "object",
+        properties: {
+          averageMonthly: { type: "number", description: "Genomsnittlig månadslön (SEK) före skatt" },
+          lowMonthly: { type: "number", description: "Lägsta typiska månadslön (SEK)" },
+          highMonthly: { type: "number", description: "Högsta typiska månadslön (SEK)" },
+          recommendedRange: {
+            type: "object",
+            properties: {
+              low: { type: "number" },
+              target: { type: "number" },
+              high: { type: "number" },
+            },
+          },
+          percentile25: { type: "number" },
+          median: { type: "number" },
+          percentile75: { type: "number" },
+          confidence: { type: "string", enum: ["low", "medium", "high"] },
+          confidenceNote: { type: "string" },
+          currency: { type: "string" },
+          sourceContext: { type: "string", description: "Kort svensk kommentar om datamängdens grund" },
+          negotiationTips: { type: "array", items: { type: "string" } },
+        },
+      };
+      const expMap = { junior: "Junior (0–2 års erfarenhet)", mid: "Mid-level (3–6 års erfarenhet)", senior: "Senior (7+ års erfarenhet)" };
+      const prompt =
+        `Du är en svensk löneexpert med kännedom om den svenska arbetsmarknaden och kollektivavtal.\n` +
+        `Uppskatta en realistisk månadslön (SEK, före skatt) för följande profil i Sverige:\n` +
+        `- Titel: ${jobTitle}\n` +
+        `- Region: ${region || "Sverige (genomsnitt)"}\n` +
+        `- Erfarenhetsnivå: ${expMap[experience] || expMap.mid}\n` +
+        `- Bransch: ${industry || "Inte angiven"}\n\n` +
+        `Regler:\n` +
+        `- Basera uppskattningen på svensk marknad 2024–2025. Om du inte har exakt data, ange en realistisk genomsnittsuppskattning och sätt confidence till "low" eller "medium".\n` +
+        `- averageMonthly = realistiskt genomsnitt; lowMonthly/highMonthly = typiskt spann för nivån.\n` +
+        `- recommendedRange = förhandlingsintervall (low/target/high) där target ofta är ca averageMonthly eller något högre, low = ett tryggt minimikrav, high = ett ambitiöst men rimligt mål für en erfaren kandidat.\n` +
+        `- percentile25/median/percentile75 = månadslön vid 25:e/50:e/75:e percentilen för denna profil.\n` +
+        `- confidence: "high" endast om du är säker på svenska löner för exakt denna roll/nivå; "medium" för bra generell uppskattning; "low" om data osäker.\n` +
+        `- confidenceNote: kort svensk förklaring (max 2 meningar) om varför.\n` +
+        `- sourceContext: kort svensk kommentar om vad uppskattningen baseras på (marknadstrender, bransch, region).\n` +
+        `- negotiationTips: 3–5 korta svenska tips inför löneförhandlingen relevanta för denna profil.\n` +
+        `- currency = "SEK".\n` +
+        `Returnera giltig JSON enligt schemat. HITTA INTE på orimliga siffror — håll dig till svensk marknadsnivå.`;
+      return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema, add_context_from_internet: true, model: "gemini_3_flash" });
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =

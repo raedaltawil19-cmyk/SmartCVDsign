@@ -37,6 +37,7 @@ export const LLM_INTERFACE = defineInterface(PORT.LLM, [
   "optimizeAchievements",
   "generateGapExplanation",
   "generateInterviewPrep",
+  "estimateSalary",
 ]);
 
 export const CV_REPOSITORY_INTERFACE = defineInterface(PORT.CV_REPOSITORY, [
