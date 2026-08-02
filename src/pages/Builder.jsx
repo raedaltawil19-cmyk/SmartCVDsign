@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { emptyCV, CV_SCHEMA, CV_PROCESS_PROMPT, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
@@ -7,7 +7,8 @@ import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
 import CVTools from "@/components/tools/CVTools";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, RefreshCw, Eye, X, LayoutGrid } from "lucide-react";
+import { ArrowRight, Download, Loader2, RefreshCw, Eye, X, LayoutGrid, Save } from "lucide-react";
+import CVSaveDialog from "@/components/tools/CVSaveDialog";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -15,6 +16,7 @@ const A4_H = 1123;
 export default function Builder() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { cvId: paramCvId } = useParams();
   const { toast } = useToast();
   const incoming = location.state;
 
@@ -28,6 +30,9 @@ export default function Builder() {
   const [previewScale, setPreviewScale] = useState(1);
   const panelRef = useRef(null);
   const [scale, setScale] = useState(0.6);
+  const [currentCvId, setCurrentCvId] = useState(incoming?.cvId || paramCvId || null);
+  const [saving, setSaving] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
 
   useEffect(() => {
     setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
@@ -72,6 +77,28 @@ export default function Builder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const id = incoming?.cvId || paramCvId;
+    if (!id || incoming?.text || incoming?.fileUrl) return;
+    (async () => {
+      setProcessing(true);
+      try {
+        const rec = await base44.entities.SavedCV.get(id);
+        if (rec) {
+          if (rec.data) setData(mergeCV(rec.data));
+          if (rec.templateId) setTemplateId(rec.templateId);
+          if (rec.layout) setLayout(rec.layout);
+          setCurrentCvId(rec.id);
+        }
+      } catch (e) {
+        toast({ title: "تعذّر تحميل السيرة المحفوظة", variant: "destructive" });
+      } finally {
+        setProcessing(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setField = (k, v) => setData((d) => ({ ...d, [k]: v }));
   const setContact = (k, v) => setData((d) => ({ ...d, kontakt: { ...d.kontakt, [k]: v } }));
   const setExp = (i, k, v) => setData((d) => { const a = [...d.erfarenhet]; a[i] = { ...a[i], [k]: v }; return { ...d, erfarenhet: a }; });
@@ -108,6 +135,29 @@ export default function Builder() {
     }
   };
 
+  const saveCV = async (name) => {
+    const titel = (name && name.trim()) || data.titel || "Min CV";
+    setSaving(true);
+    try {
+      const payload = { titel, data, templateId, layout };
+      if (currentCvId) {
+        await base44.entities.SavedCV.update(currentCvId, payload);
+        toast({ title: "تم الحفظ", description: titel });
+        setSaveOpen(false);
+      } else {
+        const rec = await base44.entities.SavedCV.create(payload);
+        setCurrentCvId(rec.id);
+        navigate(`/builder/${rec.id}`, { replace: true });
+        toast({ title: "تم حفظ السيرة", description: titel });
+        setSaveOpen(false);
+      }
+    } catch (e) {
+      toast({ title: "تعذّر الحفظ", description: "سجّل الدخول أولاً لحفظ سيرتك.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div dir="rtl" className="h-screen bg-[#F8F9FA] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
@@ -133,6 +183,10 @@ export default function Builder() {
               <span className="hidden sm:inline">حسّن</span>
             </button>
             <CVTools data={data} onApply={(d) => setData(d)} />
+            <button onClick={() => setSaveOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <Save className="w-4 h-4" />
+              <span>حفظ</span>
+            </button>
             <button onClick={openPreview} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Eye className="w-4 h-4" />
               <span>معاينة</span>
@@ -177,6 +231,15 @@ export default function Builder() {
           hasSidebar={templateId !== "executive"}
           onChange={setLayout}
           onClose={() => setShowLayout(false)}
+        />
+      )}
+
+      {saveOpen && (
+        <CVSaveDialog
+          defaultTitel={currentCvId ? "" : (data.titel || "")}
+          saving={saving}
+          onSave={saveCV}
+          onClose={() => setSaveOpen(false)}
         />
       )}
 

@@ -1,0 +1,36 @@
+{
+  "name": "SavedCV",
+  "type": "object",
+  "properties": {
+    "titel": {
+      "type": "string",
+      "description": "Visningsnamn f\u00f6r den sparade CV-versionen"
+    },
+    "data": {
+      "type": "object",
+      "description": "Hela CV-dataobjektet (cvModel)"
+    },
+    "templateId": {
+      "type": "string",
+      "description": "Valt mall-id"
+    },
+    "layout": {
+      "type": "object",
+      "description": "Layoutkonfiguration (kolumnordning)"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

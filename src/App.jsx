@@ -14,6 +14,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/builder" element={<Builder />} />
+      <Route path="/builder/:cvId" element={<Builder />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

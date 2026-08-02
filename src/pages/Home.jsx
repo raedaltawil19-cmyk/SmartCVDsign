@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { FileText, Upload, ArrowLeft, Loader2, PencilLine } from "lucide-react";
+import MyCVs from "@/components/MyCVs";
 
 function MiniPreview({ id }) {
   if (id === "executive") {
@@ -100,6 +101,8 @@ export default function Home() {
             اختر قالباً، أدخل بياناتك أو ارفع سيرتك القديمة، وسنقرأها ونُعبّئ القالب تحت العناوين المناسبة بأسلوب احترافي.
           </p>
         </div>
+
+        <MyCVs />
 
         <section className="mb-10">
           <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">١. اختر القالب</h2>
