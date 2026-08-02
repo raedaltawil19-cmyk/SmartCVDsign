@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { emptyCV, mergeCV, TEMPLATES, DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
+import { useLanguage } from "@/lib/i18n";
+import { useAuth } from "@/lib/AuthContext";
 import CVPreview from "@/components/CVPreview";
 import CVAgent from "@/components/CVAgent";
 import CVTools from "@/components/tools/CVTools";
@@ -18,6 +20,8 @@ export default function Builder() {
   const navigate = useNavigate();
   const { cvId: paramCvId } = useParams();
   const { toast } = useToast();
+  const { dir, t } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const { llm, cvRepository, auth, export: exportSvc } = useServices();
   const incoming = location.state;
 
@@ -137,6 +141,39 @@ export default function Builder() {
     if (ok) exportSvc.print();
   };
 
+  // Print gate: block native print / Ctrl+P when not authenticated.
+  const authedRef = useRef(isAuthenticated);
+  authedRef.current = isAuthenticated;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const exportRef = useRef(exportPDF);
+  exportRef.current = exportPDF;
+
+  useEffect(() => {
+    const onBeforePrint = () => {
+      if (!authedRef.current) {
+        document.body.classList.add("print-locked");
+        toast({ title: tRef.current("builder.printLocked"), variant: "destructive" });
+      }
+    };
+    const onAfterPrint = () => document.body.classList.remove("print-locked");
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        exportRef.current();
+      }
+    };
+    window.addEventListener("beforeprint", onBeforePrint);
+    window.addEventListener("afterprint", onAfterPrint);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("beforeprint", onBeforePrint);
+      window.removeEventListener("afterprint", onAfterPrint);
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const regenerate = async () => {
     setRegenerating(true);
     try {
@@ -176,12 +213,12 @@ export default function Builder() {
   };
 
   return (
-    <div dir="rtl" className="h-screen bg-[#F8F9FA] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div dir={dir} className="h-screen bg-[#F8F9FA] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
         <div className="px-5 py-3 flex items-center justify-between gap-3">
           <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
             <ArrowRight className="w-4 h-4" />
-            <span>القوالب</span>
+            <span>{t("builder.back")}</span>
           </button>
           <div className="flex items-center gap-2">
             <select
@@ -189,28 +226,28 @@ export default function Builder() {
               onChange={(e) => setTemplateId(e.target.value)}
               className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white outline-none focus:border-[#1B4FD8]"
             >
-              {TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.namn}</option>)}
+              {TEMPLATES.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.namn}</option>)}
             </select>
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">ترتيب</span>
+              <span className="hidden sm:inline">{t("builder.layout")}</span>
             </button>
             <button onClick={regenerate} disabled={regenerating || processing} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-40">
               {regenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              <span className="hidden sm:inline">حسّن</span>
+              <span className="hidden sm:inline">{t("builder.improve")}</span>
             </button>
             <CVTools data={data} onApply={(d) => setData(d)} />
             <button onClick={() => setSaveOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Save className="w-4 h-4" />
-              <span>حفظ</span>
+              <span>{t("builder.save")}</span>
             </button>
             <button onClick={openPreview} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Eye className="w-4 h-4" />
-              <span>معاينة</span>
+              <span>{t("builder.preview")}</span>
             </button>
             <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors">
-              <Download className="w-4 h-4" />
-              <span>PDF</span>
+              {authChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <span>{t("builder.pdf")}</span>
             </button>
           </div>
         </div>
@@ -220,7 +257,7 @@ export default function Builder() {
         {processing && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
             <Loader2 className="w-8 h-8 animate-spin text-[#1B4FD8]" />
-            <p className="text-sm">نقرأ بياناتك ونرتّبها بالسويدية...</p>
+            <p className="text-sm">{t("builder.processing")}</p>
           </div>
         )}
         {!processing && (
@@ -232,13 +269,15 @@ export default function Builder() {
                 </div>
                 <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
                   <div className="border-t-2 border-dashed border-rose-300/80" />
-                  <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">— حدود الصفحة —</span>
+                  <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">{t("builder.pageBoundary")}</span>
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      <div className="print-notice">{t("builder.printLocked")}</div>
 
       <CVAgent data={data} onApply={(d) => setData(d)} />
 
@@ -263,15 +302,15 @@ export default function Builder() {
       {showPreview && (
         <div className="no-print fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col">
           <div className="shrink-0 flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200">
-            <span className="font-medium text-slate-900">معاينة السيرة الذاتية</span>
+            <span className="font-medium text-slate-900">{t("builder.previewTitle")}</span>
             <div className="flex items-center gap-2">
               <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] transition-colors">
                 <Download className="w-4 h-4" />
-                <span>تنزيل PDF</span>
+                <span>{t("builder.downloadPdf")}</span>
               </button>
               <button onClick={() => setShowPreview(false)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                 <X className="w-4 h-4" />
-                <span>إغلاق</span>
+                <span>{t("builder.close")}</span>
               </button>
             </div>
           </div>

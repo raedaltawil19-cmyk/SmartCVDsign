@@ -135,6 +135,17 @@
 
 .cv-print-area .cv-keep { break-inside: avoid; }
 
+.print-notice { display: none; }
+@media print {
+  body.print-locked .cv-print-area,
+  body.print-locked .cl-print-area { display: none !important; }
+  body.print-locked .print-notice {
+    display: block !important;
+    position: absolute; top: 0; left: 0; width: 100%; padding: 60mm 25mm;
+    text-align: center; color: #1f2937; font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
 /* tracker form inputs */
 .inp {
   width: 100%;

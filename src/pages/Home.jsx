@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/lib/i18n";
 import { FileText, Upload, ArrowLeft, Loader2, PencilLine } from "lucide-react";
 import MyCVs from "@/components/MyCVs";
 
@@ -91,6 +92,7 @@ function MiniPreview({ id }) {
 export default function Home() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { dir, t } = useLanguage();
   const [templateId, setTemplateId] = useState("stockholm");
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
@@ -115,7 +117,7 @@ export default function Home() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F8F9FA] text-slate-900" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div dir={dir} className="min-h-screen bg-[#F8F9FA] text-slate-900" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#1B4FD8] flex items-center justify-center">
@@ -123,7 +125,7 @@ export default function Home() {
           </div>
           <span className="text-lg font-semibold tracking-tight">CVcraft</span>
           <nav className="mr-4 flex items-center gap-1 text-sm">
-            <Link to="/applications" className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">متتبّع الطلبات</Link>
+            <Link to="/applications" className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">{t("nav.applications")}</Link>
           </nav>
         </div>
       </header>
@@ -131,63 +133,63 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-6 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight leading-tight">
-            سيرة ذاتية احترافية بالسويدية
-            <span className="block text-[#1B4FD8]">في دقائق</span>
+            {t("hero.title1")}
+            <span className="block text-[#1B4FD8]">{t("hero.title2")}</span>
           </h1>
           <p className="text-slate-500 mt-4 max-w-xl mx-auto text-lg leading-relaxed">
-            اختر قالباً، أدخل بياناتك أو ارفع سيرتك القديمة، وسنقرأها ونُعبّئ القالب تحت العناوين المناسبة بأسلوب احترافي.
+            {t("hero.subtitle")}
           </p>
         </div>
 
         <MyCVs />
 
         <section className="mb-10">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">١. اختر القالب</h2>
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">{t("home.step1")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.map((tpl) => (
               <button
-                key={t.id}
-                onClick={() => setTemplateId(t.id)}
-                className={`text-right rounded-2xl border-2 p-4 transition-all bg-white ${templateId === t.id ? "border-[#1B4FD8] ring-4 ring-[#1B4FD8]/10 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}
+                key={tpl.id}
+                onClick={() => setTemplateId(tpl.id)}
+                className={`text-right rounded-2xl border-2 p-4 transition-all bg-white ${templateId === tpl.id ? "border-[#1B4FD8] ring-4 ring-[#1B4FD8]/10 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}
               >
                 <div className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 mb-3 bg-slate-50">
-                  <MiniPreview id={t.id} />
+                  <MiniPreview id={tpl.id} />
                 </div>
-                <div className="font-semibold text-[15px]">{t.namn}</div>
-                <div className="text-[13px] text-slate-500">{t.tagline}</div>
+                <div className="font-semibold text-[15px]">{tpl.namn}</div>
+                <div className="text-[13px] text-slate-500">{tpl.tagline}</div>
               </button>
             ))}
           </div>
         </section>
 
         <section className="mb-10">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">٢. أدخل بياناتك</h2>
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">{t("home.step2")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">اكتب نصاً حراً</label>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">{t("home.textLabel")}</label>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="الصق بياناتك هنا — مهاراتك، خبراتك السابقة، تعليمك، اللغات... بأي ترتيب وبأي لغة، وسنرتّبها ونترجمها للسويدية."
+                placeholder={t("home.textPlaceholder")}
                 rows={8}
                 className="w-full text-[14px] leading-relaxed resize-none border border-slate-200 rounded-xl p-3 outline-none focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10"
               />
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 flex flex-col">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">أو ارفع ملفاً قديماً</label>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">{t("home.fileLabel")}</label>
               <label className={`flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${file ? "border-[#1B4FD8] bg-[#1B4FD8]/5" : "border-slate-200 hover:border-slate-300"}`}>
                 <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 {file ? (
                   <>
                     <PencilLine className="w-6 h-6 text-[#1B4FD8]" />
                     <span className="text-sm font-medium text-slate-700 text-center px-4">{file.name}</span>
-                    <span className="text-xs text-slate-400">اضغط لتغيير الملف</span>
+                    <span className="text-xs text-slate-400">{t("home.fileChange")}</span>
                   </>
                 ) : (
                   <>
                     <Upload className="w-6 h-6 text-slate-400" />
-                    <span className="text-sm text-slate-500">PDF أو Word</span>
-                    <span className="text-xs text-slate-400">اسحب أو اختر ملفاً</span>
+                    <span className="text-sm text-slate-500">{t("home.fileType")}</span>
+                    <span className="text-xs text-slate-400">{t("home.fileHint")}</span>
                   </>
                 )}
               </label>
@@ -202,7 +204,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#1B4FD8] text-white font-medium shadow-lg shadow-[#1B4FD8]/20 hover:bg-[#1640b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowLeft className="w-5 h-5" />}
-            {busy ? "جرّى الرفع..." : "أنشئ سيرتي الذاتية"}
+            {busy ? t("home.uploading") : t("home.start")}
           </button>
         </div>
       </main>

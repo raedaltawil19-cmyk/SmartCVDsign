@@ -69,7 +69,7 @@ export const CV_PROCESS_PROMPT = `Du är en erfaren CV-konsult verksam i Sverige
 
 Viktigt — bevara ALL information:
 - SAMMANFATTA INTE och FÖRKORTA INTE. Ta inte bort detaljer, ansvarsområden, resultat eller uppgifter.
-- Översätt och organisera om allt till svenska, men behåll innehållet fullständigt. Skriv ut varje erfarenhet, ansvarsområde och utbildning i sin helhet.
+- Organisera om allt till CV:ts språk (se språkregeln nedan), men behåll innehållet fullständigt. Skriv ut varje erfarenhet, ansvarsområde och utbildning i sin helhet.
 - Skriv med en naturlig, mänsklig röst — professionell men inte stel. Undvik AI-klyschor (t.ex. "passionerad", "mångsidig", "resultatorienterad") och fyllordsmeningar, men töm inte innehållet för att uppnå det.
 - Fokusera på konkreta ansvarsområden och resultat. Använd aktiva verb.
 - Hitta inte på information. Om något saknas, lämna fältet tomt.
@@ -77,7 +77,7 @@ Viktigt — bevara ALL information:
 - erfarenhet: nyast först. var beskrivning ska innehålla hela den ursprungliga beskrivningen av ansvarsområden och resultat. period på formen "Månad År – Månad År" eller "År – Nu".
 - fardigheter: niva 0–100 (50 grund, 70 god, 85 mycket god, 95 expert). Ta med alla färdigheter som nämns.
 - sprak.niva: "Modersmål", "Flytande", "Goda kunskaper" eller "Grundläggande".
-- Behåll resultatet på svenska även om inmatningen är på ett annat språk.
+- Språk: Identifiera inmatningens dominerande språk och skapa CV:t på samma språk. Om inmatningen är tom eller språket inte går att avgöra, använd svenska.
 
 Returnera endast giltig JSON enligt schemat.`;
 

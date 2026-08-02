@@ -12,6 +12,8 @@ import CareerDashboard from '@/pages/CareerDashboard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ServicesProvider from '@/providers/ServicesProvider';
+import { LanguageProvider } from '@/lib/i18n';
+import CornerControls from '@/components/CornerControls';
 import { base44 } from '@/api/base44Client';
 // Add page imports here
 
@@ -47,9 +49,12 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <ScrollToTop />
-          <ServicesProvider>
-            <AuthenticatedApp />
-          </ServicesProvider>
+          <LanguageProvider>
+            <ServicesProvider>
+              <AuthenticatedApp />
+            </ServicesProvider>
+            <CornerControls />
+          </LanguageProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>

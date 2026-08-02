@@ -27,7 +27,7 @@ export function createLLMService() {
     async processCV({ text, fileUrl }) {
       const prompt =
         CV_PROCESS_PROMPT +
-        "\n\nAnvändarens inmatning (kan vara på valfritt språk, arrangera och översätt till svenska):\n" +
+        "\n\nAnvändarens inmatning (valfritt språk — skapa CV:t på inmatningens språk, eller svenska om inmatningen är tom):\n" +
         (text || "(se filen)");
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
