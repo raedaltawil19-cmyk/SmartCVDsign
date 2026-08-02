@@ -47,6 +47,60 @@ export function createLLMService() {
       return mergeCV(res);
     },
 
+    /** ATS analysis — returns score, per-category breakdown, strengths, weaknesses, fixable suggestions. */
+    async atsAnalyze(data) {
+      const schema = {
+        type: "object",
+        properties: {
+          overallScore: { type: "number" },
+          categories: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                key: { type: "string", enum: ["headings", "keywords", "formatting", "readability", "contact", "skills", "experience", "education", "length", "fileCompatibility"] },
+                score: { type: "number" },
+                note: { type: "string" },
+              },
+            },
+          },
+          strengths: { type: "array", items: { type: "string" } },
+          weaknesses: { type: "array", items: { type: "string" } },
+          suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                category: { type: "string" },
+                title: { type: "string" },
+                message: { type: "string" },
+                fixInstruction: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+      const prompt =
+        'Du är en expert på ATS (Applicant Tracking System). Analysera följande CV (JSON) på svenska och bedöm hur väl det presterar när en maskin tolkar det.\n\nCV:\n' +
+        JSON.stringify(data) +
+        '\n\nBedöm tio kategorier (0-100, högre = bättre) med en kort svensk motivering:\n' +
+        '- headings: tydliga, standardiserade avsnittsrubriker\n' +
+        '- keywords: branschspecifika nyckelord\n' +
+        '- formatting: enhetlig struktur, inga tabeller/kolumnlayouter som bryter parsing\n' +
+        '- readability: konkreta, tydliga meningar\n' +
+        '- contact: fullständiga kontaktuppgifter (namn, telefon, e-post, ort)\n' +
+        '- skills: explicit listade kompetenser\n' +
+        '- experience: konkreta och gärna mätbara resultat\n' +
+        '- education: tydlig utbildning\n' +
+        '- length: lämplig längd (1–2 sidor)\n' +
+        '- fileCompatibility: textbaserat och parser-vänligt\n\n' +
+        'Beräkna overallScore (0-100) som ett vägt genomsnitt.\n' +
+        'Lista strengths (3–6 punkter) och weaknesses (3–6 punkter) på svenska.\n' +
+        'Ge sedan suggestions: en lista med konkreta, åtgärdbara förbättringar. Varje förslag ska ha category (en av nycklarna ovan), en kort title, en förklarande message, och en fixInstruction — en svensk imperativ instruktion som en CV-redigerare kan tillämpa direkt (t.ex. "Lägg till en tydlig yrkestitel i sammanfattningen"). SAMMANFATTA INGET och FÖRKORTA INGET i något fixförslag.\n' +
+        'Returnera JSON enligt schemat.';
+      return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =

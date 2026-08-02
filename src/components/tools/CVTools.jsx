@@ -5,7 +5,8 @@ import JobMatchModal from "./JobMatchModal";
 import CoverLetterModal from "./CoverLetterModal";
 import QualityModal from "./QualityModal";
 import JobSuggestionsModal from "./JobSuggestionsModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase } from "lucide-react";
+import ATSAnalyzerModal from "./ATSAnalyzerModal";
+import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge } from "lucide-react";
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
@@ -92,6 +93,7 @@ export default function CVTools({ data, onApply }) {
               <Item icon={Briefcase} label="وظائف مقترحة (سويدية)" onClick={() => { setModal("jobsugg"); setOpen(false); }} />
               <Item icon={Target} label="مطابقة إعلان وظيفي" onClick={() => { setModal("job"); setOpen(false); }} />
               <Item icon={Mail} label="رسالة مقدمة (Personligt brev)" onClick={() => { setModal("cover"); setOpen(false); }} />
+              <Item icon={Gauge} label="محلّل توافق ATS" onClick={() => { setModal("ats"); setOpen(false); }} />
               <Item icon={ShieldCheck} label="فحص جودة النص" onClick={() => { setModal("quality"); setOpen(false); }} />
               <Item icon={ImageIcon} label="تنزيل كصورة PNG" onClick={png} />
             </div>
@@ -110,6 +112,7 @@ export default function CVTools({ data, onApply }) {
       {modal === "cover" && <CoverLetterModal data={data} onClose={() => setModal(null)} />}
       {modal === "quality" && <QualityModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
       {modal === "jobsugg" && <JobSuggestionsModal data={data} onClose={() => setModal(null)} />}
+      {modal === "ats" && <ATSAnalyzerModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
     </>
   );
 }
