@@ -141,9 +141,24 @@ export default function CourseAdvisorModal({ data, onClose }) {
                     <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2.5 text-[12px] text-slate-500">
                       {c.durationText && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{c.durationText}</span>}
                       {c.isFree && <span className="inline-flex items-center gap-1 text-emerald-600"><BadgeCheck className="w-3 h-3" />مجانية</span>}
-                      {c.leadsToCert && <span className="inline-flex items-center gap-1 text-violet-600"><ShieldCheck className="w-3 h-3" />شهادة/ экзамен</span>}
+                      {c.leadsToCert && <span className="inline-flex items-center gap-1 text-violet-600"><ShieldCheck className="w-3 h-3" />شهادة معتمدة</span>}
                       {c.weeks ? `· ≈ ${c.weeks} أسبوع` : ""}
                     </div>
+
+                    {c.eligibilityMatch && (
+                      <div className={`mt-2.5 rounded-lg border px-2.5 py-1.5 text-[12px] inline-flex items-center gap-1.5 ${
+                        c.eligibilityMatch === "behörig direkt" ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                        : c.eligibilityMatch === "behörig efter komplettering" ? "bg-amber-50 border-amber-100 text-amber-700"
+                        : "bg-rose-50 border-rose-100 text-rose-700"
+                      }`}>
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {c.eligibilityMatch === "behörig direkt" ? "تنطبق عليك مباشرةً — مؤهّل الآن"
+                          : c.eligibilityMatch === "behörig efter komplettering" ? "مؤهّل بعد دورات/اختبارات جسر"
+                          : "يتطلب مؤهلاً أعلى — حاول البديل"}
+                      </div>
+                    )}
+                    {c.prerequisites && <p className="text-[12px] text-slate-500 mt-1.5 leading-relaxed"><b className="text-slate-600">المواد/المتطلبات:</b> {c.prerequisites}</p>}
+                    {c.eligibilityNote && <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">{c.eligibilityNote}</p>}
 
                     {c.reason && <p className="text-[13px] text-slate-600 mt-2 leading-relaxed">{c.reason}</p>}
 

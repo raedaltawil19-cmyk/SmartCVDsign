@@ -426,22 +426,28 @@ export function createLLMService() {
                 targetRank: { type: "number", description: "Uppskattad matchningsgrad (0–100) EFTER kursen" },
                 employmentImpact: { type: "string", description: "Svensk — t.ex. 'ökar din matchning mot målrollen från ca 60% till ca 78% och stärker nyckelord som saknas i din CV'" },
                 leadsToCert: { type: "boolean", description: "Leder till yrkesexamen/certifikat" },
+                eligibilityMatch: { type: "string", enum: ["behörig direkt", "behörig efter komplettering", "ej behörig - alternativ krävs"], description: "Passar kandidatens nuvarande utbildningsnivå?" },
+                prerequisites: { type: "string", description: "Svenska: vilka förkunskaper/kurser som saknas innan start, om något; annars 'Inga — sök direkt'" },
+                eligibilityNote: { type: "string", description: "Svensk kort förklaring om hur kursen förhåller sig till kandidatens nuvarande utbildningsnivå" },
               },
             },
           },
         },
       };
+      const edu = (cv?.utbildning || []).filter((u) => (u.examen || u.skola || u.inriktning)).map((u) => `${u.examen || ""}${u.skola ? ` — ${u.skola}` : ""}${u.period ? ` (${u.period})` : ""}`).join(" | ");
       const adLines = (jobAds || []).slice(0, 8).map((j, i) => `${i + 1}. ${j.rubrik || ""} — ${j.arbetsgivare || ""} | plats: ${j.plats || ""} | match: ${j.matchPercent ?? "?"}%`).join("\n");
       const prompt =
         `Du är en svensk studie- och yrkesvägledare med kännedom om gratis/avgiftsfria utbildningar i Sverige (Arbetsförmedlingens uppdragsutbildningar och kortkurser, Yrkeshögskola (YH), Komvux, folkhögskola och motsvarande).\n` +
         `Föreslå 3–5 utbildningar (högst 12 månader) som höjer kandidatens anställningsbarhet på den svenska arbetsmarknaden, baserat på dennes CV och de faktiska jobannonser som matchar profilen.\n\n` +
         `Kandidatens CV (JSON, svenska):\n${JSON.stringify(cv)}\n\n` +
         `Målroll: ${jobTitle || cv?.titel || "enligt CV"}\n` +
+        `Kandidatens nuvarande utbildningsnivå (från CV, svenska):\n${edu || "(ingen utbildning angiven)"}\n` +
         `Svaga färdigheter som marknaden efterfrågar men saknas/sparsamt i CV: ${(weakSkills && weakSkills.length ? weakSkills.join(", ") : "allmänna bristningar enligt analysen")}.\n` +
         `Nuvarande uppskattad matchningsgrad mot relevanta annonser i snitt: ${currentMatch ?? "okänt"}%\n\n` +
         `Relevanta svenska jobannonser (reella sökträffar för profilen):\n${adLines || "(ej tillgängliga — basera på målroll och svaga färdigheter)"}\n\n` +
         `Regler (STRIKTA):\n` +
         `- Fokusera HELT på kostnadsfria/avgiftsfria utbildningar i Sverige: Yrkeshögskola (YH) inkl. kortare YH-kurser, Arbetsförmedlingens uppdragsutbildningar och kortkurser, Komvux, folkhögskola. Undvik betalda internationella plattformar som Coursera/Udemy.\n` +
+        `- ANPASSA BEHÖRIGHET till kandidatens nuvarande utbildningsnivå ovan. FÖREDRA kurser kandidaten är behörig till DIREKT ("behörig direkt"). Om en kurs kräver högre förkunskaper (t.ex. gymnasiebehörighet) och kandidaten saknar dem: föreslå ENDAST den om det finns en konkret, kort väg att bli behörig (behörighetsgivande kurser, Komvux-prövning, introduktionskurs) — sätt då eligibilityMatch="behörig efter komplettering" och skriv i prerequisites vilka kurser/prövningar som krävs först. För yrkeskvoten utan klara förkunskaper, välj hellre öppna kurser (introduktion/cirkel/distans utan krav) än kurser kandidaten inte kan börja direkt. Sätt eligibilityMatch="ej behörig - alternativ krävs" ENDAST som undantag och ge då ett konkret alternativ istället för den kursen.\n` +
         `- Varje utbildning max 12 månader (weeks ≤ 52).\n` +
         `- Använd webbsökning för att hitta TIDLIGA, RIKTIGA utbildningar/ansökningssidor. Om du inte hittar en exakt länk: sätt url till anordnarens söksida (t.ex. yh-antagning.se, utbildningsguiden.skolverket.se, arbetsformedlingen.se).\n` +
         `- Hitta INTE på utbildningar som inte finns. Välj gärna sådana som leder till yrkesexamen/certifikat (leadsToCert=true) om det passar.\n` +
