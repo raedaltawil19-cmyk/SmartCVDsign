@@ -401,6 +401,63 @@ export function createLLMService() {
       return res?.courses || [];
     },
 
+    /** Swedish Free-Course Advisor — free Swedish training (≤12 months) tied to the CV's gaps + matching jobs, with employment impact. */
+    async recommendSwedishCourses({ cv, jobTitle, weakSkills, currentMatch, jobAds }) {
+      const schema = {
+        type: "object",
+        properties: {
+          courses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                provider: { type: "string", description: "Anordnare (t.ex. Yrkeshögskola, Arbetsförmedlingen, Komvux, folkhögskola)" },
+                type: {
+                  type: "string",
+                  enum: ["Yrkeshögskola", "Arbetsförmedlingen", "Komvux", "Folkhögskola", "Distans/Online"],
+                },
+                url: { type: "string", description: "Riktig länk till utbildningen/ansökan om känd, annars tillbaka till anordnarens söksida" },
+                durationText: { type: "string", description: "Kort svensk varaktighet (t.ex. 'ca 6 veckor' eller '5 veckor heltid')" },
+                weeks: { type: "number", description: "Varaktighet i veckor (max 52)" },
+                isFree: { type: "boolean" },
+                reason: { type: "string", description: "Svenska 1–2 meningar: varför just detta för kandidaten, kopplat till svaga färdigheter/annonskrav" },
+                currentRank: { type: "number", description: "Uppskattad matchningsgrad (0–100) för målrollen INNAN kursen" },
+                targetRank: { type: "number", description: "Uppskattad matchningsgrad (0–100) EFTER kursen" },
+                employmentImpact: { type: "string", description: "Svensk — t.ex. 'ökar din matchning mot målrollen från ca 60% till ca 78% och stärker nyckelord som saknas i din CV'" },
+                leadsToCert: { type: "boolean", description: "Leder till yrkesexamen/certifikat" },
+              },
+            },
+          },
+        },
+      };
+      const adLines = (jobAds || []).slice(0, 8).map((j, i) => `${i + 1}. ${j.rubrik || ""} — ${j.arbetsgivare || ""} | plats: ${j.plats || ""} | match: ${j.matchPercent ?? "?"}%`).join("\n");
+      const prompt =
+        `Du är en svensk studie- och yrkesvägledare med kännedom om gratis/avgiftsfria utbildningar i Sverige (Arbetsförmedlingens uppdragsutbildningar och kortkurser, Yrkeshögskola (YH), Komvux, folkhögskola och motsvarande).\n` +
+        `Föreslå 3–5 utbildningar (högst 12 månader) som höjer kandidatens anställningsbarhet på den svenska arbetsmarknaden, baserat på dennes CV och de faktiska jobannonser som matchar profilen.\n\n` +
+        `Kandidatens CV (JSON, svenska):\n${JSON.stringify(cv)}\n\n` +
+        `Målroll: ${jobTitle || cv?.titel || "enligt CV"}\n` +
+        `Svaga färdigheter som marknaden efterfrågar men saknas/sparsamt i CV: ${(weakSkills && weakSkills.length ? weakSkills.join(", ") : "allmänna bristningar enligt analysen")}.\n` +
+        `Nuvarande uppskattad matchningsgrad mot relevanta annonser i snitt: ${currentMatch ?? "okänt"}%\n\n` +
+        `Relevanta svenska jobannonser (reella sökträffar för profilen):\n${adLines || "(ej tillgängliga — basera på målroll och svaga färdigheter)"}\n\n` +
+        `Regler (STRIKTA):\n` +
+        `- Fokusera HELT på kostnadsfria/avgiftsfria utbildningar i Sverige: Yrkeshögskola (YH) inkl. kortare YH-kurser, Arbetsförmedlingens uppdragsutbildningar och kortkurser, Komvux, folkhögskola. Undvik betalda internationella plattformar som Coursera/Udemy.\n` +
+        `- Varje utbildning max 12 månader (weeks ≤ 52).\n` +
+        `- Använd webbsökning för att hitta TIDLIGA, RIKTIGA utbildningar/ansökningssidor. Om du inte hittar en exakt länk: sätt url till anordnarens söksida (t.ex. yh-antagning.se, utbildningsguiden.skolverket.se, arbetsformedlingen.se).\n` +
+        `- Hitta INTE på utbildningar som inte finns. Välj gärna sådana som leder till yrkesexamen/certifikat (leadsToCert=true) om det passar.\n` +
+        `- currentRank: din bästa uppskattning av kandidatens nuvarande matchning för målrollen (utgå från ${currentMatch ?? "CV-innehållet"} och svaga färdigheter).\n` +
+        `- targetRank: uppskattad matchning EFTER kursen (realistisk, baserat på vilka färdigheter kursen adderar). Bör vara högre än currentRank.\n` +
+        `- employmentImpact: svensk mening, beskriv konkret ("ökar din matchning ... från ca X% till ca Y%") och nämna nyckelkompetenser som fylls.\n` +
+        `Returnera giltig JSON enligt schemat. Alla textfält på svenska. isFree=true för utbildningar som inte kostar delttagaren.`;
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: schema,
+        add_context_from_internet: true,
+        model: "gemini_3_flash",
+      });
+      return res?.courses || [];
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =
