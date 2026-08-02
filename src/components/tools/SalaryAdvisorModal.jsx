@@ -2,15 +2,13 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { X, Loader2, Wallet, TrendingUp, Lightbulb, Check } from "lucide-react";
+import { classifyIndustry, extractLocation, SALARY_INDUSTRIES } from "@/lib/cvInference";
 
 const LEVELS = [
   { key: "junior", label: "Junior", sub: "0–2 år" },
   { key: "mid", label: "Mid", sub: "3–6 år" },
   { key: "senior", label: "Senior", sub: "7+ år" },
 ];
-
-const REGIONS = ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Övriga Sverige"];
-const INDUSTRIES = ["IT/Tech", "Finans", "Hälso- och sjukvård", "Industri", "Bygg", "Handel", "Offentlig sektor", "Konsult", "Marknadsföring", "Utbildning", "Annat"];
 
 const CONF = {
   high: { label: "عالية", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
@@ -24,9 +22,9 @@ export default function SalaryAdvisorModal({ data, onClose }) {
   const { toast } = useToast();
   const { llm } = useServices();
   const [jobTitle, setJobTitle] = useState(data?.profession || data?.titel || data?.sammanfattning || "");
-  const [region, setRegion] = useState("Stockholm");
+  const [region, setRegion] = useState(extractLocation(data) || "Stockholm");
   const [experience, setExperience] = useState("mid");
-  const [industry, setIndustry] = useState("IT/Tech");
+  const [industry, setIndustry] = useState(classifyIndustry(data));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -100,15 +98,18 @@ export default function SalaryAdvisorModal({ data, onClose }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] text-slate-500 mb-1.5 block">المنطقة</label>
-                <select value={region} onChange={(e) => setRegion(e.target.value)} className="w-full text-[13px] border border-slate-200 rounded-xl px-3 py-2.5 bg-white outline-none focus:border-[#1B4FD8]">
-                  {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <label className="text-[12px] text-slate-500 mb-1.5 block">البلدية / المدينة</label>
+                <input
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="مثال: Stockholm, Göteborg..."
+                  className="w-full text-[13px] border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-[#1B4FD8]"
+                />
               </div>
               <div>
                 <label className="text-[12px] text-slate-500 mb-1.5 block">المجال</label>
                 <select value={industry} onChange={(e) => setIndustry(e.target.value)} className="w-full text-[13px] border border-slate-200 rounded-xl px-3 py-2.5 bg-white outline-none focus:border-[#1B4FD8]">
-                  {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                  {SALARY_INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
                 </select>
               </div>
             </div>
