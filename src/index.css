@@ -137,9 +137,13 @@
   }
 }
 
-.cv-print-area .cv-keep { break-inside: avoid; }
+/* CSS Paged Media — world-standard break rules (MS Word / Google Docs behavior) */
+.cv-print-area { orphans: 2; widows: 2; }
 .cv-print-area h1, .cv-print-area h2, .cv-print-area h3, .cv-print-area h4 { break-after: avoid; }
-.cv-print-area p, .cv-print-area li { break-inside: avoid; }
+/* Experience/education items: allow the description to flow across pages */
+.cv-print-area .cv-keep { break-inside: auto; }
+/* Keep the item header (title + period row) together AND with the description start */
+.cv-print-area .cv-keep > div:first-child { break-after: avoid; break-inside: avoid; }
 
 .print-notice { display: none; }
 @media print {
