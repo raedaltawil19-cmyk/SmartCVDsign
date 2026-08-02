@@ -312,6 +312,61 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema, add_context_from_internet: true, model: "gemini_3_flash" });
     },
 
+    /** Company Tailoring — analyze a company's culture and rewrite the CV to fit it, logging every change. */
+    async tailorCompany({ data, companyName, jobDescription }) {
+      const cvObjSchema = { type: "object", properties: { ...CV_SCHEMA.properties } };
+      const schema = {
+        type: "object",
+        properties: {
+          culture: {
+            type: "object",
+            properties: {
+              summary: { type: "string", description: "Kort svensk analys av företagets kultur och värderingar" },
+              values: { type: "array", items: { type: "string" }, description: "Nyckelvärden/inslag i kulturen (svenska)" },
+              tone: { type: "string", description: "Rekommenderad ton för CV:t till detta företag" },
+              keywords: { type: "array", items: { type: "string" }, description: "Nyckelord som företaget värdesätter" },
+            },
+          },
+          cv: cvObjSchema,
+          changes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                section: { type: "string", enum: ["titel", "profil", "fardigheter", "erfarenhet", "utbildning", "sprak"] },
+                field: { type: "string", description: "Vilket fält (t.ex. 'erfarenhet[0].beskrivning' eller 'profil')" },
+                original: { type: "string" },
+                modified: { type: "string" },
+                reason: { type: "string", description: "Svensk förklaring av varför ändringen gjordes (kopplad till kultur/annons)" },
+              },
+            },
+          },
+        },
+      };
+      const prompt =
+        `Du är en CV-konsult och företagsanalytiker. Skräddarsytt ett befintligt CV till ett specifikt företag.\n\n` +
+        `Företag: ${companyName}\n` +
+        (jobDescription ? `Jobbannons:\n${jobDescription}\n\n` : "\n") +
+        `Befintligt CV (JSON, svenska):\n${JSON.stringify(data)}\n\n` +
+        `Steg 1 — Analysera företagets kultur (använd webbsökning om företaget finns offentligt): sammanfatta kulturen och värderingarna, rekommendera en lämplig ton, och lista nyckelord företaget värdesätter. Allt på svenska.\n` +
+        `Steg 2 — Skriv om CV:t så att det passar företaget, genom att justera:\n` +
+        `- titel och profil (professional summary) så de speglar företagets värderingar och annonsens krav\n` +
+        `- fardigheter (och deras niva) så relevanta kompetenser lyfts och nyckelord inkluderas\n` +
+        `- erfarenhet.beskrivning (achievements) så de betonar resultat och formuleringar som resonerar med kulturen\n` +
+        `- keywords integrerat naturligt i texterna\n` +
+        `- ton enligt den rekommenderade tonen\n` +
+        `Regler: Bevara ALL information — SAMMANFATTA INTE eller ta bort fakta. Hitta INTE på erfarenheter som inte finns. För erfarenheter utan koppling till företaget: behåll dem men justera formuleringarna mot företagets språk.\n` +
+        `Steg 3 — För EVERY faktisk ändring du gör (text som skiljer sig från originalet), skapa en change-post: section, field (exakt vilket fält, t.ex. "profil" eller "erfarenhet[2].beskrivning"), original (ursprunglig text), modified (ny text), reason (svensk, kopplad till kultur/annons -- varför denna specifika ändring). Lämna OFÖRÄNDRADE fält helt utan change-post. Hoppa INTE över några ändringar.\n` +
+        `Returnera giltig JSON enligt schemat med culture, cv (hela det skräddarsydda CV:t) och changes.`;
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: schema,
+        add_context_from_internet: true,
+        model: "gemini_3_flash",
+      });
+      return { culture: res?.culture, cv: res?.cv || {}, changes: res?.changes || [] };
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =

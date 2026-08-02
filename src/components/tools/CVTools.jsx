@@ -11,7 +11,8 @@ import GapDetectorModal from "./GapDetectorModal";
 import InterviewAssistantModal from "./InterviewAssistantModal";
 import SalaryAdvisorModal from "./SalaryAdvisorModal";
 import LinkedInImportModal from "./LinkedInImportModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin } from "lucide-react";
+import CompanyTailoringModal from "./CompanyTailoringModal";
+import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale } from "lucide-react";
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
@@ -96,6 +97,7 @@ export default function CVTools({ data, onApply }) {
               </div>
               <div className="h-px bg-slate-100 my-1" />
               <Item icon={Briefcase} label="وظائف مقترحة (سويدية)" onClick={() => { setModal("jobsugg"); setOpen(false); }} />
+              <Item icon={Scale} label="تخصيص للشركة (ثقافة)" onClick={() => { setModal("company"); setOpen(false); }} />
               <Item icon={Target} label="مطابقة إعلان وظيفي" onClick={() => { setModal("job"); setOpen(false); }} />
               <Item icon={Mail} label="رسالة مقدمة (Personligt brev)" onClick={() => { setModal("cover"); setOpen(false); }} />
               <Item icon={CalendarRange} label="كشف فجوات التوظيف" onClick={() => { setModal("gap"); setOpen(false); }} />
@@ -128,6 +130,7 @@ export default function CVTools({ data, onApply }) {
       {modal === "interview" && <InterviewAssistantModal data={data} onClose={() => setModal(null)} />}
       {modal === "salary" && <SalaryAdvisorModal data={data} onClose={() => setModal(null)} />}
       {modal === "linkedin" && <LinkedInImportModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
+      {modal === "company" && <CompanyTailoringModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
     </>
   );
 }
