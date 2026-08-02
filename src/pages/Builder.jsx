@@ -50,7 +50,7 @@ export default function Builder() {
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    const update = () => setScale(Math.min(1, el.clientWidth / A4_W));
+    const update = () => setScale(Math.max(0.3, Math.min(1, (el.clientWidth - 120) / A4_W)));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -246,36 +246,36 @@ export default function Builder() {
           </div>
         )}
         {!processing && (
-          <>
-            <CVSideToolbar
-              mode={mode}
-              onManualEdit={() => setMode("edit")}
-              onToggleAgent={() => setAgentOpen((v) => !v)}
-              agentOpen={agentOpen}
-              onImprove={regenerate}
-              regenerating={regenerating}
-              processing={processing}
-              data={data}
-              onApply={(d) => setData(d)}
-              templateId={templateId}
-              onTemplateChange={setTemplateId}
-            />
-            <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible">
-              <div style={{ width: A4_W * scale, height: A4_H * scale, margin: "0 auto" }} className="print:w-auto print:h-auto">
-                <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
-                  <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
-                    <CVPreview templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
-                  </div>
-                  {mode === "edit" && (
-                    <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
-                      <div className="border-t-2 border-dashed border-rose-300/80" />
-                      <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">{t("builder.pageBoundary")}</span>
-                    </div>
-                  )}
+          <div ref={panelRef} className="flex-1 overflow-auto p-6 bg-slate-200/60 print:p-0 print:bg-white print:overflow-visible flex justify-center gap-4">
+            <div className="no-print self-start sticky top-6 print:hidden">
+              <CVSideToolbar
+                mode={mode}
+                onManualEdit={() => setMode("edit")}
+                onToggleAgent={() => setAgentOpen((v) => !v)}
+                agentOpen={agentOpen}
+                onImprove={regenerate}
+                regenerating={regenerating}
+                processing={processing}
+                data={data}
+                onApply={(d) => setData(d)}
+                templateId={templateId}
+                onTemplateChange={setTemplateId}
+              />
+            </div>
+            <div style={{ width: A4_W * scale, height: A4_H * scale }} className="print:w-auto print:h-auto">
+              <div className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W, height: A4_H }}>
+                <div className="cv-print-area bg-white shadow-2xl" style={{ width: A4_W, minHeight: A4_H }}>
+                  <CVPreview templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
                 </div>
+                {mode === "edit" && (
+                  <div className="no-print pointer-events-none absolute left-0 right-0" style={{ top: A4_H }}>
+                    <div className="border-t-2 border-dashed border-rose-300/80" />
+                    <span className="text-[10px] text-rose-500 bg-white px-1 -mt-3 inline-block ml-2">{t("builder.pageBoundary")}</span>
+                  </div>
+                )}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

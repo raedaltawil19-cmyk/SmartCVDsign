@@ -40,7 +40,7 @@ export default function CVSideToolbar({
 
   return (
     <>
-      <div className={`no-print shrink-0 w-14 flex flex-col items-center gap-1.5 py-3 bg-white ${dir === "rtl" ? "border-l" : "border-r"} border-slate-200`}>
+      <div className="no-print shrink-0 w-14 flex flex-col items-center gap-1.5 py-3 bg-white rounded-2xl shadow-lg border border-slate-200">
         <Btn icon={Sparkles} label={t("builder.aiEdit")} onClick={onToggleAgent} active={agentOpen} />
         <Btn icon={Pencil} label={t("builder.manualEdit")} onClick={onManualEdit} active={mode === "edit"} />
         <Btn icon={LayoutTemplate} label={t("builder.changeTemplate")} onClick={() => setTplOpen(true)} />
