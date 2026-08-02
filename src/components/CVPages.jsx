@@ -17,6 +17,10 @@ function offsetTo(el, root) {
   return top;
 }
 
+function isHeading(el) {
+  return /^H[1-4]$/.test(el.tagName);
+}
+
 export default function CVPages({ templateId, data, editable, actions, layout, mode }) {
   const [pages, setPages] = useState([{ start: 0, end: A4_H }]);
   const measureRef = useRef(null);
@@ -30,11 +34,19 @@ export default function CVPages({ templateId, data, editable, actions, layout, m
       const total = el.scrollHeight;
       if (total <= 0) return;
 
-      const blockEls = el.querySelectorAll(".cv-keep, h1, h2, h3, h4");
-      const blocks = [...blockEls]
+      // Collect break-boundary blocks (keep-together units):
+      //  - .cv-keep entries (experience / education items)
+      //  - simple sections without .cv-keep children (e.g. profil) -> kept whole
+      //  - headings (h1-h4)
+      const sections = [...el.querySelectorAll("section")];
+      const simpleSections = sections.filter((s) => !s.querySelector(".cv-keep"));
+      const entries = [...el.querySelectorAll(".cv-keep")];
+      const headings = [...el.querySelectorAll("h1, h2, h3, h4")];
+
+      const blocks = [...simpleSections, ...entries, ...headings]
         .map((b) => {
           const top = offsetTo(b, el);
-          return { top, bottom: top + b.offsetHeight };
+          return { el: b, top, bottom: top + b.offsetHeight, heading: isHeading(b) };
         })
         .filter((b) => b.bottom > 0.5 && b.top < total - 0.5)
         .sort((a, b) => a.top - b.top);
@@ -43,11 +55,25 @@ export default function CVPages({ templateId, data, editable, actions, layout, m
       let cur = 0;
       let guard = 0;
       while (cur + A4_H < total - 1 && guard < 50) {
-        let end = cur + A4_H;
-        for (const b of blocks) {
-          if (b.top >= cur - 0.5 && b.bottom <= cur + A4_H + 0.5) end = b.bottom;
+        const fitting = blocks.filter(
+          (b) => b.top >= cur - 0.5 && b.bottom <= cur + A4_H + 0.5
+        );
+        let end;
+        if (fitting.length === 0) {
+          // No block fits fully (a block taller than the page) -> hard cut
+          end = cur + A4_H;
+        } else {
+          const last = fitting[fitting.length - 1];
+          const lastIdx = blocks.indexOf(last);
+          const hasMore = lastIdx < blocks.length - 1;
+          if (last.heading && hasMore && fitting.length > 1) {
+            // Orphan control: pull the trailing heading to the next page
+            end = fitting[fitting.length - 2].bottom;
+          } else {
+            end = last.bottom;
+          }
         }
-        if (end <= cur + 1) end = cur + A4_H; // no block fits fully -> hard cut
+        if (end <= cur + 1) end = cur + A4_H; // safety: always advance
         cur = end;
         starts.push(cur);
         guard++;
