@@ -101,6 +101,52 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
     },
 
+    /** Achievement Optimizer — analyze each work experience, detect weak bullet points, propose improved + rewritten variants. */
+    async optimizeAchievements(data) {
+      const schema = {
+        type: "object",
+        properties: {
+          experiences: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                index: { type: "number" },
+                roll: { type: "string" },
+                bullets: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      text: { type: "string" },
+                      weak: { type: "boolean" },
+                      issue: { type: "string" },
+                      improved: { type: "string" },
+                      rewritten: { type: "string" },
+                      placeholder: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+      const prompt =
+        'Du är en expert på att stärka CV-prestationer. Analysera varje arbetslivserfarenhet i CV:t (JSON på svenska) och dela upp beskrivningen i enskilda punktmeningar ("bullets").\n\nCV:\n' +
+        JSON.stringify(data) +
+        '\n\nFör varje bullet per erfarenhet bedöm om den är svag (vag, passiv, klysché, saknar mätbarhet).\n' +
+        'För svaga bullets, ge:\n' +
+        '  - issue: kort svensk förklaring av varför den är svag\n' +
+        '  - improved: en starkare version som betonar resultat och mätbarhet — FÖRFINTA INTE fakta eller siffror som inte finns. Saknas siffror, använd realistiska platshållare tydligt markerade, t.ex. "ökade kundnöjdheten med [X] %" eller "[antal] nya kunder".\n' +
+        '  - rewritten: en alternativ, mer aktiv och konkret omskrivning (även den utan påhittade fakta)\n' +
+        '  - placeholder: en kort rekommendation om vilken typ av mätbarhet användaren kan lägga till (t.ex. "Lägg till antal eller procentsats för kundnöjdhet")\n' +
+        'För icke-svaga bullets: weak=false, issue/improved/rewritten/placeholder kan vara tomma strängar, och text är originalet oförändrat.\n' +
+        'Viktigast: HITTA PÅ INGA fakta eller siffror som inte uttryckligen finns i originalet. Behåll all existerande information.\n' +
+        'Returnera JSON enligt schemat, med experiences i samma ordning och index som i CV:t.';
+      return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
+    },
+
     /** Refine existing CV text in place (no summarizing). */
     async regenerateCV(data) {
       const prompt =

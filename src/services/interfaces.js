@@ -34,6 +34,7 @@ export const LLM_INTERFACE = defineInterface(PORT.LLM, [
   "transformCV",
   "regenerateCV",
   "atsAnalyze",
+  "optimizeAchievements",
 ]);
 
 export const CV_REPOSITORY_INTERFACE = defineInterface(PORT.CV_REPOSITORY, [
