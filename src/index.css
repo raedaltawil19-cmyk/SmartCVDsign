@@ -125,6 +125,15 @@
     width: 210mm !important;
     box-shadow: none !important;
   }
+  .cv-print-area h2,
+  .cv-print-area h3 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  .cv-keep {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
 }
 
 /* Print lock for non-authenticated users */
