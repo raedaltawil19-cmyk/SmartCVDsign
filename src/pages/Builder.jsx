@@ -39,7 +39,7 @@ export default function Builder() {
   const [fitScale, setFitScale] = useState(0.6);
   const [userZoom, setUserZoom] = useState(null);
   const scale = userZoom ?? fitScale;
-  const zoomIn = () => setUserZoom((s) => Math.min(2, Math.round(((s ?? fitScale) + 0.1) * 10) / 10));
+  const zoomIn = () => setUserZoom((s) => Math.min(3, Math.round(((s ?? fitScale) + 0.1) * 10) / 10));
   const zoomOut = () => setUserZoom((s) => Math.max(0.3, Math.round(((s ?? fitScale) - 0.1) * 10) / 10));
   const zoomReset = () => setUserZoom(1);
   const zoomFit = () => setUserZoom(null);
@@ -58,7 +58,7 @@ export default function Builder() {
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    const update = () => setFitScale(Math.max(0.3, Math.min(1.5, (el.clientWidth - 48) / A4_W)));
+    const update = () => setFitScale(Math.max(0.3, Math.min(3, (el.clientWidth - 48) / A4_W)));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -287,7 +287,7 @@ export default function Builder() {
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="m-auto">
-              <div ref={wrapperRef} className="relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
+              <div ref={wrapperRef} className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
                 <CVPages templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
               </div>
             </div>

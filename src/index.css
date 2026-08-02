@@ -98,6 +98,14 @@
 /* === Print === */
 @media print {
   .no-print { display: none !important; }
+  .cv-scale-wrapper {
+    transform: none !important;
+    width: 210mm !important;
+  }
+  .cv-print-area {
+    width: 210mm !important;
+    box-shadow: none !important;
+  }
 }
 
 /* Print lock for non-authenticated users */
