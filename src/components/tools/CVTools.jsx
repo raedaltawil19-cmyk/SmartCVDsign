@@ -10,7 +10,8 @@ import AchievementOptimizerModal from "./AchievementOptimizerModal";
 import GapDetectorModal from "./GapDetectorModal";
 import InterviewAssistantModal from "./InterviewAssistantModal";
 import SalaryAdvisorModal from "./SalaryAdvisorModal";
-import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet } from "lucide-react";
+import LinkedInImportModal from "./LinkedInImportModal";
+import { Wrench, Loader2, Target, Mail, ShieldCheck, Image as ImageIcon, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin } from "lucide-react";
 
 export default function CVTools({ data, onApply }) {
   const { toast } = useToast();
@@ -101,6 +102,7 @@ export default function CVTools({ data, onApply }) {
               <Item icon={Award} label="مُحسّن الإنجازات" onClick={() => { setModal("achieve"); setOpen(false); }} />
               <Item icon={Mic} label="مساعد المقابلات" onClick={() => { setModal("interview"); setOpen(false); }} />
               <Item icon={Wallet} label="مستشار الرواتب (السويد)" onClick={() => { setModal("salary"); setOpen(false); }} />
+              <Item icon={Linkedin} label="استيراد من LinkedIn" onClick={() => { setModal("linkedin"); setOpen(false); }} />
               <Item icon={Gauge} label="محلّل توافق ATS" onClick={() => { setModal("ats"); setOpen(false); }} />
               <Item icon={ShieldCheck} label="فحص جودة النص" onClick={() => { setModal("quality"); setOpen(false); }} />
               <Item icon={ImageIcon} label="تنزيل كصورة PNG" onClick={png} />
@@ -125,6 +127,7 @@ export default function CVTools({ data, onApply }) {
       {modal === "gap" && <GapDetectorModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
       {modal === "interview" && <InterviewAssistantModal data={data} onClose={() => setModal(null)} />}
       {modal === "salary" && <SalaryAdvisorModal data={data} onClose={() => setModal(null)} />}
+      {modal === "linkedin" && <LinkedInImportModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
     </>
   );
 }

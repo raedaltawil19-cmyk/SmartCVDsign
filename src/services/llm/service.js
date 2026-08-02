@@ -218,6 +218,52 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
     },
 
+    /** LinkedIn Import — extract a LinkedIn profile (text or uploaded file) into a Swedish CV with certifikat/projekt as separate arrays. */
+    async importLinkedIn({ text, fileUrl }) {
+      const cvObjSchema = {
+        type: "object",
+        properties: {
+          ...CV_SCHEMA.properties,
+          certifikat: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { namn: { type: "string" }, utvardare: { type: "string" }, datum: { type: "string" } },
+            },
+          },
+          projekt: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { namn: { type: "string" }, beskrivning: { type: "string" }, period: { type: "string" } },
+            },
+          },
+        },
+      };
+      const schema = { type: "object", properties: { cv: cvObjSchema } };
+      const prompt =
+        `Du är en CV-konverterare. Användaren vill importera sin LinkedIn-profil till ett svenskt CV.\n\n` +
+        `Innehåll (text från profilsidan eller en LinkedIn-export/PDF):\n` +
+        (fileUrl ? "(se filen)" : (text || "(tomt)")) + `\n\n` +
+        `Kartlägg extraheringen:\n` +
+        `- Name/Headline → namn och titel\n` +
+        `- About/Summary → profil\n` +
+        `- Experience → erfarenhet (roll, foretag, period "Månad År – Månad År" eller "År – Nu", beskrivning med hela ansvarsområden)\n` +
+        `- Education → utbildning\n` +
+        `- Skills → fardigheter (niva 0–100; 70 om osäkert)\n` +
+        `- Languages → sprak (niva: "Modersmål" / "Flytande" / "Goda kunskaper" / "Grundläggande")\n` +
+        `- Certifications & Licenses → certifikat (namn, utvardare, datum)\n` +
+        `- Projects → projekt (namn, beskrivning, period)\n` +
+        `- Kontakt: kontakt.linkedin om länk finns; epost/telefon/adress om de framgår.\n\n` +
+        `Regler: Bevara ALL information och översätt till svenska. Skriv naturligt och professionellt — SAMMANFATTA INTE. HITTA INGET på fakta som inte finns; lämna fält tomt om data saknas. Returnera giltig JSON med ett "cv"-objekt enligt schemat.`;
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: schema,
+        file_urls: fileUrl ? [fileUrl] : undefined,
+      });
+      return res?.cv || res || {};
+    },
+
     /** Salary Advisor — estimate salary for the Swedish market based on role/region/experience/industry. */
     async estimateSalary({ jobTitle, region, experience, industry }) {
       const schema = {
