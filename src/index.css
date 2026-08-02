@@ -95,84 +95,12 @@
   }
 }
 
-/* === CV Print — CSS Print-first, page-perfect PDF export === */
+/* === Print === */
 @media print {
-  @page { size: A4; margin: 0; }
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-  /* Hide everything; show only print area */
-  body * { visibility: hidden; }
-  .cv-print-area, .cv-print-area * { visibility: visible !important; }
   .no-print { display: none !important; }
-
-  /* Cover letter mode */
-  .cl-print-area, .cl-print-area * { visibility: visible !important; }
-  body.cl-mode .cv-print-area, body.cl-mode .cv-print-area * { visibility: hidden !important; }
-  .cl-print-area {
-    position: static !important;
-    width: 210mm !important;
-    min-height: 297mm !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
-
-  /* ── Neutralize ALL parent containers so print content flows freely ── */
-  .cv-builder-panel {
-    display: block !important;
-    overflow: visible !important;
-    width: auto !important;
-    height: auto !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  .cv-scale-parent {
-    width: auto !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .cv-scale-wrapper {
-    transform: none !important;
-    position: static !important;
-    width: auto !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* CV print area: STATIC position = normal flow = natural multi-page pagination */
-  .cv-print-area {
-    display: block !important;
-    position: static !important;
-    width: 210mm !important;
-    min-height: 297mm !important;
-    margin: 0 !important; padding: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    background: white !important;
-  }
-  /* Neutralize template root h-full / fixed heights so content flows past one page */
-  .cv-print-area > div {
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
-  }
 }
 
-/* CSS Paged Media — world-standard break rules (MS Word / Google Docs behavior) */
-.cv-print-area { orphans: 2; widows: 2; }
-.cv-print-area h1, .cv-print-area h2, .cv-print-area h3, .cv-print-area h4 { break-after: avoid; }
-/* Experience/education items: allow the description to flow across pages */
-.cv-print-area .cv-keep { break-inside: auto; }
-/* Keep the item header (title + period row) together AND with the description start */
-.cv-print-area .cv-keep > div:first-child { break-after: avoid; break-inside: avoid; }
-
+/* Print lock for non-authenticated users */
 .print-notice { display: none; }
 @media print {
   body.print-locked .cv-print-area,
