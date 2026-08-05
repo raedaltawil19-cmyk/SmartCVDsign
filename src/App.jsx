@@ -9,6 +9,7 @@ import Home from '@/pages/Home';
 import Builder from '@/pages/Builder';
 import MyApplications from '@/pages/MyApplications';
 import CareerDashboard from '@/pages/CareerDashboard';
+import AgentChat from '@/pages/AgentChat';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ServicesProvider from '@/providers/ServicesProvider';
@@ -35,6 +36,7 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<LoginRedirect />} />}>
         <Route path="/applications" element={<MyApplications />} />
         <Route path="/dashboard" element={<CareerDashboard />} />
+        <Route path="/agent" element={<AgentChat />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
