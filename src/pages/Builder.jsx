@@ -9,7 +9,7 @@ import CVPages from "@/components/CVPages";
 import CVAgent from "@/components/CVAgent";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save } from "lucide-react";
+import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 
 const A4_W = 794;
@@ -287,6 +287,12 @@ export default function Builder() {
               <Save className="w-4 h-4" />
               <span>{t("builder.save")}</span>
             </button>
+            {currentCvId && (
+              <button onClick={() => navigate(`/tailor/${currentCvId}`)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#D9E830] text-black hover:bg-[#c5d420] transition-colors font-medium">
+                <Target className="w-4 h-4" />
+                <span className="hidden sm:inline">تخصيص لوظيفة</span>
+              </button>
+            )}
             {mode === "edit" && (
               <button onClick={() => setMode("preview")} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                 <Eye className="w-4 h-4" />
