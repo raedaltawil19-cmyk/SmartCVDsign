@@ -11,6 +11,7 @@ import MyApplications from '@/pages/MyApplications';
 import CareerDashboard from '@/pages/CareerDashboard';
 import AgentChat from '@/pages/AgentChat';
 import ApplicationTailor from '@/pages/ApplicationTailor';
+import TemplateAdvisor from '@/pages/TemplateAdvisor';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ServicesProvider from '@/providers/ServicesProvider';
@@ -40,6 +41,8 @@ const AuthenticatedApp = () => {
         <Route path="/agent" element={<AgentChat />} />
         <Route path="/tailor/:cvId" element={<ApplicationTailor />} />
         <Route path="/tailor" element={<ApplicationTailor />} />
+        <Route path="/template-advisor/:cvId" element={<TemplateAdvisor />} />
+        <Route path="/template-advisor" element={<TemplateAdvisor />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
