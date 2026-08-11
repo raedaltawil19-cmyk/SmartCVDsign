@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV, normalizeLayout, SECTIONS } from "@/lib/cvModel";
+import { parseReorderCommand, applyReorder } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2 } from "lucide-react";
@@ -41,6 +42,26 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     setError("");
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
+
+      // 1) أوامر إعادة الترتيب: تطبيق حتمي (بدون LLM) لضمان التنفيذ الفعلي
+      const reorder = parseReorderCommand(instr);
+      if (reorder) {
+        const newLayout = applyReorder(currentLayout, reorder);
+        const layoutChanged = JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
+        onApply({ data, layout: layoutChanged ? newLayout : null });
+        logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged, source: reorder.source, target: reorder.target, direction: reorder.direction });
+        setInput("");
+        onClose();
+        toast({
+          title: "تم التنفيذ",
+          description: layoutChanged
+            ? `نقلت «${reorder.source}» ${reorder.direction === "before" ? "فوق" : "تحت"} «${reorder.target}».`
+            : "القسم في موضعه بالفعل."
+        });
+        return;
+      }
+
+      // 2) تعديل المحتوى: استدعاء النموذج
       const prompt =
         `Du är en CV-redigeringsassistent. Du kan BOTH redigera CV-innehåll AND ordna om avsnitten.\n\n` +
         `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
