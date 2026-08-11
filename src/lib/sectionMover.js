@@ -3,7 +3,7 @@ import { SECTIONS } from "./cvModel";
 const SECTION_ALIASES = {
   profil: ["profil", "profile", "الملف الشخصي", "الملف", "التعريف", "personal profile"],
   erfarenhet: ["erfarenhet", "arbetslivserfarenhet", "experience", "الخبرة", "الخبرات", "الخبرة المهنية", "العمل", "الخبرات العملية"],
-  utbildning: ["utbildning", "education", "التعليم", "الدراسة", "الدراسات", "المؤهل", "المؤهلات", "الشهادات"],
+  utbildning: ["utbildning", "education", "التعليم", "الدراسة", "الدراسات", "المؤهل", "المؤهلات", "الشهادات", "الدورات", "دورات", "دورة", "الدورة", "تدريب", "التدريب", "kurs", "kurser", "course", "courses", "training"],
   fardigheter: ["fardigheter", "skills", "المهارات", "المهارة", "الكفاءات", "competencies", "القدرات"],
   sprak: ["sprak", "languages", "اللغات", "اللغة", "language", "اللغوية"]
 };
