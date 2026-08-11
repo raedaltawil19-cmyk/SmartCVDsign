@@ -9,7 +9,7 @@ import CVPages from "@/components/CVPages";
 import CVAgent from "@/components/CVAgent";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target, LayoutTemplate } from "lucide-react";
+import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target, LayoutTemplate, Check } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
@@ -54,6 +54,9 @@ export default function Builder() {
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState("");
+  const autoSaveTimerRef = useRef(null);
+  const autoSaveReadyRef = useRef(false);
 
   const nextUrl = () => window.location.pathname + window.location.search;
   const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
@@ -161,6 +164,36 @@ export default function Builder() {
     historyRef.current = { past: [...historyRef.current.past, historyRef.current.present].slice(-50), present: data, future: [] };
     setHistVersion(v => v + 1);
   }, [data]);
+
+  // الحفظ التلقائي بعد كل تعديل (مع تأخير بسيط)
+  useEffect(() => {
+    if (processing) return;
+    if (!autoSaveReadyRef.current) { autoSaveReadyRef.current = true; return; }
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setAutoSaveStatus("saving");
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const draft = { data, templateId, layout };
+      if (isAuthenticated && currentCvId) {
+        try {
+          await cvRepository.update(currentCvId, { titel: data.titel || "Min CV", ...draft });
+          setAutoSaveStatus("saved");
+        } catch (e) {
+          setAutoSaveStatus("");
+        }
+      } else {
+        auth.persistDraft(draft);
+        setAutoSaveStatus("saved");
+      }
+    }, 1200);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, templateId, layout, processing, isAuthenticated, currentCvId]);
+
+  useEffect(() => {
+    if (autoSaveStatus !== "saved") return;
+    const t = setTimeout(() => setAutoSaveStatus(""), 2000);
+    return () => clearTimeout(t);
+  }, [autoSaveStatus]);
 
   const undo = useCallback(() => {
     const { past, present, future } = historyRef.current;
@@ -284,6 +317,18 @@ export default function Builder() {
             <span>{t("builder.back")}</span>
           </button>
           <div className="flex items-center gap-2">
+            {autoSaveStatus === "saving" && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                جارٍ الحفظ...
+              </span>
+            )}
+            {autoSaveStatus === "saved" && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-green-600">
+                <Check className="w-3 h-3" />
+                تم الحفظ
+              </span>
+            )}
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">{t("builder.layout")}</span>
