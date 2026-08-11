@@ -13,10 +13,25 @@ const BELOW_WORDS = ["تحت", "أسفل", "أسفله", "بعد", "خلف", "un
 
 const MOVE_WORDS = ["انقل", "نقل", "حرك", "ضع", "move", "flytta", "ordna", "رتّب", "رتب", "غيّر الترتيب", "غير الترتيب", "أعد ترتيب", "اعيد ترتيب"];
 
+const RIGHT_WORDS = ["يمين", "ايمن", "اليمين", "الايمن", "العمود الايمن", "العمود اليمين", "höger", "hoger", "right", "sidebar", "sidospalt"];
+const LEFT_WORDS = ["يسار", "ايسر", "اليسار", "الايسر", "العمود الايسر", "العمود اليسار", "vänster", "vanster", "left", "main", "huvudkolumn"];
+
+const ADD_WORDS = ["أضف", "اضف", "ضيف", "اضيف", "اضافة", "إضافة", "زيادة", "أضيف", "lägg till", "lägg", "tillägg", "add", "new", "جديد", "أضيف"];
+
+const SECTION_AR = {
+  profil: "الملف الشخصي",
+  erfarenhet: "الخبرات",
+  utbildning: "التعليم",
+  fardigheter: "المهارات",
+  sprak: "اللغات"
+};
+
 function norm(text) {
   return (text || "")
     .toLowerCase()
     .replace(/[ًٌٍَُِّْـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
     .replace(/[åä]/g, "a")
     .replace(/ö/g, "o")
     .replace(/é/g, "e")
@@ -63,6 +78,69 @@ export function parseReorderCommand(text) {
   const target = findSection(parts[1]);
   if (!source || !target || source === target) return null;
   return { source, target, direction: d.dir };
+}
+
+/**
+ * يفسّر أمر "انقل القسم إلى العمود الأيمن/الأيسر".
+ * يعيد { source, column: "main"|"sidebar" } أو null.
+ */
+export function parseMoveColumnCommand(text) {
+  if (!text) return null;
+  const n = norm(text);
+  const isMove = MOVE_WORDS.some((w) => n.includes(norm(w)));
+  if (!isMove) return null;
+  const toRight = RIGHT_WORDS.some((w) => n.includes(norm(w)));
+  const toLeft = LEFT_WORDS.some((w) => n.includes(norm(w)));
+  if (!toRight && !toLeft) return null;
+  const section = findSection(text);
+  if (!section) return null;
+  return { source: section, column: toRight ? "sidebar" : "main" };
+}
+
+/**
+ * ينقل قسمًا إلى عمود محدد (main أو sidebar) بشكل حتمي.
+ */
+export function applyMoveColumn(layout, { source, column }) {
+  const base = layout || { main: [], sidebar: [] };
+  const next = {
+    main: base.main.filter((k) => k !== source),
+    sidebar: base.sidebar.filter((k) => k !== source)
+  };
+  if (!next[column].includes(source)) next[column] = [...next[column], source];
+  return next;
+}
+
+/**
+ * يفسّر أمر "أضف عنصرًا إلى قسم".
+ * يعيد { section } أو null.
+ */
+export function parseAddCommand(text) {
+  if (!text) return null;
+  const n = norm(text);
+  const isAdd = ADD_WORDS.some((w) => n.includes(norm(w)));
+  if (!isAdd) return null;
+  const section = findSection(text);
+  if (!section || section === "profil") return null;
+  return { section };
+}
+
+/**
+ * يضيف عنصرًا فارغًا جديدًا إلى قسم في بيانات السيرة.
+ */
+export function applyAdd(data, { section }) {
+  const emptyItems = {
+    erfarenhet: { roll: "", foretag: "", period: "", beskrivning: "" },
+    utbildning: { examen: "", skola: "", period: "", beskrivning: "" },
+    fardigheter: { namn: "", niva: 80 },
+    sprak: { sprak: "", niva: "" }
+  };
+  const tpl = emptyItems[section];
+  if (!tpl) return data;
+  return { ...data, [section]: [...(data[section] || []), { ...tpl }] };
+}
+
+export function sectionLabelAr(key) {
+  return SECTION_AR[key] || key;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { CV_SCHEMA, mergeCV, normalizeLayout, SECTIONS } from "@/lib/cvModel";
-import { parseReorderCommand, applyReorder } from "@/lib/sectionMover";
+import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
+import { parseReorderCommand, applyReorder, parseMoveColumnCommand, applyMoveColumn, parseAddCommand, applyAdd, sectionLabelAr } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2 } from "lucide-react";
@@ -13,19 +13,10 @@ const EXAMPLES = [
   "اجعل الملف الشخصي أقصر",
 ];
 
-const SECTION_KEYS = SECTIONS.map((s) => s.key).join(", ");
-
 const AGENT_SCHEMA = {
   type: "object",
   properties: {
-    cv: { type: "object", properties: CV_SCHEMA.properties },
-    layout: {
-      type: "object",
-      properties: {
-        main: { type: "array", items: { type: "string" } },
-        sidebar: { type: "array", items: { type: "string" } }
-      }
-    }
+    cv: { type: "object", properties: CV_SCHEMA.properties }
   }
 };
 
@@ -43,7 +34,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
 
-      // 1) أوامر إعادة الترتيب: تطبيق حتمي (بدون LLM) لضمان التنفيذ الفعلي
+      // 1) نقل قسم فوق/تحت آخر: تطبيق حتمي
       const reorder = parseReorderCommand(instr);
       if (reorder) {
         const newLayout = applyReorder(currentLayout, reorder);
@@ -61,43 +52,60 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         return;
       }
 
-      // 2) تعديل المحتوى: استدعاء النموذج
+      // 2) نقل قسم إلى عمود (يمين/يسار): تطبيق حتمي
+      const moveCol = parseMoveColumnCommand(instr);
+      if (moveCol) {
+        const newLayout = applyMoveColumn(currentLayout, moveCol);
+        const layoutChanged = JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
+        onApply({ data, layout: layoutChanged ? newLayout : null });
+        logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged, source: moveCol.source, column: moveCol.column });
+        setInput("");
+        onClose();
+        toast({
+          title: "تم التنفيذ",
+          description: layoutChanged
+            ? `نقلت «${sectionLabelAr(moveCol.source)}» إلى العمود ${moveCol.column === "sidebar" ? "الأيمن" : "الأيسر"}.`
+            : "القسم في ذلك العمود بالفعل."
+        });
+        return;
+      }
+
+      // 3) إضافة عنصر إلى قسم: تطبيق حتمي
+      const addCmd = parseAddCommand(instr);
+      if (addCmd) {
+        const newData = applyAdd(data, addCmd);
+        onApply({ data: newData, layout: null });
+        logAction("ai_command", { command: instr, action: "add", section: addCmd.section });
+        setInput("");
+        onClose();
+        toast({
+          title: "تم التنفيذ",
+          description: `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(addCmd.section)}».`
+        });
+        return;
+      }
+
+      // 4) تعديل المحتوى النصّي: استدعاء النموذج (لا يلمس الترتيب أبدًا)
       const prompt =
-        `Du är en CV-redigeringsassistent. Du kan BOTH redigera CV-innehåll AND ordna om avsnitten.\n\n` +
+        `Du är en CV-redigeringsassistent. Redigera endast CV-innehållet enligt användarens instruktion.\n\n` +
         `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
-        `Aktuell layout (ordning på avsnitt i kolumner):\n` +
-        `main: [${currentLayout.main.join(", ")}]\n` +
-        `sidebar: [${currentLayout.sidebar.join(", ")}]\n\n` +
-        `Tillgängliga avsnittsnycklar: ${SECTION_KEYS}.\n` +
-        `Avsnittsordningen styrs av "layout", inte av CV-data. Varje avsnitt får finnas EXAKT EN gång (i main ELLER sidebar, aldrig i båda). Bevara alla fem avsnitten.\n\n` +
-        `Hur man flyttar ett avsnitt (t.ex. "flytta utbildning ovanför språk" / "انقل التعليم فوق اللغات"):\n` +
-        `1. Ta bort käll-avsnittet (utbildning) från dess nuvarande plats.\n` +
-        `2. Leta upp mål-avsnittets (språk) kolumn och position.\n` +
-        `3. Sätt in käll-avsnittet direkt FÖRE mål-avsnittet i mål-avsnittets kolumn.\n` +
-        `   Om käll- och mål-avsnitten ligger i olika kolumner, flyttas käll-avsnittet till mål-avsnittets kolumn.\n` +
-        `Resultatet: käll-avsnittet hamnar ovanför mål-avsnittet i samma kolumn.\n\n` +
         `Regler:\n` +
-        `- Ändra bara layout om instruktionen uttryckligen handlar om att flytta/ordna/flytta upp/ned ett avsnitt. Annars returnera layout oförändrad.\n` +
-        `- Behåll samma kolumnuppdelning om användaren inte ber om att flytta mellan kolumner.\n` +
-        `- För text/innehåll-ändringar, tillämpa på "cv". Bevara all information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
-        `- Returnera giltig JSON med "cv" (hela CV:t) och "layout" (kolumnordning med alla fem avsnitten exakt en gång).`;
+        `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
+        `- Skriv med en naturlig, mänsklig röst. Undvik AI-klyschor.\n` +
+        `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
+        `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
         response_json_schema: AGENT_SCHEMA
       });
       const cv = mergeCV(res?.cv || res);
-      const rawLayout = res?.layout && (res.layout.main || res.layout.sidebar)
-        ? res.layout
-        : null;
-      const newLayout = rawLayout ? normalizeLayout(rawLayout, templateId) : null;
-      const layoutChanged = newLayout && JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
-      onApply({ data: cv, layout: layoutChanged ? newLayout : null });
-      logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged });
+      onApply({ data: cv, layout: null });
+      logAction("ai_command", { command: instr });
       setInput("");
       onClose();
       toast({
         title: "تم التنفيذ",
-        description: layoutChanged ? "طبّقت تعليمتك وحدّثت ترتيب الأقسام." : "طبّقت تعليمتك على السيرة."
+        description: "طبّقت تعليمتك على السيرة."
       });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
