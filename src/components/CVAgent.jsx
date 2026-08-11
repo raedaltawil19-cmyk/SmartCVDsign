@@ -44,16 +44,10 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     setBusy(true);
     setError("");
 
-    // حفظ الأمر فوراً في قاعدة البيانات (قبل أي معالجة) لضمان تسجيله
-    try {
-      await base44.entities.AgentCommand.create({
-        command: instr,
-        action: "none",
-        section: "",
-        status: "pending",
-        intent: {}
-      });
-    } catch (e) {}
+    // حفظ الأمر في الخلفية (بدون انتظار) لعدم إعاقة المعالجة
+    base44.entities.AgentCommand.create({
+      command: instr, action: "none", section: "", status: "pending", intent: {}
+    }).catch(() => {});
 
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
@@ -65,36 +59,17 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         `- Höger kolumn (sidebar): ${currentLayout.sidebar.map(sectionLabelAr).join(", ") || "tom"}`;
 
       const prompt =
-        `Du är en extremt intelligent CV-redigeringsassistent för den svenska arbetsmarknaden. ` +
-        `Du förstår användarens instruktioner på arabiska eller svenska i kontexten av CV-design, ` +
-        `layout, visuella avstånd och bästa praxis för ATS-vänliga CV:n.\n\n` +
-        `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
-        `${layoutContext}\n\n` +
-        `Användarens instruktion: ${instr}\n\n` +
-        `Dina förmågor (förstå användarens avsikt och agera därefter):\n` +
-        `- Omskrivning: formulera om text mer professionellt och naturligt på svenska.\n` +
-        `- Förkorta/förläng: gör text mer koncis eller mer detaljerad.\n` +
-        `- Punktlista: dela upp långa stycken i konkreta, korta punkter (använd "• " i början av varje rad).\n` +
-        `- Avstånd: justera textlängder så att sektioner ser visuellt balanserade och enhetliga ut.\n` +
-        `- Lägg till: lägg till nya poster i rätt sektion med rätt format och naturlig svensk text.\n` +
-        `- Ta bort: ta bort specifika poster om användaren ber om det.\n` +
-        `- Flytta sektion: om användaren ber att flytta en sektion till en annan kolumn eller ovanför/under en annan sektion, ändra "layout" (main/sidebar-ordning) och lämna "cv" oförändrat.\n` +
-        `- Flytta innehåll: flytta information mellan sektioner om det passar bättre.\n` +
-        `- Balansera kolumner: justera innehåll så att vänster och höger kolumn ser balanserade ut.\n` +
-        `- Formatering: ändra radbrytningar, indrag, och struktur för bättre läsbarhet.\n\n` +
-        `Regler:\n` +
-        `- Bevara ALL information — SAMMANFATTA INTE eller FÖRKORTA INTE om användaren inte uttryckligen ber om det.\n` +
-        `- Skriv med en naturlig, mänsklig röst på svenska. Undvik AI-klyschor och formella floskler.\n` +
-        `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
-        `- För punktlistor: använd "• " i början av varje punkt i beskrivningsfältet.\n` +
-        `- Sektioner som kan förekomma i layout: profil, erfarenhet, utbildning, fardigheter, sprak.\n` +
-        `- Returnera giltig JSON med "cv" (hela CV-objektet) och "layout" (main+sidebar arrayer). ` +
-        `Om layout inte ska ändras, returnera samma layout som input.`;
+        `CV-redigeringsassistent (svensk arbetsmarknad). Förstå användarens instruktion (arabiska/svenska) och agera.\n\n` +
+        `CV (JSON): ${JSON.stringify(data)}\n${layoutContext}\n\n` +
+        `Instruktion: ${instr}\n\n` +
+        `Förmågor: omskrivning, förkorta, punktlista (•), avstånd, lägga till/ta bort, flytta sektion (ändra layout), balansera kolumner, formatering.\n` +
+        `Regler: bevara all info, naturlig svensk röst, hitta inte på info, ändra bara det användaren ber om.\n` +
+        `Returnera JSON: { "cv": <hela CV>, "layout": { "main": [...], "sidebar": [...] } }. Oförändrad layout = samma som input.`;
 
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
         response_json_schema: AGENT_SCHEMA,
-        model: "gpt_5_mini",
+        model: "gemini_3_flash",
       });
 
       const cv = mergeCV(res?.cv || res);
