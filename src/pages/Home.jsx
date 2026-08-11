@@ -98,6 +98,7 @@ export default function Home() {
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [manuallySelected, setManuallySelected] = useState(false);
 
   const canStart = text.trim().length > 20 || file;
 
@@ -106,8 +107,17 @@ export default function Home() {
   const suggestedIds = new Set(suggestions.map((s) => s.templateId));
   const topSuggestion = suggestions[0] || null;
 
+  const pickTemplate = (id) => {
+    setTemplateId(id);
+    setManuallySelected(true);
+  };
+
   const start = async () => {
     if (!canStart) return;
+    // إذا لم يختر المستخدم قالباً يدوياً، اعتمد الاقتراح الأعلى نقاطاً
+    const finalTemplateId = manuallySelected
+      ? templateId
+      : (topSuggestion ? topSuggestion.templateId : templateId);
     setBusy(true);
     let fileUrl = null;
     try {
@@ -115,7 +125,7 @@ export default function Home() {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         fileUrl = file_url;
       }
-      navigate("/builder", { state: { templateId, text, fileUrl } });
+      navigate("/builder", { state: { templateId: finalTemplateId, text, fileUrl } });
     } catch (e) {
       toast({ title: "Något gick fel", description: "Kunde inte ladda upp filen. Försök igen.", variant: "destructive" });
       setBusy(false);
@@ -168,7 +178,7 @@ export default function Home() {
               return (
                 <button
                   key={tpl.id}
-                  onClick={() => setTemplateId(tpl.id)}
+                  onClick={() => pickTemplate(tpl.id)}
                   className={`text-right rounded-2xl border-2 p-4 transition-all bg-white relative ${
                     isSelected
                       ? "border-[#000066] ring-4 ring-[#000066]/10 shadow-sm"
