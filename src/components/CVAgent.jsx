@@ -49,6 +49,18 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     if (!instr || busy) return;
     setBusy(true);
     setError("");
+
+    // حفظ الأمر فوراً في قاعدة البيانات (قبل أي معالجة) لضمان تسجيله
+    try {
+      await base44.asServiceRole.entities.AgentCommand.create({
+        command: instr,
+        action: "none",
+        section: "",
+        status: "pending",
+        intent: {}
+      });
+    } catch (e) {}
+
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
 
@@ -79,17 +91,6 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       });
 
       const action = intent?.action || "none";
-
-      // حفظ الأمر في قاعدة البيانات لمراجعته لاحقاً (via service role حتى يعمل دون تسجيل دخول)
-      try {
-        await base44.asServiceRole.entities.AgentCommand.create({
-          command: instr,
-          action,
-          section: intent?.section || "",
-          status: "success",
-          intent: intent || {}
-        });
-      } catch (e) {}
 
       // 2) تطبيق حتمي بناءً على النية المفهومة (الـ LLM لا يلمس الهيكل أبداً)
 
