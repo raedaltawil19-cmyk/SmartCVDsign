@@ -13,6 +13,7 @@
         "reorder",
         "move_column",
         "edit_content",
+        "format",
         "none"
       ],
       "description": "Classified action type from the LLM"

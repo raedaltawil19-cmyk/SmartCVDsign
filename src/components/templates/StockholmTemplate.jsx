@@ -7,7 +7,7 @@ const BLUE = "#1B4FD8";
 function Profil({ d, editable, actions }) {
   return (
     <section>
-      <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-2">Profil</h2>
+      <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-3">Profil</h2>
       <EditText as="textarea" value={d.profil} editable={editable} onChange={(v) => actions.setField("profil", v)} className="text-[13px] leading-relaxed text-slate-700" placeholder="Kort personlig presentation" />
     </section>
   );

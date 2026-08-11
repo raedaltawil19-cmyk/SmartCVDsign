@@ -24,13 +24,14 @@ const AGENT_SCHEMA = {
 const INTENT_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: ["add", "reorder", "move_column", "edit_content", "none"] },
+    action: { type: "string", enum: ["add", "reorder", "move_column", "edit_content", "format", "none"] },
     section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
     value: { type: "string" },
     items: { type: "array", items: { type: "string" } },
     targetSection: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
     direction: { type: "string", enum: ["before", "after"] },
-    column: { type: "string", enum: ["main", "sidebar"] }
+    column: { type: "string", enum: ["main", "sidebar"] },
+    formatInstruction: { type: "string", description: "Detaljerad beskrivning av önskad formateringsändring" }
   }
 };
 
@@ -75,6 +76,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         `- "reorder": Flytta en sektion ovanför/under en annan sektion. Ange section (den som flyttas), targetSection (referensen), direction ("before"=ovanför, "after"=nedanför).\n` +
         `- "move_column": Flytta en sektion till vänster/höger kolumn. Ange section och column ("main"=vänster, "sidebar"=höger).\n` +
         `- "edit_content": Ändra själva texten/innehållet (t.ex. "skriv om profil", "gör texten kortare", "förbättra beskrivningen").\n` +
+        `- "format": Justera visuell formatering — avstånd, marginaler, radbrytningar, balansera kolumner. Sätt formatInstruction = användarens exakta önskemål. Exempel: "المسافات غير موحدة", "وحّد المسافات", "اضبط الهوامش", "العمود غير متوازن".\n` +
         `- "none": Inte relaterat till CV-redigering.\n\n` +
         `Sektioner: profil, erfarenhet, utbildning, fardigheter, sprak.\n\n` +
         `Exempel:\n` +
@@ -164,6 +166,30 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         logAction("ai_command", { command: instr, action: "edit_content" });
         setInput(""); onClose();
         toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة." });
+        return;
+      }
+
+      if (action === "format") {
+        const fmtInstruction = intent?.formatInstruction || instr;
+        const fmtPrompt =
+          `Du är en CV-formateringsassistent. Användaren vill justera visuell formatering av sitt CV.\n\n` +
+          `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
+          `Användarens önskemål: ${fmtInstruction}\n\n` +
+          `Regler:\n` +
+          `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
+          `- För att förbättra visuell balans: justera textlängder, lägg till/ta bort tomma rader, eller flytta innehåll mellan sektioner.\n` +
+          `- Om avstånden är ojämna: gör texterna mer enhetliga i längd så att sektionerna ser balanserade ut.\n` +
+          `- Skriv med en naturlig, mänsklig röst.\n` +
+          `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
+        const res = await base44.integrations.Core.InvokeLLM({
+          prompt: fmtPrompt,
+          response_json_schema: AGENT_SCHEMA
+        });
+        const cv = mergeCV(res?.cv || res);
+        onApply({ data: cv, layout: null });
+        logAction("ai_command", { command: instr, action: "format", formatInstruction: fmtInstruction });
+        setInput(""); onClose();
+        toast({ title: "تم التنفيذ", description: "طبّقت تعديلات التنسيق على السيرة." });
         return;
       }
 
