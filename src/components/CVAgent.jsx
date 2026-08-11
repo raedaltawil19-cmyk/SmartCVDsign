@@ -72,7 +72,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         model: "gemini_3_flash",
       });
 
-      const cv = mergeCV(res?.cv || res);
+      const cv = mergeCV(res?.cv || res, data);
       const newLayout = res?.layout || null;
       const layoutChanged = newLayout && JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
       onApply({ data: cv, layout: layoutChanged ? newLayout : null });

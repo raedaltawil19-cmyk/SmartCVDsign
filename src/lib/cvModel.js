@@ -119,21 +119,23 @@ export function normalizeLayout(layout, templateId) {
   return clean;
 }
 
-export function mergeCV(res) {
+export function mergeCV(res, base) {
   const r = res || {};
+  const b = base || {};
+  const pick = (val, fallback) => (val !== undefined && val !== null && val !== "") ? val : (fallback || "");
   return {
-    namn: r.namn || "",
-    titel: r.titel || "",
+    namn: pick(r.namn, b.namn),
+    titel: pick(r.titel, b.titel),
     kontakt: {
-      telefon: r.kontakt?.telefon || "",
-      epost: r.kontakt?.epost || "",
-      adress: r.kontakt?.adress || "",
-      linkedin: r.kontakt?.linkedin || ""
+      telefon: pick(r.kontakt?.telefon, b.kontakt?.telefon),
+      epost: pick(r.kontakt?.epost, b.kontakt?.epost),
+      adress: pick(r.kontakt?.adress, b.kontakt?.adress),
+      linkedin: pick(r.kontakt?.linkedin, b.kontakt?.linkedin)
     },
-    profil: r.profil || "",
-    erfarenhet: (r.erfarenhet && r.erfarenhet.length) ? r.erfarenhet.map(e => ({ roll: e.roll || "", foretag: e.foretag || "", period: e.period || "", beskrivning: e.beskrivning || "" })) : emptyCV.erfarenhet,
-    utbildning: (r.utbildning && r.utbildning.length) ? r.utbildning.map(u => ({ examen: u.examen || "", skola: u.skola || "", period: u.period || "", beskrivning: u.beskrivning || "" })) : emptyCV.utbildning,
-    fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : 80 })) : emptyCV.fardigheter,
-    sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : emptyCV.sprak
+    profil: pick(r.profil, b.profil),
+    erfarenhet: (r.erfarenhet && r.erfarenhet.length) ? r.erfarenhet.map(e => ({ roll: e.roll || "", foretag: e.foretag || "", period: e.period || "", beskrivning: e.beskrivning || "" })) : (b.erfarenhet || emptyCV.erfarenhet),
+    utbildning: (r.utbildning && r.utbildning.length) ? r.utbildning.map(u => ({ examen: u.examen || "", skola: u.skola || "", period: u.period || "", beskrivning: u.beskrivning || "" })) : (b.utbildning || emptyCV.utbildning),
+    fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : 80 })) : (b.fardigheter || emptyCV.fardigheter),
+    sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : (b.sprak || emptyCV.sprak)
   };
 }
