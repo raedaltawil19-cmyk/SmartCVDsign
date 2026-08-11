@@ -124,7 +124,7 @@ export function parseAddCommand(text) {
 
   // استخراج الاسم بعد كلمات مثل "باسم"، "اسم"، "عنوان"، "rubrik"
   let namn = "";
-  const nameRegex = /(?:باسم|اسم|يدعى|يدعي|نسمى|نسمي|عنوان|rubrik|titel|named|called)\s+(.+)/i;
+  const nameRegex = /(?:باسم|اسم|يدعى|يدعي|نسمى|نسمي|rubrik|titel|named|called)\s+(.+)/i;
   const match = text.match(nameRegex);
   if (match) {
     let rest = match[1].trim();
