@@ -4,8 +4,9 @@ import { base44 } from "@/api/base44Client";
 import { TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import { FileText, Upload, ArrowLeft, Loader2, PencilLine, Sparkles } from "lucide-react";
+import { FileText, Upload, ArrowLeft, Loader2, PencilLine, Sparkles, Sparkle } from "lucide-react";
 import MyCVs from "@/components/MyCVs";
+import { suggestTemplates } from "@/lib/templateMatcher";
 
 function MiniPreview({ id }) {
   if (id === "executive") {
@@ -100,6 +101,11 @@ export default function Home() {
 
   const canStart = text.trim().length > 20 || file;
 
+  // اقتراح القالب بناءً على النص الملصق (مطابقة كلمات مفتاحية — بدون LLM)
+  const suggestions = text.trim().length >= 30 ? suggestTemplates(text) : [];
+  const suggestedIds = new Set(suggestions.map((s) => s.templateId));
+  const topSuggestion = suggestions[0] || null;
+
   const start = async () => {
     if (!canStart) return;
     setBusy(true);
@@ -149,20 +155,42 @@ export default function Home() {
 
         <section className="mb-10">
           <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-400 mb-4 text-center">{t("home.step1")}</h2>
+          {topSuggestion && (
+            <p className="text-center text-[13px] text-slate-500 mb-4 max-w-xl mx-auto">
+              بناءً على النص الذي أدخلته، أبرزنا القالب الأنسب بإطار أصفر — يمكنك اعتماده أو اختيار غيره.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                onClick={() => setTemplateId(tpl.id)}
-                className={`text-right rounded-2xl border-2 p-4 transition-all bg-white ${templateId === tpl.id ? "border-[#000066] ring-4 ring-[#000066]/10 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}
-              >
-                <div className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 mb-3 bg-slate-50">
-                  <MiniPreview id={tpl.id} />
-                </div>
-                <div className="font-semibold text-[15px]">{tpl.namn}</div>
-                <div className="text-[13px] text-slate-500">{tpl.tagline}</div>
-              </button>
-            ))}
+            {TEMPLATES.map((tpl) => {
+              const isSuggested = suggestedIds.has(tpl.id);
+              const isTop = topSuggestion && topSuggestion.templateId === tpl.id;
+              const isSelected = templateId === tpl.id;
+              return (
+                <button
+                  key={tpl.id}
+                  onClick={() => setTemplateId(tpl.id)}
+                  className={`text-right rounded-2xl border-2 p-4 transition-all bg-white relative ${
+                    isSelected
+                      ? "border-[#000066] ring-4 ring-[#000066]/10 shadow-sm"
+                      : isSuggested
+                        ? "border-[#D9E830] ring-4 ring-[#D9E830]/40 shadow-md"
+                        : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  {isTop && !isSelected && (
+                    <span className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-[#D9E830] px-2.5 py-1 text-[11px] font-semibold text-black shadow">
+                      <Sparkle className="w-3 h-3" />
+                      الأنسب لسيرتك
+                    </span>
+                  )}
+                  <div className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 mb-3 bg-slate-50">
+                    <MiniPreview id={tpl.id} />
+                  </div>
+                  <div className="font-semibold text-[15px]">{tpl.namn}</div>
+                  <div className="text-[13px] text-slate-500">{tpl.tagline}</div>
+                </button>
+              );
+            })}
           </div>
         </section>
 
