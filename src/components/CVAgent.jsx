@@ -75,6 +75,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       const intent = await base44.integrations.Core.InvokeLLM({
         prompt: classifyPrompt,
         response_json_schema: INTENT_SCHEMA,
+        model: "claude_sonnet_4_6",
       });
 
       const action = intent?.action || "none";
