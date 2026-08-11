@@ -1,17 +1,34 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
+import { CV_SCHEMA, mergeCV, normalizeLayout, SECTIONS } from "@/lib/cvModel";
+import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2 } from "lucide-react";
 
 const EXAMPLES = [
   "أعد صياغة فقرة الخبرة الأولى",
   "أضف مهارة Python بمستوى جيد جداً",
-  "امسح آخر خبرة",
+  "انقل قسم التعليم فوق قسم اللغات",
   "اجعل الملف الشخصي أقصر",
 ];
 
-export default function CVAgent({ open, onClose, data, onApply }) {
+const SECTION_KEYS = SECTIONS.map((s) => s.key).join(", ");
+
+const AGENT_SCHEMA = {
+  type: "object",
+  properties: {
+    cv: { type: "object", properties: CV_SCHEMA.properties },
+    layout: {
+      type: "object",
+      properties: {
+        main: { type: "array", items: { type: "string" } },
+        sidebar: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+};
+
+export default function CVAgent({ open, onClose, data, layout, templateId, onApply }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -23,18 +40,47 @@ export default function CVAgent({ open, onClose, data, onApply }) {
     setBusy(true);
     setError("");
     try {
-      const prompt = `Du är en CV-redigeringsassistent. Här är det aktuella CV:t som JSON:\n${JSON.stringify(data)}\n\nAnvändarens instruktion (kan vara på arabiska eller annat språk — förstå och tillämpa den på CV:t, alla CV-fält förblir på svenska): "${instr}".\n\nTillämpa instruktionen exakt. Bevara all annan information oförändrad om instruktionen inte uttryckligen säger annat. SAMMANFATTA INTE och FÖRKORTA INTE — behåll fullständigt innehåll. Returnera hela det uppdaterade CV:t som giltig JSON enligt schemat.`;
+      const currentLayout = layout || { main: [], sidebar: [] };
+      const prompt =
+        `Du är en CV-redigeringsassistent. Du kan BOTH redigera CV-innehåll AND ordna om avsnitten.\n\n` +
+        `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
+        `Aktuell layout (ordning på avsnitt i kolumner):\n` +
+        `main: [${currentLayout.main.join(", ")}]\n` +
+        `sidebar: [${currentLayout.sidebar.join(", ")}]\n\n` +
+        `Tillgängliga avsnittsnycklar: ${SECTION_KEYS}.\n` +
+        `Avsnittsordningen styrs av "layout", inte av CV-data. Varje avsnitt får finnas EXAKT EN gång (i main ELLER sidebar, aldrig i båda). Bevara alla fem avsnitten.\n\n` +
+        `Hur man flyttar ett avsnitt (t.ex. "flytta utbildning ovanför språk" / "انقل التعليم فوق اللغات"):\n` +
+        `1. Ta bort käll-avsnittet (utbildning) från dess nuvarande plats.\n` +
+        `2. Leta upp mål-avsnittets (språk) kolumn och position.\n` +
+        `3. Sätt in käll-avsnittet direkt FÖRE mål-avsnittet i mål-avsnittets kolumn.\n` +
+        `   Om käll- och mål-avsnitten ligger i olika kolumner, flyttas käll-avsnittet till mål-avsnittets kolumn.\n` +
+        `Resultatet: käll-avsnittet hamnar ovanför mål-avsnittet i samma kolumn.\n\n` +
+        `Regler:\n` +
+        `- Ändra bara layout om instruktionen uttryckligen handlar om att flytta/ordna/flytta upp/ned ett avsnitt. Annars returnera layout oförändrad.\n` +
+        `- Behåll samma kolumnuppdelning om användaren inte ber om att flytta mellan kolumner.\n` +
+        `- För text/innehåll-ändringar, tillämpa på "cv". Bevara all information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
+        `- Returnera giltig JSON med "cv" (hela CV:t) och "layout" (kolumnordning med alla fem avsnitten exakt en gång).`;
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
-        response_json_schema: CV_SCHEMA
+        response_json_schema: AGENT_SCHEMA
       });
-      const merged = mergeCV(res);
-      onApply(merged);
+      const cv = mergeCV(res?.cv || res);
+      const rawLayout = res?.layout && (res.layout.main || res.layout.sidebar)
+        ? res.layout
+        : null;
+      const newLayout = rawLayout ? normalizeLayout(rawLayout, templateId) : null;
+      const layoutChanged = newLayout && JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
+      onApply({ data: cv, layout: layoutChanged ? newLayout : null });
+      logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged });
       setInput("");
       onClose();
-      toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة." });
+      toast({
+        title: "تم التنفيذ",
+        description: layoutChanged ? "طبّقت تعليمتك وحدّثت ترتيب الأقسام." : "طبّقت تعليمتك على السيرة."
+      });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
+      logAction("ai_command", { command: instr, error: String(e?.message || e).slice(0, 120) });
     } finally {
       setBusy(false);
     }

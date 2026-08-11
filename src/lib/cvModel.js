@@ -108,7 +108,11 @@ export const DEFAULT_LAYOUTS = {
 export function normalizeLayout(layout, templateId) {
   const def = DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm;
   const valid = new Set(SECTIONS.map(s => s.key));
-  const clean = { main: (layout?.main || def.main).filter(k => valid.has(k)), sidebar: (layout?.sidebar || def.sidebar).filter(k => valid.has(k)) };
+  const mainArr = (layout?.main || def.main).filter(k => valid.has(k));
+  const mainSeen = new Set(mainArr);
+  // منع التكرار: لا يظهر أي قسم في العمودين معاً
+  const sideArr = (layout?.sidebar || def.sidebar).filter(k => valid.has(k) && !mainSeen.has(k));
+  const clean = { main: mainArr, sidebar: sideArr };
   const placed = new Set([...clean.main, ...clean.sidebar]);
   for (const k of def.main) if (!placed.has(k)) { clean.main.push(k); placed.add(k); }
   for (const k of def.sidebar) if (!placed.has(k)) { clean.sidebar.push(k); placed.add(k); }

@@ -12,6 +12,8 @@ import LayoutEditor from "@/components/tools/LayoutEditor";
 import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target, LayoutTemplate } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
+import ActionLogPanel from "@/components/ActionLogPanel";
+import { logAction } from "@/lib/actionLog";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -134,20 +136,20 @@ export default function Builder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setField = (k, v) => setData((d) => ({ ...d, [k]: v }));
-  const setContact = (k, v) => setData((d) => ({ ...d, kontakt: { ...d.kontakt, [k]: v } }));
-  const setExp = (i, k, v) => setData((d) => { const a = [...d.erfarenhet]; a[i] = { ...a[i], [k]: v }; return { ...d, erfarenhet: a }; });
-  const setEdu = (i, k, v) => setData((d) => { const a = [...d.utbildning]; a[i] = { ...a[i], [k]: v }; return { ...d, utbildning: a }; });
-  const setSkill = (i, k, v) => setData((d) => { const a = [...d.fardigheter]; a[i] = { ...a[i], [k]: k === "niva" ? Number(v) : v }; return { ...d, fardigheter: a }; });
-  const setSprak = (i, k, v) => setData((d) => { const a = [...d.sprak]; a[i] = { ...a[i], [k]: v }; return { ...d, sprak: a }; });
-  const addExp = () => setData((d) => ({ ...d, erfarenhet: [...d.erfarenhet, { roll: "", foretag: "", period: "", beskrivning: "" }] }));
-  const removeExp = (i) => setData((d) => ({ ...d, erfarenhet: d.erfarenhet.filter((_, x) => x !== i) }));
-  const addEdu = () => setData((d) => ({ ...d, utbildning: [...d.utbildning, { examen: "", skola: "", period: "", beskrivning: "" }] }));
-  const removeEdu = (i) => setData((d) => ({ ...d, utbildning: d.utbildning.filter((_, x) => x !== i) }));
-  const addSkill = () => setData((d) => ({ ...d, fardigheter: [...d.fardigheter, { namn: "", niva: 80 }] }));
-  const removeSkill = (i) => setData((d) => ({ ...d, fardigheter: d.fardigheter.filter((_, x) => x !== i) }));
-  const addSprak = () => setData((d) => ({ ...d, sprak: [...d.sprak, { sprak: "", niva: "" }] }));
-  const removeSprak = (i) => setData((d) => ({ ...d, sprak: d.sprak.filter((_, x) => x !== i) }));
+  const setField = (k, v) => { setData((d) => ({ ...d, [k]: v })); logAction("manual_edit", { field: k }, `field:${k}`); };
+  const setContact = (k, v) => { setData((d) => ({ ...d, kontakt: { ...d.kontakt, [k]: v } })); logAction("manual_edit", { field: `kontakt.${k}` }, `contact:${k}`); };
+  const setExp = (i, k, v) => { setData((d) => { const a = [...d.erfarenhet]; a[i] = { ...a[i], [k]: v }; return { ...d, erfarenhet: a }; }); logAction("manual_edit", { field: `erfarenhet[${i}].${k}` }, `exp:${i}:${k}`); };
+  const setEdu = (i, k, v) => { setData((d) => { const a = [...d.utbildning]; a[i] = { ...a[i], [k]: v }; return { ...d, utbildning: a }; }); logAction("manual_edit", { field: `utbildning[${i}].${k}` }, `edu:${i}:${k}`); };
+  const setSkill = (i, k, v) => { setData((d) => { const a = [...d.fardigheter]; a[i] = { ...a[i], [k]: k === "niva" ? Number(v) : v }; return { ...d, fardigheter: a }; }); logAction("manual_edit", { field: `fardigheter[${i}].${k}` }, `skill:${i}:${k}`); };
+  const setSprak = (i, k, v) => { setData((d) => { const a = [...d.sprak]; a[i] = { ...a[i], [k]: v }; return { ...d, sprak: a }; }); logAction("manual_edit", { field: `sprak[${i}].${k}` }, `sprak:${i}:${k}`); };
+  const addExp = () => { setData((d) => ({ ...d, erfarenhet: [...d.erfarenhet, { roll: "", foretag: "", period: "", beskrivning: "" }] })); logAction("manual_edit", { field: "إضافة خبرة" }); };
+  const removeExp = (i) => { setData((d) => ({ ...d, erfarenhet: d.erfarenhet.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف خبرة #${i + 1}` }); };
+  const addEdu = () => { setData((d) => ({ ...d, utbildning: [...d.utbildning, { examen: "", skola: "", period: "", beskrivning: "" }] })); logAction("manual_edit", { field: "إضافة تعليم" }); };
+  const removeEdu = (i) => { setData((d) => ({ ...d, utbildning: d.utbildning.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف تعليم #${i + 1}` }); };
+  const addSkill = () => { setData((d) => ({ ...d, fardigheter: [...d.fardigheter, { namn: "", niva: 80 }] })); logAction("manual_edit", { field: "إضافة مهارة" }); };
+  const removeSkill = (i) => { setData((d) => ({ ...d, fardigheter: d.fardigheter.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف مهارة #${i + 1}` }); };
+  const addSprak = () => { setData((d) => ({ ...d, sprak: [...d.sprak, { sprak: "", niva: "" }] })); logAction("manual_edit", { field: "إضافة لغة" }); };
+  const removeSprak = (i) => { setData((d) => ({ ...d, sprak: d.sprak.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف لغة #${i + 1}` }); };
 
   const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak };
 
@@ -335,7 +337,7 @@ export default function Builder() {
                 data={data}
                 onApply={(d) => setData(d)}
                 templateId={templateId}
-                onTemplateChange={setTemplateId}
+                onTemplateChange={(id) => { setTemplateId(id); logAction("template_change", { template: id }); }}
                 scale={scale}
                 isFit={userZoom === null}
                 onZoomIn={zoomIn}
@@ -361,13 +363,23 @@ export default function Builder() {
 
       <div className="print-notice">{t("builder.printLocked")}</div>
 
-      <CVAgent open={agentOpen} onClose={() => setAgentOpen(false)} data={data} onApply={(d) => setData(d)} />
+      <CVAgent
+        open={agentOpen}
+        onClose={() => setAgentOpen(false)}
+        data={data}
+        layout={layout}
+        templateId={templateId}
+        onApply={(result) => {
+          if (result?.data) setData(result.data);
+          if (result?.layout) setLayout(result.layout);
+        }}
+      />
 
       {showLayout && (
         <LayoutEditor
           layout={layout}
           hasSidebar={templateId !== "executive" && templateId !== "nordic"}
-          onChange={setLayout}
+          onChange={(l) => { setLayout(l); logAction("layout_change", { source: "manual", detail: "سحب وإفلات" }); }}
           onClose={() => setShowLayout(false)}
         />
       )}
@@ -380,6 +392,8 @@ export default function Builder() {
           onClose={() => setSaveOpen(false)}
         />
       )}
+
+      <ActionLogPanel />
 
     </div>
   );
