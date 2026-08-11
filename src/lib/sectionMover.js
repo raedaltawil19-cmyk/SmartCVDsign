@@ -122,18 +122,36 @@ export function parseAddCommand(text) {
   const section = findSection(text);
   if (!section || section === "profil") return null;
 
-  // استخراج الاسم بعد كلمات مثل "باسم"، "اسم"، "عنوان"، "rubrik"
+  // كلمات إيقاف تشير إلى القسم المستهدف
+  const stopRegex = /\s+(?:في|بقسم|تحت|قسم|بند|under|in)\s+/i;
+  const cutAtSection = (rest) => {
+    const m = rest.match(stopRegex);
+    if (m) rest = rest.slice(0, m.index);
+    return rest;
+  };
+  // كلمات إرشادية يجب ألا تظهر في العنوان النهائي
+  const stripGuideWords = (s) =>
+    s
+      .replace(/[ًٌٍَُِّْـ]/g, "")
+      .replace(/[أإآ]/g, "ا")
+      .replace(/\b(?:عنوان|فرعي|subheading|subtitle|heading)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
   let namn = "";
+  // 1) الاسم بعد "باسم"، "اسم"، "rubrik"، إلخ.
   const nameRegex = /(?:باسم|اسم|يدعى|يدعي|نسمى|نسمي|rubrik|titel|named|called)\s+(.+)/i;
   const match = text.match(nameRegex);
   if (match) {
-    let rest = match[1].trim();
-    // أوقف عند كلمات تشير إلى القسم
-    const stopRegex = /\s+(?:في|بقسم|تحت|قسم|under|in)\s+/i;
-    const stopMatch = rest.match(stopRegex);
-    if (stopMatch) rest = rest.slice(0, stopMatch.index).trim();
-    // أزل التشكيل والهمزات من الاسم
-    namn = rest.replace(/[ًٌٍَُِّْـ]/g, "").replace(/[أإآ]/g, "ا").trim();
+    namn = stripGuideWords(cutAtSection(match[1].trim()));
+  }
+  // 2) إن لم يُعثر، جرّب بعد "عنوان فرعي" أو "عنوان"
+  if (!namn) {
+    const subRegex = /(?:عنوان\s+فرعي|عنوان|rubrik|titel)\s+(.+)/i;
+    const subMatch = text.match(subRegex);
+    if (subMatch) {
+      namn = stripGuideWords(cutAtSection(subMatch[1].trim()));
+    }
   }
 
   return { section, namn };
