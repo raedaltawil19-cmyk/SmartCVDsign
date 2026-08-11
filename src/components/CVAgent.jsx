@@ -4,13 +4,13 @@ import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
 import { sectionLabelAr } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
-import { Sparkles, X, Send, Loader2, Mic, MicOff } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Mic, MicOff, MessageCircle } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 const EXAMPLES = [
   "أعد صياغة فقرة الخبرة الأولى",
   "حوّل وصف الخبرة الثانية إلى نقاط",
-  "وحّد المسافات في العمود الجانبي",
+  "احذف رابط LinkedIn من القسم الأعلى",
   "اجعل الملف الشخصي أقصر",
 ];
 
@@ -24,7 +24,9 @@ const AGENT_SCHEMA = {
         main: { type: "array", items: { type: "string" } },
         sidebar: { type: "array", items: { type: "string" } }
       }
-    }
+    },
+    summary: { type: "string", description: "وصف عربي قصير لما فهمه الوكيل ونفذه" },
+    needs_clarification: { type: "string", description: "سؤال توضيحي بالعربية إذا لم يفهم الوكيل الأمر" }
   }
 };
 
@@ -32,6 +34,8 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [clarification, setClarification] = useState("");
+  const [lastSummary, setLastSummary] = useState("");
   const { toast } = useToast();
   const { supported: micSupported, listening, interim, toggle: toggleMic, stop: stopMic } = useSpeechRecognition({
     lang: "ar-SA",
@@ -43,6 +47,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     if (!instr || busy) return;
     setBusy(true);
     setError("");
+    setClarification("");
 
     // حفظ الأمر في الخلفية (بدون انتظار) لعدم إعاقة المعالجة
     base44.entities.AgentCommand.create({
@@ -52,22 +57,31 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
 
-      // استدعاء واحد فقط: LLM ذكي يفهم الأمر وينفذه — محتوى و/أو هيكل دفعة واحدة
       const layoutContext =
         `Layout (vilka sektioner är i vilka kolumner):\n` +
         `- Vänster kolumn (main): ${currentLayout.main.map(sectionLabelAr).join(", ") || "tom"}\n` +
         `- Höger kolumn (sidebar): ${currentLayout.sidebar.map(sectionLabelAr).join(", ") || "tom"}`;
 
       const prompt =
-        `CV-redigeringsassistent (svensk arbetsmarknad). Förstå användarens instruktion (arabiska/svenska) och agera.\n\n` +
+        `Du är en CV-redigeringsassistent för den svenska arbetsmarknaden. Användaren skriver instruktioner på arabiska eller svenska. Förstå INstruktionen djupt och agera.\n\n` +
         `CV (JSON): ${JSON.stringify(data)}\n${layoutContext}\n\n` +
         `Instruktion: ${instr}\n\n` +
-        `Förmågor: omskrivning, förkorta, punktlista (•), avstånd, lägga till/ta bort, flytta sektion (ändra layout), balansera kolumner, formatering.\n` +
-        `Viktiga regler:\n` +
-        `- "ta bort"/"احذف" en fält/section = töm värdet (t.ex. kontakt.linkedin = "") eller ta bort posten — ta INTE bort ord inuti en sträng.\n` +
-        `- "القسم الأعلى"/"toppen" = kontakt+namn-området (header). "العمود الجانبي" = sidebar.\n` +
-        `- Bevara all info som användaren inte ber om att ändra. Naturlig svensk röst. Hitta inte på info.\n` +
-        `Returnera JSON: { "cv": <hela CV>, "layout": { "main": [...], "sidebar": [...] } }. Oförändrad layout = samma som input.`;
+        `## Viktiga regler för förståelse\n` +
+        `- "احذف"/"ta bort" + namn på ett fält (t.ex. LinkedIn, telefon, adress) = TÖM fältet (sätt till ""), INTE ta bort ordet inuti en sträng.\n` +
+        `  Exempel: "احذف LinkedIn" → kontakt.linkedin = "" (töm hela fältet, inte ta bort ordet "linkedin" från URL:en).\n` +
+        `- "القسم الأعلى"/"toppen"/"الهيدر" = kontakt + namn-området (header). "العمود الجانبي"/"sidebar" = höger kolumn.\n` +
+        `- "أعد الصياغة"/"omskriv" = skriv om texten med naturlig svensk röst, bevara all info.\n` +
+        `- "حوّل إلى نقاط"/"gör punktlista" = lägg till "• " i början av varje rad i beskrivningen.\n` +
+        `- "أقصر"/"förkorta" = korta ner texten men behåll kärnan.\n` +
+        `- "أضف"/"lägg till" + erfarenhet/utbildning/färdighet = lägg till en ny tom post i den sektionen.\n` +
+        `- "انقل"/"flytta" + sektion + till + kolumn = flytta sektionen till angiven kolumn i layout.\n` +
+        `- Bevara ALL info som användaren inte ber om att ändra. Naturlig svensk röst. Hitta inte på info.\n\n` +
+        `## Om du inte förstår instruktionen\n` +
+        `Om instruktionen är tvetydig eller otydlig, sätt needs_clarification till en kort arabisk fråga.\n` +
+        `Exempel: "هل تقصد حذف رابط LinkedIn بالكامل أم تعديله؟"\n\n` +
+        `Returnera JSON: { "cv": <hela CV>, "layout": {...}, "summary": "<arabisk beskrivning>", "needs_clarification": "" }.\n` +
+        `summary-exempel: "حذفت رابط LinkedIn من قسم التواصل" eller "أعدت صياغة الخبرة الأولى".\n` +
+        `Oförändrad layout = samma som input. Om needs_clarification inte är tom, lämna cv oförändrat.`;
 
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -75,13 +89,24 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         model: "gemini_3_flash",
       });
 
+      // إذا الوكيل لم يفهم وطلب توضيحاً
+      if (res?.needs_clarification) {
+        setClarification(res.needs_clarification);
+        logAction("ai_command", { command: instr, action: "clarification", question: res.needs_clarification });
+        setBusy(false);
+        return;
+      }
+
       const cv = mergeCV(res?.cv || res, data);
       const newLayout = res?.layout || null;
       const layoutChanged = newLayout && JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
       onApply({ data: cv, layout: layoutChanged ? newLayout : null });
-      logAction("ai_command", { command: instr, action: "content" });
-      setInput(""); onClose();
-      toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة بذكاء." });
+
+      const summary = res?.summary || "تم تنفيذ تعليمتك";
+      setLastSummary(summary);
+      logAction("ai_command", { command: instr, action: "content", summary });
+      setInput("");
+      toast({ title: "تم التنفيذ", description: summary });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
       logAction("ai_command", { command: instr, error: String(e?.message || e).slice(0, 120) });
@@ -152,6 +177,22 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
           )}
         </div>
         {error && <p className="text-[11px] text-red-500 mt-2">{error}</p>}
+        {clarification && (
+          <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+            <MessageCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[12px] text-amber-800 font-medium mb-0.5">لم أفهم تماماً</p>
+              <p className="text-[12px] text-amber-700 leading-relaxed">{clarification}</p>
+              <p className="text-[11px] text-amber-600 mt-1">وضّح أكثر ثم اضغط تطبيق.</p>
+            </div>
+          </div>
+        )}
+        {lastSummary && !clarification && !busy && (
+          <div className="mt-2 p-2.5 rounded-xl bg-green-50 border border-green-200 flex items-start gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" />
+            <p className="text-[12px] text-green-700 leading-relaxed">{lastSummary}</p>
+          </div>
+        )}
         <button
           onClick={send}
           disabled={!input.trim() || busy}
