@@ -11,6 +11,7 @@ import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
 import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target, LayoutTemplate } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
+import { EditProvider } from "@/components/templates/EditContext";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -349,7 +350,9 @@ export default function Builder() {
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
               <div ref={wrapperRef} className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
+                <EditProvider value={{ activateEdit: () => setMode("edit") }}>
                 <CVPages templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
+              </EditProvider>
               </div>
             </div>
           </div>
