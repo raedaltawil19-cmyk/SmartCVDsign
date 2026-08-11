@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
-import { applyReorder, applyMoveColumn, applyAdd, sectionLabelAr } from "@/lib/sectionMover";
+import { applyReorder, applyMoveColumn, sectionLabelAr } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2, Mic, MicOff } from "lucide-react";
@@ -9,8 +9,8 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 const EXAMPLES = [
   "أعد صياغة فقرة الخبرة الأولى",
-  "أضف مهارة Python بمستوى جيد جداً",
-  "انقل قسم التعليم فوق قسم اللغات",
+  "حوّل وصف الخبرة الثانية إلى نقاط",
+  "وحّد المسافات في العمود الجانبي",
   "اجعل الملف الشخصي أقصر",
 ];
 
@@ -21,17 +21,15 @@ const AGENT_SCHEMA = {
   }
 };
 
+// مصنف بسيط: هيكلي (نقل أقسام) vs محتوى (كل شيء آخر يترك للـ LLM الذكي)
 const INTENT_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: ["add", "reorder", "move_column", "edit_content", "format", "none"] },
+    action: { type: "string", enum: ["reorder", "move_column", "content"] },
     section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
-    value: { type: "string" },
-    items: { type: "array", items: { type: "string" } },
     targetSection: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
     direction: { type: "string", enum: ["before", "after"] },
-    column: { type: "string", enum: ["main", "sidebar"] },
-    formatInstruction: { type: "string", description: "Detaljerad beskrivning av önskad formateringsändring" }
+    column: { type: "string", enum: ["main", "sidebar"] }
   }
 };
 
@@ -65,25 +63,21 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
 
-      // 1) LLM يفهم نية الأمر أولاً (تصنيف حتمي آمن)
+      // 1) تصنيف بسيط: هل هذا أمر هيكلي (نقل أقسام) أم أمر محتوى؟
       const classifyPrompt =
-        `Du tolkar en användares instruktion för att redigera ett CV. Avgör vilken åtgärd användaren vill göra.\n\n` +
-        `Möjliga åtgärder:\n` +
-        `- "add": Lägg till en eller flera poster i en sektion.\n` +
-        `  - För EN post: sätt value = titeln/namnet.\n` +
-        `  - För FLERA poster (t.ex. en lista med kurser under en rubrik): sätt items = ["rubrik", "post1", "post2", ...] och lämna value tom. Varje post blir en separat rad.\n` +
-        `  - Ta BORT instruktionsord som "عنوان", "فرعي", "باسم", "rubrik" från värdena.\n` +
-        `- "reorder": Flytta en sektion ovanför/under en annan sektion. Ange section (den som flyttas), targetSection (referensen), direction ("before"=ovanför, "after"=nedanför).\n` +
+        `Du klassificerar en användares instruktion för att redigera ett CV.\n\n` +
+        `Avgör om instruktionen gäller:\n` +
+        `- "reorder": Flytta en sektion ovanför/under en annan sektion (ändra ordningen). Ange section (den som flyttas), targetSection (referensen), direction ("before"=ovanför, "after"=nedanför).\n` +
         `- "move_column": Flytta en sektion till vänster/höger kolumn. Ange section och column ("main"=vänster, "sidebar"=höger).\n` +
-        `- "edit_content": Ändra själva texten/innehållet (t.ex. "skriv om profil", "gör texten kortare", "förbättra beskrivningen").\n` +
-        `- "format": Justera visuell formatering — avstånd, marginaler, radbrytningar, balansera kolumner. Sätt formatInstruction = användarens exakta önskemål. Exempel: "المسافات غير موحدة", "وحّد المسافات", "اضبط الهوامش", "العمود غير متوازن".\n` +
-        `- "none": Inte relaterat till CV-redigering.\n\n` +
+        `- "content": Allt annat — textändringar, formatering, avstånd, lägga till, ta bort, omformulera, punktlistor, förkorta, etc.\n\n` +
         `Sektioner: profil, erfarenhet, utbildning, fardigheter, sprak.\n\n` +
         `Exempel:\n` +
-        `- "أضف عنوان فرعي باسم tjänsteutbildningar تحت بند utbildning" → action="add", section="utbildning", value="tjänsteutbildningar"\n` +
-        `- "تحت عنوان tjänsteutbildningar ضع الدورات: Motiverande samtal, kundbemötande, prioritera rätt" → action="add", section="utbildning", items=["tjänsteutbildningar", "Motiverande samtal", "kundbemötande", "prioritera rätt"]\n` +
         `- "انقل قسم التعليم فوق قسم اللغات" → action="reorder", section="utbildning", targetSection="sprak", direction="before"\n` +
-        `- "أعد صياغة فقرة الخبرة الأولى" → action="edit_content"\n\n` +
+        `- "انقل المهارات للعمود الأيمن" → action="move_column", section="fardigheter", column="sidebar"\n` +
+        `- "أعد صياغة فقرة الخبرة الأولى" → action="content"\n` +
+        `- "وحّد المسافات" → action="content"\n` +
+        `- "حوّل الوصف إلى نقاط" → action="content"\n` +
+        `- "أضف مهارة Python" → action="content"\n\n` +
         `Instruktion: "${instr}"\n\nReturnera giltig JSON.`;
 
       const intent = await base44.integrations.Core.InvokeLLM({
@@ -92,10 +86,9 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         model: "claude_sonnet_4_6",
       });
 
-      const action = intent?.action || "none";
+      const action = intent?.action || "content";
 
-      // 2) تطبيق حتمي بناءً على النية المفهومة (الـ LLM لا يلمس الهيكل أبداً)
-
+      // 2) الأوامر الهيكلية: تنفيذ حتمي (الـ LLM لا يلمس الهيكل)
       if (action === "reorder" && intent.section && intent.targetSection && intent.direction) {
         const newLayout = applyReorder(currentLayout, {
           source: intent.section, target: intent.targetSection, direction: intent.direction
@@ -128,74 +121,47 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         return;
       }
 
-      if (action === "add" && intent.section && intent.section !== "profil") {
-        const items = Array.isArray(intent.items) ? intent.items.map(i => (i || "").trim()).filter(Boolean) : [];
-        const namn = (intent.value || "").trim();
-        const newData = applyAdd(data, { section: intent.section, namn, namnList: items });
-        onApply({ data: newData, layout: null });
-        logAction("ai_command", { command: instr, action: "add", section: intent.section, namn, namnList: items });
-        setInput(""); onClose();
-        const count = items.length || (namn ? 1 : 0);
-        toast({
-          title: "تم التنفيذ",
-          description: count > 1
-            ? `أضفت ${count} عناصر إلى قسم «${sectionLabelAr(intent.section)}».`
-            : (namn || items[0])
-              ? `أضفت «${namn || items[0]}» إلى قسم «${sectionLabelAr(intent.section)}».`
-              : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(intent.section)}».`
-        });
-        return;
-      }
+      // 3) كل شيء آخر: LLM ذكي يفهم نية المستخدم ويعدّل المحتوى بسياق كامل
+      const layoutContext =
+        `Layout (vilka sektioner är i vilka kolumner):\n` +
+        `- Vänster kolumn (main): ${currentLayout.main.map(sectionLabelAr).join(", ") || "tom"}\n` +
+        `- Höger kolumn (sidebar): ${currentLayout.sidebar.map(sectionLabelAr).join(", ") || "tom"}`;
 
-      if (action === "edit_content") {
-        const editPrompt =
-          `Du är en CV-redigeringsassistent. Redigera endast CV-innehållet enligt användarens instruktion.\n\n` +
-          `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
-          `Instruktion: ${instr}\n\n` +
-          `Regler:\n` +
-          `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
-          `- Skriv med en naturlig, mänsklig röst. Undvik AI-klyschor.\n` +
-          `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
-          `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt: editPrompt,
-          response_json_schema: AGENT_SCHEMA
-        });
-        const cv = mergeCV(res?.cv || res);
-        onApply({ data: cv, layout: null });
-        logAction("ai_command", { command: instr, action: "edit_content" });
-        setInput(""); onClose();
-        toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة." });
-        return;
-      }
+      const editPrompt =
+        `Du är en extremt intelligent CV-redigeringsassistent för den svenska arbetsmarknaden. ` +
+        `Du förstår användarens instruktioner på arabiska eller svenska i kontexten av CV-design, ` +
+        `layout, visuella avstånd och bästa praxis för ATS-vänliga CV:n.\n\n` +
+        `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
+        `${layoutContext}\n\n` +
+        `Användarens instruktion: ${instr}\n\n` +
+        `Dina förmågor (förstå användarens avsikt och agera därefter):\n` +
+        `- Omskrivning: formulera om text mer professionellt och naturligt på svenska.\n` +
+        `- Förkorta/förläng: gör text mer koncis eller mer detaljerad.\n` +
+        `- Punktlista: dela upp långa stycken i konkreta, korta punkter (använd "• " i början av varje rad).\n` +
+        `- Avstånd: justera textlängder så att sektioner ser visuellt balanserade och enhetliga ut.\n` +
+        `- Lägg till: lägg till nya poster i rätt sektion med rätt format och naturlig svensk text.\n` +
+        `- Ta bort: ta bort specifika poster om användaren ber om det.\n` +
+        `- Flytta innehåll: flytta information mellan sektioner om det passar bättre.\n` +
+        `- Balansera kolumner: justera innehåll så att vänster och höger kolumn ser balanserade ut.\n` +
+        `- Formatering: ändra radbrytningar, indrag, och struktur för bättre läsbarhet.\n\n` +
+        `Regler:\n` +
+        `- Bevara ALL information — SAMMANFATTA INTE eller FÖRKORTA INTE om användaren inte uttryckligen ber om det.\n` +
+        `- Skriv med en naturlig, mänsklig röst på svenska. Undvik AI-klyschor och formella floskler.\n` +
+        `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
+        `- Ändra INTE strukturen (sektionsordning eller kolumnplacering) — det hanteras separat.\n` +
+        `- För punktlistor: använd "• " i början av varje punkt i beskrivningsfältet.\n` +
+        `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
 
-      if (action === "format") {
-        const fmtInstruction = intent?.formatInstruction || instr;
-        const fmtPrompt =
-          `Du är en CV-formateringsassistent. Användaren vill justera visuell formatering av sitt CV.\n\n` +
-          `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
-          `Användarens önskemål: ${fmtInstruction}\n\n` +
-          `Regler:\n` +
-          `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
-          `- För att förbättra visuell balans: justera textlängder, lägg till/ta bort tomma rader, eller flytta innehåll mellan sektioner.\n` +
-          `- Om avstånden är ojämna: gör texterna mer enhetliga i längd så att sektionerna ser balanserade ut.\n` +
-          `- Skriv med en naturlig, mänsklig röst.\n` +
-          `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt: fmtPrompt,
-          response_json_schema: AGENT_SCHEMA
-        });
-        const cv = mergeCV(res?.cv || res);
-        onApply({ data: cv, layout: null });
-        logAction("ai_command", { command: instr, action: "format", formatInstruction: fmtInstruction });
-        setInput(""); onClose();
-        toast({ title: "تم التنفيذ", description: "طبّقت تعديلات التنسيق على السيرة." });
-        return;
-      }
-
-      // action === "none" أو غير مفهوم
-      setError("لم أتعرف على تعليمتك بوضوح. حاول صياغتها بطريقة أخرى.");
-      logAction("ai_command", { command: instr, action: "none" });
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt: editPrompt,
+        response_json_schema: AGENT_SCHEMA,
+        model: "claude_sonnet_4_6",
+      });
+      const cv = mergeCV(res?.cv || res);
+      onApply({ data: cv, layout: null });
+      logAction("ai_command", { command: instr, action: "content" });
+      setInput(""); onClose();
+      toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة بذكاء." });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
       logAction("ai_command", { command: instr, error: String(e?.message || e).slice(0, 120) });
@@ -224,7 +190,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       </div>
       <div className="p-4">
         <p className="text-[12px] text-slate-500 mb-2 leading-relaxed">
-          اكتب تعليمتك بالعربية أو انطقها بصوتك، مثلاً: «أعد صياغة فقرة الخبرة الأولى» أو «أضف مهارة Python» — وسيطبّقها على السيرة مباشرة.
+          اكتب تعليمتك بالعربية أو انطقها بصوتك — أفهم أي أمر: إعادة صياغة، تحويل لنقاط، توحيد مسافات، إضافة، حذف، تقصير، توازن الأعمدة...
         </p>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {EXAMPLES.map((ex) => (
