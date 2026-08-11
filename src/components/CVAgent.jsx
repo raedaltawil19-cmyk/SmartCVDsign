@@ -4,7 +4,8 @@ import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
 import { parseReorderCommand, applyReorder, parseMoveColumnCommand, applyMoveColumn, parseAddCommand, applyAdd, sectionLabelAr } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
-import { Sparkles, X, Send, Loader2 } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Mic, MicOff } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 const EXAMPLES = [
   "أعد صياغة فقرة الخبرة الأولى",
@@ -25,6 +26,10 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
+  const { supported: micSupported, listening, interim, toggle: toggleMic, stop: stopMic } = useSpeechRecognition({
+    lang: "ar-SA",
+    onResult: (text) => setInput(text),
+  });
 
   const send = async () => {
     const instr = input.trim();
@@ -115,6 +120,11 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     }
   };
 
+  const close = () => {
+    stopMic();
+    onClose();
+  };
+
   if (!open) return null;
 
   return (
@@ -124,13 +134,13 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
           <Sparkles className="w-4 h-4" />
           <span className="font-medium text-sm">مساعد التعديل الذكي</span>
         </div>
-        <button onClick={onClose} className="text-white/80 hover:text-white">
+        <button onClick={close} className="text-white/80 hover:text-white">
           <X className="w-4 h-4" />
         </button>
       </div>
       <div className="p-4">
         <p className="text-[12px] text-slate-500 mb-2 leading-relaxed">
-          اكتب تعليمتك بالعربية، مثلاً: «أعد صياغة فقرة الخبرة الأولى» أو «أضف مهارة Python» — وسيطبّقها على السيرة مباشرة.
+          اكتب تعليمتك بالعربية أو انطقها بصوتك، مثلاً: «أعد صياغة فقرة الخبرة الأولى» أو «أضف مهارة Python» — وسيطبّقها على السيرة مباشرة.
         </p>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {EXAMPLES.map((ex) => (
@@ -143,14 +153,34 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
             </button>
           ))}
         </div>
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="اكتب تعليمتك هنا..."
-          rows={3}
-          disabled={busy}
-          className="w-full text-[13px] leading-relaxed resize-none border border-slate-200 rounded-xl p-3 outline-none focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 disabled:opacity-50"
-        />
+        <div className="relative">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="اكتب تعليمتك هنا..."
+            rows={3}
+            disabled={busy}
+            className="w-full text-[13px] leading-relaxed resize-none border border-slate-200 rounded-xl p-3 pl-11 outline-none focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 disabled:opacity-50"
+          />
+          {micSupported && (
+            <button
+              type="button"
+              onClick={() => toggleMic(input)}
+              disabled={busy}
+              title={listening ? "إيقاف التسجيل" : "تحدث بأمر صوتي"}
+              className={`absolute top-2 left-2 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${
+                listening
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {listening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          {listening && interim && (
+            <p className="text-[11px] text-slate-400 mt-1 px-1 italic">…{interim}</p>
+          )}
+        </div>
         {error && <p className="text-[11px] text-red-500 mt-2">{error}</p>}
         <button
           onClick={send}
