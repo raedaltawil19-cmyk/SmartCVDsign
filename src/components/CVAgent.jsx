@@ -79,9 +79,9 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
 
       const action = intent?.action || "none";
 
-      // حفظ الأمر في قاعدة البيانات لمراجعته لاحقاً
+      // حفظ الأمر في قاعدة البيانات لمراجعته لاحقاً (via service role حتى يعمل دون تسجيل دخول)
       try {
-        await base44.entities.AgentCommand.create({
+        await base44.asServiceRole.entities.AgentCommand.create({
           command: instr,
           action,
           section: intent?.section || "",
