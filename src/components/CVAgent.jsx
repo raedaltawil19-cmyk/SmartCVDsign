@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
-import { parseReorderCommand, applyReorder, parseMoveColumnCommand, applyMoveColumn, parseAddCommand, applyAdd, sectionLabelAr } from "@/lib/sectionMover";
+import { applyReorder, applyMoveColumn, applyAdd, sectionLabelAr } from "@/lib/sectionMover";
 import { logAction } from "@/lib/actionLog";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2, Mic, MicOff } from "lucide-react";
@@ -18,6 +18,18 @@ const AGENT_SCHEMA = {
   type: "object",
   properties: {
     cv: { type: "object", properties: CV_SCHEMA.properties }
+  }
+};
+
+const INTENT_SCHEMA = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["add", "reorder", "move_column", "edit_content", "none"] },
+    section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
+    value: { type: "string" },
+    targetSection: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
+    direction: { type: "string", enum: ["before", "after"] },
+    column: { type: "string", enum: ["main", "sidebar"] }
   }
 };
 
@@ -39,81 +51,103 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
     try {
       const currentLayout = layout || { main: [], sidebar: [] };
 
-      // 1) نقل قسم فوق/تحت آخر: تطبيق حتمي
-      const reorder = parseReorderCommand(instr);
-      if (reorder) {
-        const newLayout = applyReorder(currentLayout, reorder);
+      // 1) LLM يفهم نية الأمر أولاً (تصنيف حتمي آمن)
+      const classifyPrompt =
+        `Du tolkar en användares instruktion för att redigera ett CV. Avgör vilken åtgärd användaren vill göra.\n\n` +
+        `Möjliga åtgärder:\n` +
+        `- "add": Lägg till en ny post i en sektion (t.ex. "lägg till utbildning", "أضف عنوان فرعي", "add a skill"). value = ENDAST titeln/namnet som ska läggas till — ta BORT instruktionsord som "عنوان", "فرعي", "باسم", "rubrik".\n` +
+        `- "reorder": Flytta en sektion ovanför/under en annan sektion. Ange section (den som flyttas), targetSection (referensen), direction ("before"=ovanför, "after"=nedanför).\n` +
+        `- "move_column": Flytta en sektion till vänster/höger kolumn. Ange section och column ("main"=vänster, "sidebar"=höger).\n` +
+        `- "edit_content": Ändra själva texten/innehållet (t.ex. "skriv om profil", "gör texten kortare", "förbättra beskrivningen").\n` +
+        `- "none": Inte relaterat till CV-redigering.\n\n` +
+        `Sektioner: profil, erfarenhet, utbildning, fardigheter, sprak.\n\n` +
+        `Exempel:\n` +
+        `- "أضف عنوان فرعي باسم tjänsteutbildningar تحت بند utbildning" → action="add", section="utbildning", value="tjänsteutbildningar"\n` +
+        `- "انقل قسم التعليم فوق قسم اللغات" → action="reorder", section="utbildning", targetSection="sprak", direction="before"\n` +
+        `- "أعد صياغة فقرة الخبرة الأولى" → action="edit_content"\n\n` +
+        `Instruktion: "${instr}"\n\nReturnera giltig JSON.`;
+
+      const intent = await base44.integrations.Core.InvokeLLM({
+        prompt: classifyPrompt,
+        response_json_schema: INTENT_SCHEMA,
+      });
+
+      const action = intent?.action || "none";
+
+      // 2) تطبيق حتمي بناءً على النية المفهومة (الـ LLM لا يلمس الهيكل أبداً)
+
+      if (action === "reorder" && intent.section && intent.targetSection && intent.direction) {
+        const newLayout = applyReorder(currentLayout, {
+          source: intent.section, target: intent.targetSection, direction: intent.direction
+        });
         const layoutChanged = JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
         onApply({ data, layout: layoutChanged ? newLayout : null });
-        logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged, source: reorder.source, target: reorder.target, direction: reorder.direction });
-        setInput("");
-        onClose();
+        logAction("ai_command", { command: instr, action: "reorder", source: intent.section, target: intent.targetSection, direction: intent.direction });
+        setInput(""); onClose();
         toast({
           title: "تم التنفيذ",
           description: layoutChanged
-            ? `نقلت «${reorder.source}» ${reorder.direction === "before" ? "فوق" : "تحت"} «${reorder.target}».`
+            ? `نقلت «${sectionLabelAr(intent.section)}» ${intent.direction === "before" ? "فوق" : "تحت"} «${sectionLabelAr(intent.targetSection)}».`
             : "القسم في موضعه بالفعل."
         });
         return;
       }
 
-      // 2) نقل قسم إلى عمود (يمين/يسار): تطبيق حتمي
-      const moveCol = parseMoveColumnCommand(instr);
-      if (moveCol) {
-        const newLayout = applyMoveColumn(currentLayout, moveCol);
+      if (action === "move_column" && intent.section && intent.column) {
+        const newLayout = applyMoveColumn(currentLayout, { source: intent.section, column: intent.column });
         const layoutChanged = JSON.stringify(newLayout) !== JSON.stringify(currentLayout);
         onApply({ data, layout: layoutChanged ? newLayout : null });
-        logAction("ai_command", { command: instr, layoutChanged: !!layoutChanged, source: moveCol.source, column: moveCol.column });
-        setInput("");
-        onClose();
+        logAction("ai_command", { command: instr, action: "move_column", source: intent.section, column: intent.column });
+        setInput(""); onClose();
         toast({
           title: "تم التنفيذ",
           description: layoutChanged
-            ? `نقلت «${sectionLabelAr(moveCol.source)}» إلى العمود ${moveCol.column === "sidebar" ? "الأيمن" : "الأيسر"}.`
+            ? `نقلت «${sectionLabelAr(intent.section)}» إلى العمود ${intent.column === "sidebar" ? "الأيمن" : "الأيسر"}.`
             : "القسم في ذلك العمود بالفعل."
         });
         return;
       }
 
-      // 3) إضافة عنصر إلى قسم: تطبيق حتمي
-      const addCmd = parseAddCommand(instr);
-      if (addCmd) {
-        const newData = applyAdd(data, addCmd);
+      if (action === "add" && intent.section && intent.section !== "profil") {
+        const namn = (intent.value || "").trim();
+        const newData = applyAdd(data, { section: intent.section, namn });
         onApply({ data: newData, layout: null });
-        logAction("ai_command", { command: instr, action: "add", section: addCmd.section, namn: addCmd.namn });
-        setInput("");
-        onClose();
+        logAction("ai_command", { command: instr, action: "add", section: intent.section, namn });
+        setInput(""); onClose();
         toast({
           title: "تم التنفيذ",
-          description: addCmd.namn
-            ? `أضفت «${addCmd.namn}» إلى قسم «${sectionLabelAr(addCmd.section)}».`
-            : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(addCmd.section)}».`
+          description: namn
+            ? `أضفت «${namn}» إلى قسم «${sectionLabelAr(intent.section)}».`
+            : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(intent.section)}».`
         });
         return;
       }
 
-      // 4) تعديل المحتوى النصّي: استدعاء النموذج (لا يلمس الترتيب أبدًا)
-      const prompt =
-        `Du är en CV-redigeringsassistent. Redigera endast CV-innehållet enligt användarens instruktion.\n\n` +
-        `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
-        `Regler:\n` +
-        `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
-        `- Skriv med en naturlig, mänsklig röst. Undvik AI-klyschor.\n` +
-        `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
-        `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        response_json_schema: AGENT_SCHEMA
-      });
-      const cv = mergeCV(res?.cv || res);
-      onApply({ data: cv, layout: null });
-      logAction("ai_command", { command: instr });
-      setInput("");
-      onClose();
-      toast({
-        title: "تم التنفيذ",
-        description: "طبّقت تعليمتك على السيرة."
-      });
+      if (action === "edit_content") {
+        const editPrompt =
+          `Du är en CV-redigeringsassistent. Redigera endast CV-innehållet enligt användarens instruktion.\n\n` +
+          `Aktuellt CV (JSON):\n${JSON.stringify(data)}\n\n` +
+          `Instruktion: ${instr}\n\n` +
+          `Regler:\n` +
+          `- Bevara ALL information — SAMMANFATTA INTE och FÖRKORTA INTE.\n` +
+          `- Skriv med en naturlig, mänsklig röst. Undvik AI-klyschor.\n` +
+          `- Hitta inte på information. Om något saknas, lämna fältet tomt.\n` +
+          `- Returnera giltig JSON med endast "cv" (hela CV-objektet).`;
+        const res = await base44.integrations.Core.InvokeLLM({
+          prompt: editPrompt,
+          response_json_schema: AGENT_SCHEMA
+        });
+        const cv = mergeCV(res?.cv || res);
+        onApply({ data: cv, layout: null });
+        logAction("ai_command", { command: instr, action: "edit_content" });
+        setInput(""); onClose();
+        toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة." });
+        return;
+      }
+
+      // action === "none" أو غير مفهوم
+      setError("لم أتعرف على تعليمتك بوضوح. حاول صياغتها بطريقة أخرى.");
+      logAction("ai_command", { command: instr, action: "none" });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
       logAction("ai_command", { command: instr, error: String(e?.message || e).slice(0, 120) });
