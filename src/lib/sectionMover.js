@@ -111,8 +111,8 @@ export function applyMoveColumn(layout, { source, column }) {
 }
 
 /**
- * يفسّر أمر "أضف عنصرًا إلى قسم".
- * يعيد { section } أو null.
+ * يفسّر أمر "أضف عنصرًا إلى قسم" ويستخرج الاسم/العنوان المطلوب.
+ * يعيد { section, namn } أو null.
  */
 export function parseAddCommand(text) {
   if (!text) return null;
@@ -121,13 +121,35 @@ export function parseAddCommand(text) {
   if (!isAdd) return null;
   const section = findSection(text);
   if (!section || section === "profil") return null;
-  return { section };
+
+  // استخراج الاسم بعد كلمات مثل "باسم"، "اسم"، "عنوان"، "rubrik"
+  let namn = "";
+  const nameRegex = /(?:باسم|اسم|يدعى|يدعي|نسمى|نسمي|عنوان|rubrik|titel|named|called)\s+(.+)/i;
+  const match = text.match(nameRegex);
+  if (match) {
+    let rest = match[1].trim();
+    // أوقف عند كلمات تشير إلى القسم
+    const stopRegex = /\s+(?:في|بقسم|تحت|قسم|under|in)\s+/i;
+    const stopMatch = rest.match(stopRegex);
+    if (stopMatch) rest = rest.slice(0, stopMatch.index).trim();
+    // أزل التشكيل والهمزات من الاسم
+    namn = rest.replace(/[ًٌٍَُِّْـ]/g, "").replace(/[أإآ]/g, "ا").trim();
+  }
+
+  return { section, namn };
 }
 
+const TITLE_FIELDS = {
+  erfarenhet: "roll",
+  utbildning: "examen",
+  fardigheter: "namn",
+  sprak: "sprak"
+};
+
 /**
- * يضيف عنصرًا فارغًا جديدًا إلى قسم في بيانات السيرة.
+ * يضيف عنصرًا جديدًا إلى قسم في بيانات السيرة، مع وضع الاسم في حقل العنوان إن وُجد.
  */
-export function applyAdd(data, { section }) {
+export function applyAdd(data, { section, namn }) {
   const emptyItems = {
     erfarenhet: { roll: "", foretag: "", period: "", beskrivning: "" },
     utbildning: { examen: "", skola: "", period: "", beskrivning: "" },
@@ -136,7 +158,12 @@ export function applyAdd(data, { section }) {
   };
   const tpl = emptyItems[section];
   if (!tpl) return data;
-  return { ...data, [section]: [...(data[section] || []), { ...tpl }] };
+  const item = { ...tpl };
+  if (namn) {
+    const titleField = TITLE_FIELDS[section];
+    if (titleField) item[titleField] = namn;
+  }
+  return { ...data, [section]: [...(data[section] || []), item] };
 }
 
 export function sectionLabelAr(key) {

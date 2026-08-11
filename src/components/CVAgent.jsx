@@ -80,12 +80,14 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       if (addCmd) {
         const newData = applyAdd(data, addCmd);
         onApply({ data: newData, layout: null });
-        logAction("ai_command", { command: instr, action: "add", section: addCmd.section });
+        logAction("ai_command", { command: instr, action: "add", section: addCmd.section, namn: addCmd.namn });
         setInput("");
         onClose();
         toast({
           title: "تم التنفيذ",
-          description: `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(addCmd.section)}».`
+          description: addCmd.namn
+            ? `أضفت «${addCmd.namn}» إلى قسم «${sectionLabelAr(addCmd.section)}».`
+            : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(addCmd.section)}».`
         });
         return;
       }
