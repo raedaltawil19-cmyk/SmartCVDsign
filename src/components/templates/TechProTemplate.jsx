@@ -1,6 +1,7 @@
 import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import ContactBar from "./ContactBar";
 
 const BLUE = "#1B4FD8";
 const DARK = "#0f172a";
@@ -114,15 +115,15 @@ export default function TechProTemplate({ data: d, editable, actions, layout }) 
       <header className="px-9 py-8" style={{ background: DARK }}>
         <h1 className="text-3xl font-bold text-white tracking-tight"><EditText value={d.namn} editable={editable} onChange={(v) => actions.setField("namn", v)} placeholder="Ditt namn" /></h1>
         <p className="text-[15px] mt-1" style={{ color: "#7aa2ff" }}><EditText value={d.titel} editable={editable} onChange={(v) => actions.setField("titel", v)} placeholder="Titel" /></p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11.5px] text-slate-300">
-          <EditText value={d.kontakt.telefon} editable={editable} onChange={(v) => actions.setContact("telefon", v)} placeholder="Telefon" />
-          <span style={{ color: "#3b5998" }}>|</span>
-          <EditText value={d.kontakt.epost} editable={editable} onChange={(v) => actions.setContact("epost", v)} placeholder="E-post" />
-          <span style={{ color: "#3b5998" }}>|</span>
-          <EditText value={d.kontakt.adress} editable={editable} onChange={(v) => actions.setContact("adress", v)} placeholder="Adress" />
-          <span style={{ color: "#3b5998" }}>|</span>
-          <EditText value={d.kontakt.linkedin} editable={editable} onChange={(v) => actions.setContact("linkedin", v)} placeholder="LinkedIn" />
-        </div>
+        <ContactBar
+          kontakt={d.kontakt}
+          editable={editable}
+          actions={actions}
+          separator="|"
+          separatorClassName="text-[11.5px]"
+          itemClassName="text-[11.5px] text-slate-300"
+          containerClassName="mt-3"
+        />
       </header>
 
       <main className="flex">

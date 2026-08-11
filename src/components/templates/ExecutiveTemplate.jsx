@@ -1,6 +1,7 @@
 import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import ContactBar from "./ContactBar";
 
 const GOLD = "#B08D57";
 
@@ -109,15 +110,15 @@ export default function ExecutiveTemplate({ data: d, editable, actions, layout }
       </header>
 
       <div className="px-12">
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12px] text-slate-500 pb-6 border-b border-slate-200">
-          <EditText value={d.kontakt.telefon} editable={editable} onChange={(v) => actions.setContact("telefon", v)} placeholder="Telefon" />
-          <span style={{ color: GOLD }}>•</span>
-          <EditText value={d.kontakt.epost} editable={editable} onChange={(v) => actions.setContact("epost", v)} placeholder="E-post" />
-          <span style={{ color: GOLD }}>•</span>
-          <EditText value={d.kontakt.adress} editable={editable} onChange={(v) => actions.setContact("adress", v)} placeholder="Adress" />
-          <span style={{ color: GOLD }}>•</span>
-          <EditText value={d.kontakt.linkedin} editable={editable} onChange={(v) => actions.setContact("linkedin", v)} placeholder="LinkedIn" />
-        </div>
+        <ContactBar
+          kontakt={d.kontakt}
+          editable={editable}
+          actions={actions}
+          separator="•"
+          separatorClassName="text-[12px]"
+          itemClassName="text-[12px] text-slate-500"
+          containerClassName="justify-center pb-6 border-b border-slate-200"
+        />
       </div>
 
       <main className="px-12 py-8 space-y-8 max-w-[620px] mx-auto">

@@ -108,10 +108,9 @@ export default function StockholmTemplate({ data: d, editable, actions, layout }
         <div>
           <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-3">Kontakt</h2>
           <div className="space-y-1.5 text-[12.5px] text-slate-700">
-            <EditText value={d.kontakt.telefon} editable={editable} onChange={(v) => actions.setContact("telefon", v)} placeholder="Telefon" />
-            <EditText value={d.kontakt.epost} editable={editable} onChange={(v) => actions.setContact("epost", v)} placeholder="E-post" />
-            <EditText value={d.kontakt.adress} editable={editable} onChange={(v) => actions.setContact("adress", v)} placeholder="Adress" />
-            <EditText value={d.kontakt.linkedin} editable={editable} onChange={(v) => actions.setContact("linkedin", v)} placeholder="LinkedIn" />
+            {(editable ? ["telefon", "epost", "adress", "linkedin"] : ["telefon", "epost", "adress", "linkedin"].filter((k) => d.kontakt[k])).map((k) => (
+              <EditText key={k} value={d.kontakt[k]} editable={editable} onChange={(v) => actions.setContact(k, v)} placeholder={k.charAt(0).toUpperCase() + k.slice(1)} />
+            ))}
           </div>
         </div>
         {lay.sidebar.map(render)}

@@ -1,6 +1,7 @@
 import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import ContactBar from "./ContactBar";
 
 const ACCENT = "#0d9488";
 const TINT = "#f0fdfa";
@@ -117,15 +118,15 @@ export default function CreativeEdgeTemplate({ data: d, editable, actions, layou
       <header className="px-10 pt-10 pb-7" style={{ background: ACCENT }}>
         <h1 className="text-3xl font-bold tracking-tight text-white"><EditText value={d.namn} editable={editable} onChange={(v) => actions.setField("namn", v)} placeholder="Ditt namn" /></h1>
         <p className="text-base mt-1 text-white/85 font-medium"><EditText value={d.titel} editable={editable} onChange={(v) => actions.setField("titel", v)} placeholder="Titel" /></p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11.5px] text-white/80">
-          <EditText value={d.kontakt.telefon} editable={editable} onChange={(v) => actions.setContact("telefon", v)} placeholder="Telefon" />
-          <span className="text-white/40">|</span>
-          <EditText value={d.kontakt.epost} editable={editable} onChange={(v) => actions.setContact("epost", v)} placeholder="E-post" />
-          <span className="text-white/40">|</span>
-          <EditText value={d.kontakt.adress} editable={editable} onChange={(v) => actions.setContact("adress", v)} placeholder="Adress" />
-          <span className="text-white/40">|</span>
-          <EditText value={d.kontakt.linkedin} editable={editable} onChange={(v) => actions.setContact("linkedin", v)} placeholder="LinkedIn" />
-        </div>
+        <ContactBar
+          kontakt={d.kontakt}
+          editable={editable}
+          actions={actions}
+          separator="|"
+          separatorClassName="text-[11.5px] text-white/40"
+          itemClassName="text-[11.5px] text-white/80"
+          containerClassName="mt-3"
+        />
       </header>
       <div className="flex">
         <main className="flex-1 p-10 space-y-7 bg-white">

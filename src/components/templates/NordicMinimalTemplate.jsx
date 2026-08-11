@@ -1,6 +1,7 @@
 import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import ContactBar from "./ContactBar";
 
 function SectionHead({ children }) {
   return (
@@ -114,15 +115,15 @@ export default function NordicMinimalTemplate({ data: d, editable, actions, layo
       <header className="px-14 pt-16 pb-8">
         <h1 className="text-4xl font-light tracking-tight text-slate-900"><EditText value={d.namn} editable={editable} onChange={(v) => actions.setField("namn", v)} placeholder="Ditt namn" /></h1>
         <p className="text-base text-slate-400 mt-1.5 tracking-wide"><EditText value={d.titel} editable={editable} onChange={(v) => actions.setField("titel", v)} placeholder="Titel" /></p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-4 text-[11.5px] text-slate-400">
-          <EditText value={d.kontakt.telefon} editable={editable} onChange={(v) => actions.setContact("telefon", v)} placeholder="Telefon" />
-          <span className="text-slate-300">·</span>
-          <EditText value={d.kontakt.epost} editable={editable} onChange={(v) => actions.setContact("epost", v)} placeholder="E-post" />
-          <span className="text-slate-300">·</span>
-          <EditText value={d.kontakt.adress} editable={editable} onChange={(v) => actions.setContact("adress", v)} placeholder="Adress" />
-          <span className="text-slate-300">·</span>
-          <EditText value={d.kontakt.linkedin} editable={editable} onChange={(v) => actions.setContact("linkedin", v)} placeholder="LinkedIn" />
-        </div>
+        <ContactBar
+          kontakt={d.kontakt}
+          editable={editable}
+          actions={actions}
+          separator="·"
+          separatorClassName="text-[11.5px] text-slate-300"
+          itemClassName="text-[11.5px] text-slate-400"
+          containerClassName="mt-4"
+        />
       </header>
       <main className="px-14 pb-16 max-w-[640px] mx-auto space-y-1">
         {lay.main.map(render)}

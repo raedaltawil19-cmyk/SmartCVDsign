@@ -49,15 +49,13 @@ export function EditText({ value, editable, onChange, className, as = "input", p
         <span
           className={cn(className, "cursor-text")}
           onClick={activate}
-          dangerouslySetInnerHTML={{
-            __html: value ? toHtml(value) : `<span style="color:hsl(0 0% 83%)">${placeholder}</span>`,
-          }}
+          dangerouslySetInnerHTML={{ __html: value ? toHtml(value) : "" }}
         />
       );
     }
     return (
       <span className={cn(className, "cursor-text")} onClick={activate}>
-        {value ? value : <span className="text-slate-300">{placeholder}</span>}
+        {value ? value : ""}
       </span>
     );
   }
