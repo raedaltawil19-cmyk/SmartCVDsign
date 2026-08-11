@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CV_SCHEMA, mergeCV } from "@/lib/cvModel";
+import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, X, Send, Loader2 } from "lucide-react";
 
 const EXAMPLES = [
@@ -14,6 +15,7 @@ export default function CVAgent({ open, onClose, data, onApply }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const { toast } = useToast();
 
   const send = async () => {
     const instr = input.trim();
@@ -26,9 +28,11 @@ export default function CVAgent({ open, onClose, data, onApply }) {
         prompt,
         response_json_schema: CV_SCHEMA
       });
-      onApply(mergeCV(res));
+      const merged = mergeCV(res);
+      onApply(merged);
       setInput("");
       onClose();
+      toast({ title: "تم التنفيذ", description: "طبّقت تعليمتك على السيرة." });
     } catch (e) {
       setError("تعذّر تنفيذ التعليمات. حاول مجدداً.");
     } finally {
