@@ -52,7 +52,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
 
     // حفظ الأمر فوراً في قاعدة البيانات (قبل أي معالجة) لضمان تسجيله
     try {
-      await base44.asServiceRole.entities.AgentCommand.create({
+      await base44.entities.AgentCommand.create({
         command: instr,
         action: "none",
         section: "",
