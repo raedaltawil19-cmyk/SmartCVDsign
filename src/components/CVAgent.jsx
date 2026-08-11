@@ -63,7 +63,10 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         `CV (JSON): ${JSON.stringify(data)}\n${layoutContext}\n\n` +
         `Instruktion: ${instr}\n\n` +
         `Förmågor: omskrivning, förkorta, punktlista (•), avstånd, lägga till/ta bort, flytta sektion (ändra layout), balansera kolumner, formatering.\n` +
-        `Regler: bevara all info, naturlig svensk röst, hitta inte på info, ändra bara det användaren ber om.\n` +
+        `Viktiga regler:\n` +
+        `- "ta bort"/"احذف" en fält/section = töm värdet (t.ex. kontakt.linkedin = "") eller ta bort posten — ta INTE bort ord inuti en sträng.\n` +
+        `- "القسم الأعلى"/"toppen" = kontakt+namn-området (header). "العمود الجانبي" = sidebar.\n` +
+        `- Bevara all info som användaren inte ber om att ändra. Naturlig svensk röst. Hitta inte på info.\n` +
         `Returnera JSON: { "cv": <hela CV>, "layout": { "main": [...], "sidebar": [...] } }. Oförändrad layout = samma som input.`;
 
       const res = await base44.integrations.Core.InvokeLLM({

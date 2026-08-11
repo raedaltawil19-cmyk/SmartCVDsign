@@ -123,15 +123,21 @@ export function mergeCV(res, base) {
   const r = res || {};
   const b = base || {};
   const pick = (val, fallback) => (val !== undefined && val !== null && val !== "") ? val : (fallback || "");
+  // kontakt: إذا الـ LLM أرجع كائن kontakt بمفاتيح، نثق بقيمه (حتى الفارغة = حذف مقصود).
+  // فقط عند غياب kontakt تماماً نحافظ على القديم.
+  const kontaktKeys = r.kontakt && typeof r.kontakt === "object" ? Object.keys(r.kontakt) : [];
+  const useKontakt = kontaktKeys.length > 0;
   return {
     namn: pick(r.namn, b.namn),
     titel: pick(r.titel, b.titel),
-    kontakt: {
-      telefon: pick(r.kontakt?.telefon, b.kontakt?.telefon),
-      epost: pick(r.kontakt?.epost, b.kontakt?.epost),
-      adress: pick(r.kontakt?.adress, b.kontakt?.adress),
-      linkedin: pick(r.kontakt?.linkedin, b.kontakt?.linkedin)
-    },
+    kontakt: useKontakt
+      ? {
+          telefon: r.kontakt.telefon || "",
+          epost: r.kontakt.epost || "",
+          adress: r.kontakt.adress || "",
+          linkedin: r.kontakt.linkedin || ""
+        }
+      : { telefon: b.kontakt?.telefon || "", epost: b.kontakt?.epost || "", adress: b.kontakt?.adress || "", linkedin: b.kontakt?.linkedin || "" },
     profil: pick(r.profil, b.profil),
     erfarenhet: (r.erfarenhet && r.erfarenhet.length) ? r.erfarenhet.map(e => ({ roll: e.roll || "", foretag: e.foretag || "", period: e.period || "", beskrivning: e.beskrivning || "" })) : (b.erfarenhet || emptyCV.erfarenhet),
     utbildning: (r.utbildning && r.utbildning.length) ? r.utbildning.map(u => ({ examen: u.examen || "", skola: u.skola || "", period: u.period || "", beskrivning: u.beskrivning || "" })) : (b.utbildning || emptyCV.utbildning),
