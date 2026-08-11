@@ -167,7 +167,7 @@ const TITLE_FIELDS = {
 /**
  * يضيف عنصرًا جديدًا إلى قسم في بيانات السيرة، مع وضع الاسم في حقل العنوان إن وُجد.
  */
-export function applyAdd(data, { section, namn }) {
+export function applyAdd(data, { section, namn, namnList }) {
   const emptyItems = {
     erfarenhet: { roll: "", foretag: "", period: "", beskrivning: "" },
     utbildning: { examen: "", skola: "", period: "", beskrivning: "" },
@@ -176,12 +176,19 @@ export function applyAdd(data, { section, namn }) {
   };
   const tpl = emptyItems[section];
   if (!tpl) return data;
-  const item = { ...tpl };
-  if (namn) {
-    const titleField = TITLE_FIELDS[section];
-    if (titleField) item[titleField] = namn;
+  const titleField = TITLE_FIELDS[section];
+  const names = (namnList && namnList.length)
+    ? namnList.map(n => (n || "").trim()).filter(Boolean)
+    : (namn ? [namn] : []);
+  if (names.length === 0) {
+    return { ...data, [section]: [...(data[section] || []), { ...tpl }] };
   }
-  return { ...data, [section]: [...(data[section] || []), item] };
+  const newItems = names.map(n => {
+    const item = { ...tpl };
+    if (titleField) item[titleField] = n;
+    return item;
+  });
+  return { ...data, [section]: [...(data[section] || []), ...newItems] };
 }
 
 export function sectionLabelAr(key) {

@@ -27,6 +27,7 @@ const INTENT_SCHEMA = {
     action: { type: "string", enum: ["add", "reorder", "move_column", "edit_content", "none"] },
     section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
     value: { type: "string" },
+    items: { type: "array", items: { type: "string" } },
     targetSection: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
     direction: { type: "string", enum: ["before", "after"] },
     column: { type: "string", enum: ["main", "sidebar"] }
@@ -55,7 +56,10 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       const classifyPrompt =
         `Du tolkar en användares instruktion för att redigera ett CV. Avgör vilken åtgärd användaren vill göra.\n\n` +
         `Möjliga åtgärder:\n` +
-        `- "add": Lägg till en ny post i en sektion (t.ex. "lägg till utbildning", "أضف عنوان فرعي", "add a skill"). value = ENDAST titeln/namnet som ska läggas till — ta BORT instruktionsord som "عنوان", "فرعي", "باسم", "rubrik".\n` +
+        `- "add": Lägg till en eller flera poster i en sektion.\n` +
+        `  - För EN post: sätt value = titeln/namnet.\n` +
+        `  - För FLERA poster (t.ex. en lista med kurser under en rubrik): sätt items = ["rubrik", "post1", "post2", ...] och lämna value tom. Varje post blir en separat rad.\n` +
+        `  - Ta BORT instruktionsord som "عنوان", "فرعي", "باسم", "rubrik" från värdena.\n` +
         `- "reorder": Flytta en sektion ovanför/under en annan sektion. Ange section (den som flyttas), targetSection (referensen), direction ("before"=ovanför, "after"=nedanför).\n` +
         `- "move_column": Flytta en sektion till vänster/höger kolumn. Ange section och column ("main"=vänster, "sidebar"=höger).\n` +
         `- "edit_content": Ändra själva texten/innehållet (t.ex. "skriv om profil", "gör texten kortare", "förbättra beskrivningen").\n` +
@@ -63,6 +67,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
         `Sektioner: profil, erfarenhet, utbildning, fardigheter, sprak.\n\n` +
         `Exempel:\n` +
         `- "أضف عنوان فرعي باسم tjänsteutbildningar تحت بند utbildning" → action="add", section="utbildning", value="tjänsteutbildningar"\n` +
+        `- "تحت عنوان tjänsteutbildningar ضع الدورات: Motiverande samtal, kundbemötande, prioritera rätt" → action="add", section="utbildning", items=["tjänsteutbildningar", "Motiverande samtal", "kundbemötande", "prioritera rätt"]\n` +
         `- "انقل قسم التعليم فوق قسم اللغات" → action="reorder", section="utbildning", targetSection="sprak", direction="before"\n` +
         `- "أعد صياغة فقرة الخبرة الأولى" → action="edit_content"\n\n` +
         `Instruktion: "${instr}"\n\nReturnera giltig JSON.`;
@@ -73,6 +78,17 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       });
 
       const action = intent?.action || "none";
+
+      // حفظ الأمر في قاعدة البيانات لمراجعته لاحقاً
+      try {
+        await base44.entities.AgentCommand.create({
+          command: instr,
+          action,
+          section: intent?.section || "",
+          status: "success",
+          intent: intent || {}
+        });
+      } catch (e) {}
 
       // 2) تطبيق حتمي بناءً على النية المفهومة (الـ LLM لا يلمس الهيكل أبداً)
 
@@ -109,16 +125,20 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       }
 
       if (action === "add" && intent.section && intent.section !== "profil") {
+        const items = Array.isArray(intent.items) ? intent.items.map(i => (i || "").trim()).filter(Boolean) : [];
         const namn = (intent.value || "").trim();
-        const newData = applyAdd(data, { section: intent.section, namn });
+        const newData = applyAdd(data, { section: intent.section, namn, namnList: items });
         onApply({ data: newData, layout: null });
-        logAction("ai_command", { command: instr, action: "add", section: intent.section, namn });
+        logAction("ai_command", { command: instr, action: "add", section: intent.section, namn, namnList: items });
         setInput(""); onClose();
+        const count = items.length || (namn ? 1 : 0);
         toast({
           title: "تم التنفيذ",
-          description: namn
-            ? `أضفت «${namn}» إلى قسم «${sectionLabelAr(intent.section)}».`
-            : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(intent.section)}».`
+          description: count > 1
+            ? `أضفت ${count} عناصر إلى قسم «${sectionLabelAr(intent.section)}».`
+            : (namn || items[0])
+              ? `أضفت «${namn || items[0]}» إلى قسم «${sectionLabelAr(intent.section)}».`
+              : `أضفت عنصرًا جديدًا إلى قسم «${sectionLabelAr(intent.section)}».`
         });
         return;
       }

@@ -1,0 +1,60 @@
+{
+  "name": "AgentCommand",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The user's natural language command to the CV agent"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "add",
+        "reorder",
+        "move_column",
+        "edit_content",
+        "none"
+      ],
+      "description": "Classified action type from the LLM"
+    },
+    "section": {
+      "type": "string",
+      "description": "Target CV section (profil, erfarenhet, utbildning, fardigheter, sprak)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed",
+        "pending"
+      ],
+      "default": "pending",
+      "description": "Execution status of the command"
+    },
+    "error": {
+      "type": "string",
+      "description": "Error message if the command failed"
+    },
+    "intent": {
+      "type": "object",
+      "description": "Full classified intent object returned by the LLM"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  },
+  "required": [
+    "command"
+  ]
+}
