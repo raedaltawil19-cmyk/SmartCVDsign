@@ -134,6 +134,7 @@
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
+  .cv-editable { background: transparent !important; }
 }
 
 /* Print lock for non-authenticated users */
@@ -161,4 +162,11 @@
 .inp:focus {
   border-color: #000066;
   box-shadow: 0 0 0 2px rgba(0, 0, 102, 0.12);
+}
+
+/* placeholder للحقول القابلة للتحرير (WYSIWYG) */
+.cv-editable:empty:before {
+  content: attr(data-placeholder);
+  color: hsl(0 0% 83%);
+  pointer-events: none;
 }

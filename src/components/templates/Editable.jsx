@@ -3,84 +3,79 @@ import { cn } from "@/lib/utils";
 import { useEditContext } from "./EditContext";
 import FloatingToolbar from "./FloatingToolbar";
 
-function renderInline(text) {
-  if (!text) return text;
-  const nodes = [];
-  const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
-  let last = 0;
-  let m;
-  let key = 0;
-  while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    if (m[2] !== undefined) nodes.push(<strong key={key++}>{m[2]}</strong>);
-    else if (m[3] !== undefined) nodes.push(<em key={key++}>{m[3]}</em>);
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes.length ? nodes : text;
+const INPUT_BASE =
+  "bg-transparent border-0 outline-none w-full p-0 m-0 placeholder:text-slate-300 focus:bg-slate-50/60 rounded transition-colors";
+
+// يحوّل نص عادي إلى HTML: يحافظ على الأسطر الجديدة كـ <br>، ويترك الـHTML كما هو
+function toHtml(v) {
+  if (!v) return "";
+  const s = String(v);
+  if (/<[a-z!]/i.test(s)) return s;
+  return s.replace(/\n/g, "<br>");
 }
 
 export function EditText({ value, editable, onChange, className, as = "input", placeholder = "", rows = 3 }) {
   const { activateEdit } = useEditContext();
-  const taRef = useRef(null);
+  const ref = useRef(null);
   const clickPosRef = useRef(null);
   const [toolbar, setToolbar] = useState(null);
 
+  // عند التفعيل بالنقر: ركّز الحقل واعرض الشريط عند مؤشر الماوس
   useEffect(() => {
-    if (editable && clickPosRef.current && taRef.current) {
+    if (editable && clickPosRef.current && ref.current) {
       const pos = clickPosRef.current;
       clickPosRef.current = null;
-      taRef.current.focus();
-      setToolbar({ top: pos.y - 6, left: pos.x });
+      ref.current.focus();
+      if (as === "textarea") setToolbar({ top: pos.y - 6, left: pos.x });
     }
   }, [editable]);
 
-  const applyFormat = (type) => {
-    const ta = taRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const sel = (value || "").substring(start, end);
-    let newVal;
-    let selStart;
-    let selEnd;
-    if (type === "bold") {
-      newVal = value.substring(0, start) + "**" + sel + "**" + value.substring(end);
-      selStart = start + 2;
-      selEnd = end + 2;
-    } else if (type === "italic") {
-      newVal = value.substring(0, start) + "*" + sel + "*" + value.substring(end);
-      selStart = start + 1;
-      selEnd = end + 1;
-    } else if (type === "bullet") {
-      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-      newVal = value.substring(0, lineStart) + "• " + value.substring(lineStart);
-      selStart = start + 2;
-      selEnd = end + 2;
+  // مزامنة القيمة الخارجية (تراجع/وكيل) داخل الـcontentEditable
+  useEffect(() => {
+    if (editable && as === "textarea" && ref.current) {
+      const html = toHtml(value || "");
+      if (ref.current.innerHTML !== html) ref.current.innerHTML = html;
     }
-    onChange(newVal);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.setSelectionRange(selStart, selEnd);
-    });
+  }, [editable, value]);
+
+  const activate = (e) => {
+    clickPosRef.current = { x: e.clientX, y: e.clientY };
+    activateEdit();
   };
 
   if (!editable) {
+    if (as === "textarea") {
+      return (
+        <span
+          className={cn(className, "cursor-text")}
+          onClick={activate}
+          dangerouslySetInnerHTML={{
+            __html: value ? toHtml(value) : `<span style="color:hsl(0 0% 83%)">${placeholder}</span>`,
+          }}
+        />
+      );
+    }
     return (
-      <span
-        className={cn(className, "cursor-text")}
-        onClick={(e) => {
-          clickPosRef.current = { x: e.clientX, y: e.clientY };
-          activateEdit();
-        }}
-      >
-        {value ? renderInline(value) : placeholder}
+      <span className={cn(className, "cursor-text")} onClick={activate}>
+        {value ? value : <span className="text-slate-300">{placeholder}</span>}
       </span>
     );
   }
 
-  const base =
-    "bg-transparent border-0 outline-none w-full p-0 m-0 placeholder:text-slate-300 focus:bg-slate-50/60 rounded transition-colors";
+  // حقول السطر الواحد: <input> عادي — التحرير والمعاينة متطابقان (نص صرف)
+  if (as === "input") {
+    return (
+      <input
+        ref={ref}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={cn(INPUT_BASE, className)}
+      />
+    );
+  }
+
+  // حقول متعددة الأسطر: محرر WYSIWYG — التنسيق يظهر أثناء التحرير كما في المعاينة
   const onFocus = (e) => {
     if (!clickPosRef.current) {
       const r = e.target.getBoundingClientRect();
@@ -88,34 +83,31 @@ export function EditText({ value, editable, onChange, className, as = "input", p
     }
   };
   const onBlur = () => setToolbar(null);
+  const onInput = () => {
+    if (!ref.current) return;
+    if (ref.current.textContent.trim() === "") ref.current.innerHTML = "";
+    onChange(ref.current.innerHTML);
+  };
+  const applyFormat = (type) => {
+    ref.current?.focus();
+    if (type === "bold") document.execCommand("bold");
+    else if (type === "italic") document.execCommand("italic");
+    else if (type === "bullet") document.execCommand("insertHTML", false, "• ");
+  };
 
-  if (as === "textarea") {
-    return (
-      <>
-        <textarea
-          ref={taRef}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          className={cn(base, "resize-none", className)}
-          placeholder={placeholder}
-          rows={rows}
-        />
-        <FloatingToolbar pos={toolbar} onAction={applyFormat} />
-      </>
-    );
-  }
   return (
     <>
-      <input
-        ref={taRef}
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
         onFocus={onFocus}
         onBlur={onBlur}
-        className={cn(base, className)}
-        placeholder={placeholder}
+        onInput={onInput}
+        data-placeholder={placeholder}
+        className={cn(className, "cv-editable outline-none focus:bg-slate-50/60 rounded transition-colors")}
+        style={{ minHeight: `${rows * 1.6}em` }}
       />
       <FloatingToolbar pos={toolbar} onAction={applyFormat} />
     </>
