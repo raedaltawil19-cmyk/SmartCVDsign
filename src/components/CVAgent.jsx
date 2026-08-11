@@ -94,7 +94,7 @@ export default function CVAgent({ open, onClose, data, layout, templateId, onApp
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
         response_json_schema: AGENT_SCHEMA,
-        model: "claude_sonnet_4_6",
+        model: "gpt_5_mini",
       });
 
       const cv = mergeCV(res?.cv || res);
