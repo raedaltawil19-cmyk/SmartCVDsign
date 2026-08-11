@@ -34,6 +34,7 @@ export default function Builder() {
   const [histVersion, setHistVersion] = useState(0);
   const [templateId, setTemplateId] = useState(incoming?.templateId || "stockholm");
   const [layout, setLayout] = useState(() => DEFAULT_LAYOUTS[incoming?.templateId || "stockholm"] || DEFAULT_LAYOUTS.stockholm);
+  const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
@@ -58,6 +59,7 @@ export default function Builder() {
   const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
 
   useEffect(() => {
+    if (skipLayoutResetRef.current) { skipLayoutResetRef.current = false; return; }
     setLayout(DEFAULT_LAYOUTS[templateId] || DEFAULT_LAYOUTS.stockholm);
   }, [templateId]);
 
@@ -109,7 +111,7 @@ export default function Builder() {
         const rec = await cvRepository.get(id);
         if (rec) {
           if (rec.data) setData(mergeCV(rec.data));
-          if (rec.templateId) setTemplateId(rec.templateId);
+          if (rec.templateId) { skipLayoutResetRef.current = true; setTemplateId(rec.templateId); }
           if (rec.layout) setLayout(rec.layout);
           setCurrentCvId(rec.id);
         }
@@ -128,7 +130,7 @@ export default function Builder() {
     if (!p) return;
     try {
       if (p.data) setData(mergeCV(p.data));
-      if (p.templateId) setTemplateId(p.templateId);
+      if (p.templateId) { skipLayoutResetRef.current = true; setTemplateId(p.templateId); }
       if (p.layout) setLayout(p.layout);
       toast({ title: "أكمل ما بدأته", description: "تمت استعادة مسودة سيرتك بعد تسجيل الدخول." });
     } catch (e) {}
