@@ -115,8 +115,7 @@ export default function Builder() {
         if (rec) {
           if (rec.data) setData(mergeCV(rec.data));
           if (rec.templateId) { skipLayoutResetRef.current = true; setTemplateId(rec.templateId); }
-          // استخدم التخطيط المحفوظ، أو الافتراضي للقالب إذا لم يوجد
-          setLayout(rec.layout || DEFAULT_LAYOUTS[rec.templateId] || DEFAULT_LAYOUTS.stockholm);
+          if (rec.layout) setLayout(rec.layout);
           setCurrentCvId(rec.id);
         }
       } catch (e) {
@@ -135,7 +134,7 @@ export default function Builder() {
     try {
       if (p.data) setData(mergeCV(p.data));
       if (p.templateId) { skipLayoutResetRef.current = true; setTemplateId(p.templateId); }
-      setLayout(p.layout || DEFAULT_LAYOUTS[p.templateId] || DEFAULT_LAYOUTS.stockholm);
+      if (p.layout) setLayout(p.layout);
       toast({ title: "أكمل ما بدأته", description: "تمت استعادة مسودة سيرتك بعد تسجيل الدخول." });
     } catch (e) {}
     auth.clearDraft();
@@ -168,11 +167,7 @@ export default function Builder() {
 
   // الحفظ التلقائي بعد كل تعديل (مع تأخير بسيط)
   useEffect(() => {
-    if (processing) {
-      // أعد الضبط حتى لا يحفظ تلقائياً قبل اكتمال تحميل البيانات
-      autoSaveReadyRef.current = false;
-      return;
-    }
+    if (processing) return;
     if (!autoSaveReadyRef.current) { autoSaveReadyRef.current = true; return; }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setAutoSaveStatus("saving");
@@ -295,13 +290,17 @@ export default function Builder() {
       const ok = await auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
       if (!ok) return;
       const payload = { titel, data, templateId, layout };
-      // دائماً أنشئ نسخة جديدة (لقطة مجمّدة) — لا تحدّث النسخة الحالية
-      // هذا يضمن أن أي تعديل مستقبلي لا يؤثر على النسخة المحفوظة
-      const rec = await cvRepository.create(payload);
-      setCurrentCvId(rec.id);
-      navigate(`/builder/${rec.id}`, { replace: true });
-      toast({ title: "تم حفظ نسخة جديدة", description: titel });
-      setSaveOpen(false);
+      if (currentCvId) {
+        await cvRepository.update(currentCvId, payload);
+        toast({ title: "تم الحفظ", description: titel });
+        setSaveOpen(false);
+      } else {
+        const rec = await cvRepository.create(payload);
+        setCurrentCvId(rec.id);
+        navigate(`/builder/${rec.id}`, { replace: true });
+        toast({ title: "تم حفظ السيرة", description: titel });
+        setSaveOpen(false);
+      }
     } catch (e) {
       toast({ title: "تعذّر الحفظ", description: "سجّل الدخول أولاً لحفظ سيرتك.", variant: "destructive" });
     } finally {
