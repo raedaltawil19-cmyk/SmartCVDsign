@@ -8,11 +8,12 @@ import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate, Check } from "lucide-react";
+import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate, Check, Sparkles } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
 import AgentChatPanel from "@/components/agent/AgentChatPanel";
+import SmartCVAssistantPanel from "@/components/agent/SmartCVAssistantPanel";
 import { logAction } from "@/lib/actionLog";
 
 const A4_W = 794;
@@ -38,6 +39,7 @@ export default function Builder() {
   const [showLayout, setShowLayout] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showSmart, setShowSmart] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -359,6 +361,10 @@ export default function Builder() {
                 تم الحفظ
               </span>
             )}
+            <button onClick={() => { setShowSmart((v) => !v); setShowAgent(false); }} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">مساعد السيرة</span>
+            </button>
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">{t("builder.layout")}</span>
@@ -463,6 +469,18 @@ export default function Builder() {
               if (nextLayout) { skipLayoutResetRef.current = true; setLayout(nextLayout); }
               logAction("ai_command", { field: "تعديل عبر المساعد" });
             }}
+          />
+        </div>
+      )}
+
+      {showSmart && (
+        <div className="no-print fixed bottom-4 left-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl">
+          <SmartCVAssistantPanel
+            data={data}
+            layout={layout}
+            templateId={templateId}
+            cvId={currentCvId}
+            onClose={() => setShowSmart(false)}
           />
         </div>
       )}
