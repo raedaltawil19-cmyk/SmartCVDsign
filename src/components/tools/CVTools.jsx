@@ -72,7 +72,10 @@ export default function CVTools({ data, onApply, iconOnly = false }) {
           {busy ? <Loader2 className={iconOnly ? "w-5 h-5 animate-spin" : "w-4 h-4 animate-spin"} /> : iconOnly ? <MoreHorizontal className="w-5 h-5" /> : <Wrench className="w-4 h-4" />}
           {!iconOnly && <span>أدوات</span>}
           {iconOnly && (
-            <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 ${dir === "rtl" ? "right-full mr-2" : "left-full ml-2"} whitespace-nowrap text-[11px] bg-slate-900 text-white px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-50`}>{t("builder.more")}</span>
+            <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 ${dir === "rtl" ? "right-full mr-2" : "left-full ml-2"} w-52 text-right text-[11px] bg-slate-900 text-white px-2.5 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50`}>
+              <span className="block font-semibold">أدوات إضافية</span>
+              <span className="block text-slate-300 leading-relaxed mt-0.5">لغة السيرة والنبرة، رسالة مقدمة، تحليل ATS، فجوات التوظيف، الرواتب والمقابلات والمزيد</span>
+            </span>
           )}
         </button>
         {open && (
