@@ -58,6 +58,7 @@ export default function Builder() {
   const [autoSaveStatus, setAutoSaveStatus] = useState("");
   const autoSaveTimerRef = useRef(null);
   const autoSaveReadyRef = useRef(false);
+  const creatingRef = useRef(false);
 
   const nextUrl = () => window.location.pathname + window.location.search;
   const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
@@ -174,18 +175,28 @@ export default function Builder() {
     setAutoSaveStatus("saving");
     autoSaveTimerRef.current = setTimeout(async () => {
       const draft = { data, templateId, layout };
-      if (isAuthenticated && currentCvId) {
+      if (isAuthenticated) {
         try {
-          await cvRepository.update(currentCvId, { titel: data.titel || "Min CV", ...draft });
+          const titel = data.titel || "Min CV";
+          if (currentCvId) {
+            await cvRepository.update(currentCvId, { titel, ...draft });
+          } else if (!creatingRef.current) {
+            creatingRef.current = true;
+            const rec = await cvRepository.create({ titel, ...draft });
+            setCurrentCvId(rec.id);
+            navigate(`/builder/${rec.id}`, { replace: true });
+            creatingRef.current = false;
+          }
           setAutoSaveStatus("saved");
         } catch (e) {
+          creatingRef.current = false;
           setAutoSaveStatus("");
         }
       } else {
         auth.persistDraft(draft);
         setAutoSaveStatus("saved");
       }
-    }, 1200);
+    }, 250);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, templateId, layout, processing, isAuthenticated, currentCvId]);
