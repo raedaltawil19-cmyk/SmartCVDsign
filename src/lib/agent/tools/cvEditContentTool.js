@@ -14,12 +14,12 @@ import { validateCV } from "@/lib/agent/tools/validation";
 
 export const TOOL_NAME = "cv_edit_content";
 
-/** الأقسام القابلة للتعديل عبر هذه الأداة (header/kontakt مستبعدة تماماً) */
-export const EDITABLE_SECTIONS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
+/** الأقسام القابلة لتعديل المحتوى (header/kontakt محتوى سيرة كامل — لكنهما ليسا قابلين للنقل) */
+export const EDITABLE_SECTIONS = ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
 /** أقسام القوائم — الوحيدة التي تقبل add_item / remove_item */
 export const LIST_SECTIONS = ["erfarenhet", "utbildning", "fardigheter", "sprak"];
-/** أقسام محمية لا تُقبل بأي شكل */
-export const FORBIDDEN_SECTIONS = ["header", "kontakt"];
+/** أقسام العنصر الواحد ومعرّفاتها الثابتة (لا تتغيّر IDs الخاصة بها أبداً) */
+export const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
 export const OPERATIONS = ["replace_field", "add_item", "remove_item"];
 /** مستويات اللغة المسموحة (مطابقة لتعليمات cvModel) */
 export const SPRAK_LEVELS = ["Modersmål", "Flytande", "Goda kunskaper", "Grundläggande"];
@@ -31,7 +31,7 @@ export const CV_EDIT_CONTENT_INPUT_SCHEMA = {
   properties: {
     section: { type: "string", enum: EDITABLE_SECTIONS },
     operation: { type: "string", enum: OPERATIONS },
-    itemRef: { type: "string", description: "Stable ID صادر عن cvIndex (مثل experience_8f31a أو profile_main)" },
+    itemRef: { type: "string", description: "Stable ID صادر عن cvIndex (header_main / contact_main / profile_main / experience_8f31a ...)" },
     field: { type: "string", description: "اسم الحقل الفعلي أو دوره الدلالي" },
     value: { type: ["string", "number"] },
     expectedValue: { type: ["string", "number"], description: "القيمة الحالية كما رآها الطالب — إلزامية في replace_field" },
@@ -41,7 +41,6 @@ export const CV_EDIT_CONTENT_INPUT_SCHEMA = {
 };
 
 const ALLOWED_INPUT_KEYS = Object.keys(CV_EDIT_CONTENT_INPUT_SCHEMA.properties);
-const PROFIL_ITEM_REF = "profile_main";
 
 /** المفاتيح المسموحة لكل عملية — صرامة كاملة، لا تجاهل صامت */
 export const OPERATION_KEYS = {
@@ -58,11 +57,25 @@ const IDENTITY_FIELDS = {
   sprak: ["sprak"]
 };
 
+/** حقول يجب أن تحتوي محتوى فعلياً (adress / linkedin / beskrivning يجوز أن تكون فارغة) */
+const REQUIRED_CONTENT_FIELDS = {
+  header: ["namn", "titel"],
+  kontakt: ["telefon", "epost"],
+  profil: ["profil"],
+  erfarenhet: ["roll", "foretag", "period"],
+  utbildning: ["examen", "skola", "period"],
+  fardigheter: ["namn"],
+  sprak: ["sprak"]
+};
+
 /** الحقول الفعلية لكل قسم — مشتقة من FIELD_ROLES وليست مكتوبة يدوياً */
 export const sectionFields = (section) => Object.keys(FIELD_ROLES[section] || {});
 
 const snap = (v) => JSON.stringify(v === undefined ? null : v);
 const deepClone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+const isBlank = (v) => typeof v === "string" && v.trim() === "";
+/** تحقق بسيط ومتسامح للبريد — لا يرفض بريداً صحيحاً غير تقليدي */
+const looksLikeEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim());
 
 const fail = (errorCode, message, section, operation) => ({
   success: false,
@@ -88,6 +101,17 @@ function checkValueType(section, field, value) {
   return null;
 }
 
+/** فحوص القيمة بعد النوع: الفراغ ثم الصيغة */
+function checkValueContent(section, field, value) {
+  if ((REQUIRED_CONTENT_FIELDS[section] || []).includes(field) && isBlank(value)) {
+    return { code: "VALUE_EMPTY", message: `الحقل «${field}» لا يمكن أن يكون فارغاً.` };
+  }
+  if (section === "kontakt" && field === "epost" && !isBlank(value) && !looksLikeEmail(value)) {
+    return { code: "VALUE_FORMAT_INVALID", message: "صيغة البريد الإلكتروني غير معقولة." };
+  }
+  return null;
+}
+
 /**
  * يحدّد موقع العنصر داخل بيانات القسم عبر Stable ID فقط — بلا أي مطابقة نصية.
  * @returns {{index:number}|{error:string}}
@@ -98,9 +122,8 @@ function locateByRef(data, section, itemRef) {
   if (!secIdx) return { error: "ITEM_NOT_FOUND" };
   const matches = secIdx.items.filter((i) => i.id === itemRef);
   if (matches.length === 0) {
-    // المرجع موجود لكنه في قسم آخر؟ نميّز الخطأ بوضوح.
     const other = index.sections.find((s) => s.items.some((i) => i.id === itemRef));
-    if (other) return { error: FORBIDDEN_SECTIONS.includes(other.section) ? "SECTION_FORBIDDEN" : "ITEM_SECTION_MISMATCH", otherSection: other.section };
+    if (other) return { error: "ITEM_SECTION_MISMATCH", otherSection: other.section };
     return { error: "ITEM_NOT_FOUND" };
   }
   if (matches.length > 1) return { error: "ITEM_AMBIGUOUS" };
@@ -127,6 +150,23 @@ function onlyChangedIn(original, next, allowedPaths) {
   return null;
 }
 
+/** قراءة/كتابة حقل داخل قسم عنصر-واحد، مع تحديد المسار المسموح بتغيّره */
+function singleFieldAccess(section, field) {
+  if (section === "kontakt") {
+    return {
+      get: (d) => d.kontakt?.[field] ?? "",
+      set: (d, v) => { d.kontakt = { ...(d.kontakt || {}), [field]: v }; },
+      allowedPaths: ["kontakt"]
+    };
+  }
+  // header (namn / titel) و profil (profil) — حقول في جذر النموذج
+  return {
+    get: (d) => d[field] ?? "",
+    set: (d, v) => { d[field] = v; },
+    allowedPaths: [field]
+  };
+}
+
 /**
  * ينفّذ عملية تعديل محتوى واحدة. لا يرمي استثناءات ولا يعدّل أي مدخل.
  * @param {object} input   { section, operation, itemRef?, field?, value?, expectedValue?, item?, index? }
@@ -137,19 +177,18 @@ export function runCvEditContent(input, cvData) {
   const section = inp.section;
   const operation = inp.operation;
 
-  // 1) مدخلات صارمة
+  // 1) مدخلات صارمة — أي مفتاح غير معروف (layout / templateId / id / metadata ...) مرفوض
   const unknown = Object.keys(inp).filter((k) => !ALLOWED_INPUT_KEYS.includes(k));
   if (unknown.length) return fail("INPUT_UNKNOWN_KEYS", `مدخلات غير معروفة: ${unknown.join(", ")}.`, section, operation);
   if (!cvData || typeof cvData !== "object" || Array.isArray(cvData)) {
     return fail("CV_DATA_REQUIRED", "لم تُمرَّر بيانات السيرة.", section, operation);
   }
   if (!section) return fail("SECTION_REQUIRED", "لم يُحدَّد القسم.", section, operation);
-  if (FORBIDDEN_SECTIONS.includes(section) || !EDITABLE_SECTIONS.includes(section)) {
+  if (!EDITABLE_SECTIONS.includes(section)) {
     return fail("SECTION_FORBIDDEN", `القسم «${section}» غير قابل للتعديل عبر هذه الأداة.`, section, operation);
   }
   if (!OPERATIONS.includes(operation)) return fail("OPERATION_INVALID", "العملية المطلوبة غير مدعومة.", section, operation);
-  const opKeys = OPERATION_KEYS[operation];
-  const irrelevant = Object.keys(inp).filter((k) => !opKeys.includes(k));
+  const irrelevant = Object.keys(inp).filter((k) => !OPERATION_KEYS[operation].includes(k));
   if (irrelevant.length) {
     return fail("INPUT_UNKNOWN_KEYS", `مفاتيح لا تُستخدم في هذه العملية: ${irrelevant.join(", ")}.`, section, operation);
   }
@@ -181,25 +220,34 @@ export function runCvEditContent(input, cvData) {
 
       const typeError = checkValueType(section, field, inp.value);
       if (typeError) return fail("VALUE_TYPE_INVALID", typeError, section, operation);
-      if (typeof inp.value === "string" && inp.value.trim() === "") {
-        return fail("VALUE_EMPTY", "لا يمكن تفريغ الحقل بقيمة نصية فارغة.", section, operation);
-      }
+      const contentError = checkValueContent(section, field, inp.value);
+      if (contentError) return fail(contentError.code, contentError.message, section, operation);
 
-      if (section === "profil") {
-        if (inp.itemRef !== PROFIL_ITEM_REF) return fail("ITEM_NOT_FOUND", `المرجع «${inp.itemRef}» غير موجود في قسم الملف الشخصي.`, section, operation);
-        const current = draft.profil ?? "";
+      if (SINGLE_ITEM_IDS[section]) {
+        const expectedRef = SINGLE_ITEM_IDS[section];
+        if (inp.itemRef !== expectedRef) {
+          return fail("ITEM_NOT_FOUND", `المرجع «${inp.itemRef}» غير موجود في ${SECTION_META[section]?.labelAr || section}.`, section, operation);
+        }
+        const acc = singleFieldAccess(section, field);
+        const current = acc.get(draft);
         if (current !== inp.expectedValue) return fail("STALE_VALUE", "القيمة الحالية للحقل تختلف عمّا استُند إليه — أعد قراءة السيرة.", section, operation);
-        draft.profil = inp.value;
-        const mutated = onlyChangedIn(cvData, draft, ["profil"]);
+        acc.set(draft, inp.value);
+        const mutated = onlyChangedIn(cvData, draft, acc.allowedPaths);
         if (mutated) return fail("UNEXPECTED_MUTATION", `تغيّر غير مقصود في «${mutated}».`, section, operation);
+        if (section === "kontakt") {
+          const otherKontakt = Object.keys({ ...(cvData.kontakt || {}), ...(draft.kontakt || {}) })
+            .filter((k) => k !== field)
+            .some((k) => snap(cvData.kontakt?.[k]) !== snap(draft.kontakt?.[k]));
+          if (otherKontakt) return fail("UNEXPECTED_MUTATION", "تغيّر غير مقصود في حقول اتصال أخرى.", section, operation);
+        }
         result = {
           section,
-          itemRef: PROFIL_ITEM_REF,
+          itemRef: expectedRef,
           field,
           previousValue: current,
           newValue: inp.value,
-          newItemRef: PROFIL_ITEM_REF,
-          summary: "تم تحديث نص الملف الشخصي."
+          newItemRef: expectedRef,
+          summary: `تم تحديث «${field}» في ${SECTION_META[section]?.labelAr || section}.`
         };
       } else {
         const loc = locateByRef(draft, section, inp.itemRef);

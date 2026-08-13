@@ -35,13 +35,19 @@ const check = (name, cond, info) => results.push({ test: name, pass: !!cond, ...
   const r = runCvEditContent({ section: "profil", operation: "replace_field", itemRef: "profile_main", field: "profil", value: "Ny profiltext.", expectedValue: d.profil }, d);
   check("2 replace profil", r.success && r.newData.profil === "Ny profiltext.");
 }
-/* 3 */ {
-  const r = runCvEditContent({ section: "header", operation: "replace_field", itemRef: "header_main", field: "namn", value: "X", expectedValue: "Anna Svensson" }, BASE());
-  check("3 header rejected", r.success === false && r.errorCode === "SECTION_FORBIDDEN");
+/* 3 — header صار محتوى قابلاً للتعديل (وليس قسماً قابلاً للنقل) */ {
+  const d = BASE();
+  const r = runCvEditContent({ section: "header", operation: "replace_field", itemRef: "header_main", field: "namn", value: "Anna B. Svensson", expectedValue: "Anna Svensson" }, d);
+  check("3 header content editable", r.success && r.newData.namn === "Anna B. Svensson");
 }
-/* 4 */ {
-  const r = runCvEditContent({ section: "kontakt", operation: "replace_field", itemRef: "contact_main", field: "telefon", value: "0", expectedValue: "070-123 45 67" }, BASE());
-  check("4 kontakt rejected", r.success === false && r.errorCode === "SECTION_FORBIDDEN");
+/* 4 — kontakt صار محتوى قابلاً للتعديل */ {
+  const d = BASE();
+  const r = runCvEditContent({ section: "kontakt", operation: "replace_field", itemRef: "contact_main", field: "telefon", value: "0701234567", expectedValue: "070-123 45 67" }, d);
+  check("4 kontakt content editable", r.success && r.newData.kontakt.telefon === "0701234567");
+}
+/* 4b — القسم غير الموجود ما زال مرفوضاً */ {
+  const r = runCvEditContent({ section: "metadata", operation: "replace_field", itemRef: "x", field: "y", value: "z", expectedValue: "w" }, BASE());
+  check("4b unknown section rejected", r.errorCode === "SECTION_FORBIDDEN");
 }
 /* 5 */ {
   const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
@@ -232,8 +238,8 @@ const FULL_EXP = { roll: "Praktikant", foretag: "Nordic AB", period: "2017 – 2
 }
 /* 40 */ {
   const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
-  const r = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "beskrivning", value: "", expectedValue: "Byggde gränssnitt." }, d);
-  check("40 empty string value rejected", r.errorCode === "VALUE_EMPTY");
+  const r = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "roll", value: "   ", expectedValue: "Frontendutvecklare" }, d);
+  check("40 empty required string value rejected", r.errorCode === "VALUE_EMPTY");
 }
 /* 41 */ {
   const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
@@ -258,6 +264,167 @@ const FULL_EXP = { roll: "Praktikant", foretag: "Nordic AB", period: "2017 – 2
     runCvEditContent({ section: "erfarenhet", operation: "remove_item", itemRef: ref, index: 0 }, d)
   ];
   check("44 no failure mutates the original cvData", failures.every((f) => f.success === false) && JSON.stringify(d) === before);
+}
+
+/* ===== header + kontakt (محتوى السيرة الكامل) ===== */
+const H = { section: "header", operation: "replace_field", itemRef: "header_main" };
+const K = { section: "kontakt", operation: "replace_field", itemRef: "contact_main" };
+
+/* 45 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...H, field: "namn", value: "Anna Karlsson", expectedValue: "Anna Svensson" }, d);
+  check("45 edit namn via header_main", r.success && r.newData.namn === "Anna Karlsson" && r.newItemRef === "header_main");
+}
+/* 46 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...H, field: "titel", value: "Business Systems Consultant", expectedValue: "Frontendutvecklare" }, d);
+  check("46 edit titel via header_main", r.success && r.newData.titel === "Business Systems Consultant");
+}
+/* 47 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "telefon", value: "0701234567", expectedValue: "070-123 45 67" }, d);
+  check("47 edit telefon via contact_main", r.success && r.newData.kontakt.telefon === "0701234567");
+}
+/* 48 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "epost", value: "anna.svensson@företag.se", expectedValue: "anna@example.se" }, d);
+  check("48 edit epost via contact_main", r.success && r.newData.kontakt.epost === "anna.svensson@företag.se");
+}
+/* 49 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "adress", value: "Göteborg", expectedValue: "Stockholm" }, d);
+  check("49 edit adress", r.success && r.newData.kontakt.adress === "Göteborg");
+}
+/* 50 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "linkedin", value: "linkedin.com/in/anna", expectedValue: "" }, d);
+  check("50 edit linkedin (empty before)", r.success && r.newData.kontakt.linkedin === "linkedin.com/in/anna");
+}
+/* 51 */ {
+  const r = runCvEditContent({ section: "header", operation: "replace_field", itemRef: "header_x", field: "namn", value: "X", expectedValue: "Anna Svensson" }, BASE());
+  check("51 wrong header itemRef rejected", r.errorCode === "ITEM_NOT_FOUND");
+}
+/* 52 */ {
+  const r = runCvEditContent({ section: "kontakt", operation: "replace_field", itemRef: "kontakt_main", field: "telefon", value: "0", expectedValue: "070-123 45 67" }, BASE());
+  check("52 wrong contact itemRef rejected", r.errorCode === "ITEM_NOT_FOUND");
+}
+/* 53 */ {
+  const r = runCvEditContent({ ...H, field: "personnummer", value: "x", expectedValue: "y" }, BASE());
+  check("53 unknown header field rejected", r.errorCode === "FIELD_NOT_FOUND");
+}
+/* 54 */ {
+  const r = runCvEditContent({ ...K, field: "fax", value: "x", expectedValue: "y" }, BASE());
+  check("54 unknown kontakt field rejected", r.errorCode === "FIELD_NOT_FOUND");
+}
+/* 55 */ {
+  const r = runCvEditContent({ ...K, field: "kontakt", value: "x", expectedValue: "y" }, BASE());
+  check("55 editing kontakt as a whole object rejected", r.errorCode === "FIELD_NOT_FOUND");
+}
+/* 56 */ {
+  const r = runCvEditContent({ ...H, field: "header", value: "x", expectedValue: "y" }, BASE());
+  check("56 editing header as a whole object rejected", r.errorCode === "FIELD_NOT_FOUND");
+}
+/* 57 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "phone", value: "0709999999", expectedValue: "070-123 45 67" }, d);
+  check("57 correct expectedValue for phone (role alias)", r.success && r.field === "telefon");
+}
+/* 58 */ {
+  const r = runCvEditContent({ ...K, field: "telefon", value: "0709999999", expectedValue: "0700000000" }, BASE());
+  check("58 wrong phone expectedValue → STALE_VALUE", r.errorCode === "STALE_VALUE");
+}
+/* 59 */ {
+  const r = runCvEditContent({ ...K, field: "epost", value: "ny@example.se", expectedValue: "fel@example.se" }, BASE());
+  check("59 wrong email expectedValue → STALE_VALUE", r.errorCode === "STALE_VALUE");
+}
+/* 60 */ {
+  const r = runCvEditContent({ ...K, field: "epost", value: "anna(at)example", expectedValue: "anna@example.se" }, BASE());
+  check("60 invalid email → VALUE_FORMAT_INVALID", r.errorCode === "VALUE_FORMAT_INVALID");
+}
+/* 61 */ {
+  const r = runCvEditContent({ ...K, field: "telefon", value: "  ", expectedValue: "070-123 45 67" }, BASE());
+  check("61 empty phone → VALUE_EMPTY", r.errorCode === "VALUE_EMPTY");
+}
+/* 62 */ {
+  const r = runCvEditContent({ ...H, field: "namn", value: "", expectedValue: "Anna Svensson" }, BASE());
+  check("62 empty namn → VALUE_EMPTY", r.errorCode === "VALUE_EMPTY");
+}
+/* 63 */ {
+  const r = runCvEditContent({ ...H, field: "titel", value: "   ", expectedValue: "Frontendutvecklare" }, BASE());
+  check("63 empty titel → VALUE_EMPTY", r.errorCode === "VALUE_EMPTY");
+}
+/* 64 */ {
+  const d = { ...BASE(), layout: { main: ["profil"], sidebar: [] } };
+  const r = runCvEditContent({ ...H, field: "namn", value: "Ny Namn", expectedValue: "Anna Svensson" }, d);
+  check("64 layout in cvData stays untouched", r.success && JSON.stringify(r.newData.layout) === JSON.stringify(d.layout));
+}
+/* 65 */ {
+  const d = { ...BASE(), templateId: "stockholm" };
+  const r = runCvEditContent({ ...K, field: "adress", value: "Malmö", expectedValue: "Stockholm" }, d);
+  check("65 templateId in cvData stays untouched", r.success && r.newData.templateId === "stockholm");
+}
+/* 66 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...H, field: "titel", value: "Systemutvecklare", expectedValue: "Frontendutvecklare" }, d);
+  const same = ["namn", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"].every((k) => JSON.stringify(r.newData[k]) === JSON.stringify(d[k]));
+  check("66 rest of CV unchanged after header edit", r.success && same);
+}
+/* 67 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...H, field: "namn", value: "Anna S.", expectedValue: "Anna Svensson" }, d);
+  check("67 header edit touches no other section", r.success && r.newData.titel === d.titel && JSON.stringify(r.newData.kontakt) === JSON.stringify(d.kontakt));
+}
+/* 68 */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...K, field: "epost", value: "ny@example.se", expectedValue: "anna@example.se" }, d);
+  const otherKontakt = r.success && r.newData.kontakt.telefon === d.kontakt.telefon && r.newData.kontakt.adress === d.kontakt.adress && r.newData.kontakt.linkedin === d.kontakt.linkedin;
+  check("68 kontakt edit touches no other field/section", otherKontakt && r.newData.namn === d.namn && JSON.stringify(r.newData.erfarenhet) === JSON.stringify(d.erfarenhet));
+}
+/* 69 */ {
+  const r = runCvEditContent({ section: "header", operation: "add_item", item: { namn: "X", titel: "Y" } }, BASE());
+  check("69 add_item on header rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 70 */ {
+  const r = runCvEditContent({ section: "kontakt", operation: "add_item", item: { telefon: "070" } }, BASE());
+  check("70 add_item on kontakt rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 71 */ {
+  const r = runCvEditContent({ section: "profil", operation: "add_item", item: { profil: "x" } }, BASE());
+  check("71 add_item on profil rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 72 */ {
+  const r = runCvEditContent({ section: "header", operation: "remove_item", itemRef: "header_main" }, BASE());
+  check("72 remove_item on header rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 73 */ {
+  const r = runCvEditContent({ section: "kontakt", operation: "remove_item", itemRef: "contact_main" }, BASE());
+  check("73 remove_item on kontakt rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 74 */ {
+  const r = runCvEditContent({ section: "profil", operation: "remove_item", itemRef: "profile_main" }, BASE());
+  check("74 remove_item on profil rejected", r.errorCode === "OPERATION_NOT_ALLOWED_FOR_SECTION");
+}
+/* 75 — الحقول التي يجوز تفريغها فعلاً */ {
+  const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
+  const rb = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "beskrivning", value: "", expectedValue: "Byggde gränssnitt." }, d);
+  const ra = runCvEditContent({ ...K, field: "adress", value: "", expectedValue: "Stockholm" }, BASE());
+  check("75 optional fields may be emptied", rb.success && rb.newData.erfarenhet[0].beskrivning === "" && ra.success && ra.newData.kontakt.adress === "");
+}
+/* 76 — لا تغيير للمدخل الأصلي في header/kontakt، نجاحاً أو فشلاً */ {
+  const d = BASE(); const before = JSON.stringify(d);
+  const ops = [
+    runCvEditContent({ ...H, field: "namn", value: "Ny", expectedValue: "Anna Svensson" }, d),
+    runCvEditContent({ ...K, field: "epost", value: "bad-email", expectedValue: "anna@example.se" }, d),
+    runCvEditContent({ ...K, field: "telefon", value: "070", expectedValue: "fel" }, d)
+  ];
+  check("76 original cvData untouched in header/kontakt ops", ops[0].success && !ops[1].success && !ops[2].success && JSON.stringify(d) === before);
+}
+/* 77 — Stable IDs لأقسام العنصر الواحد لا تتغير */ {
+  const d = BASE();
+  const r = runCvEditContent({ ...H, field: "namn", value: "Helt Nytt Namn", expectedValue: "Anna Svensson" }, d);
+  const idx = buildCVIndex(r.newData).sections;
+  const ids = ["header_main", "contact_main", "profile_main"].every((id) => idx.some((s) => s.items.some((i) => i.id === id)));
+  check("77 single-section stable IDs unchanged", r.success && r.itemRef === "header_main" && r.newItemRef === "header_main" && ids);
 }
 
 check("levels list matches cvModel guidance", SPRAK_LEVELS.length === 4);
