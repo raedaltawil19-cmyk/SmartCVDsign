@@ -5,19 +5,25 @@
  * كل الاستهداف بالمعرّفات الثابتة — لا اعتماد على ترتيب العناصر.
  */
 import { locateItem, resolveField, isListSection, ToolError } from "./locate";
-import { SECTION_META, SECTION_KEYS } from "@/lib/agent/cvIndex";
+import { SECTION_META, ALL_SECTION_KEYS } from "@/lib/agent/cvIndex";
 
 const cloneData = (d) => JSON.parse(JSON.stringify(d));
 
 const setItemField = (data, section, index, field, value) => {
   const next = cloneData(data);
   if (section === "profil") next.profil = value;
+  else if (section === "header") next[field] = value;
+  else if (section === "kontakt") next.kontakt = { ...next.kontakt, [field]: value };
   else next[section][index] = { ...next[section][index], [field]: value };
   return next;
 };
 
-const getItemField = (data, section, index, field) =>
-  section === "profil" ? data.profil || "" : data[section]?.[index]?.[field] ?? "";
+const getItemField = (data, section, index, field) => {
+  if (section === "profil") return data.profil || "";
+  if (section === "header") return data[field] ?? "";
+  if (section === "kontakt") return data.kontakt?.[field] ?? "";
+  return data[section]?.[index]?.[field] ?? "";
+};
 
 export const TOOLS = {
   /** تعديل نص حقل بالكامل بقيمة جديدة يقدّمها المستخدم أو الوكيل بناءً على طلبه */
@@ -108,20 +114,28 @@ export const TOOLS = {
 
   /** حذف قسم كامل: تفريغ محتواه وإزالته من هيكل الأعمدة */
   delete_section: {
-    description: "Radera en hel sektion: profil | erfarenhet | utbildning | fardigheter | sprak.",
+    description: "Radera en hel sektion: header | kontakt | profil | erfarenhet | utbildning | fardigheter | sprak.",
     args: ["section"],
     run(state, { section }) {
-      if (!SECTION_KEYS.includes(section)) throw new ToolError(`القسم "${section}" غير معروف.`, "unknown_section");
+      if (!ALL_SECTION_KEYS.includes(section)) throw new ToolError(`القسم "${section}" غير معروف.`, "unknown_section");
       const next = cloneData(state.data);
-      const before = { data: section === "profil" ? next.profil : next[section], layout: state.layout };
+      const readSection = (d) => {
+        if (section === "profil") return d.profil;
+        if (section === "kontakt") return d.kontakt;
+        if (section === "header") return { namn: d.namn, titel: d.titel };
+        return d[section];
+      };
+      const before = { data: readSection(next), layout: state.layout };
       if (section === "profil") next.profil = "";
+      else if (section === "kontakt") next.kontakt = { telefon: "", epost: "", adress: "", linkedin: "" };
+      else if (section === "header") { next.namn = ""; next.titel = ""; }
       else next[section] = [];
       const layout = state.layout
         ? { main: state.layout.main.filter((k) => k !== section), sidebar: state.layout.sidebar.filter((k) => k !== section) }
         : state.layout;
       return {
         state: { data: next, layout },
-        operation: { targetId: section, field: null, before, after: { data: section === "profil" ? "" : [], layout } },
+        operation: { targetId: section, field: null, before, after: { data: readSection(next), layout } },
         summary: `تم حذف قسم ${SECTION_META[section].labelAr}.`
       };
     }

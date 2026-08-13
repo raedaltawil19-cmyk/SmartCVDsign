@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { mergeCV } from "@/lib/cvModel";
-import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import CVIndexDebug from "@/components/agent/CVIndexDebug";
 import { useServices } from "@/hooks/useServices";
 import AgentChatPanel from "@/components/agent/AgentChatPanel";
 import IsolatedUnderstandTest from "@/components/agent/IsolatedUnderstandTest";
@@ -71,14 +71,7 @@ export default function UnderstandingLab() {
 
         <AgentChatPanel data={data} allowEdits={false} disabled={!data} />
 
-        {data && (
-          <details className="rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="text-[13px] font-semibold text-slate-700 cursor-pointer">المعرفات الثابتة في سيرتك</summary>
-            <pre dir="ltr" className="mt-2 text-[11px] leading-relaxed text-slate-600 overflow-x-auto">
-              {JSON.stringify(summarizeIndex(buildCVIndex(data)), null, 1)}
-            </pre>
-          </details>
-        )}
+        <CVIndexDebug data={data} />
       </div>
     </div>
   );

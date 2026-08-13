@@ -14,7 +14,18 @@ export class ToolError extends Error {
 /** يعيد { section, index, item, fields } لعنصر بمعرّف ثابت */
 export function locateItem(data, targetId) {
   const idx = buildCVIndex(data);
-  const found = getByRef(idx, String(targetId || "").split(".")[0]);
+  const base = String(targetId || "").split(".")[0];
+  const found = getByRef(idx, base);
+  // هدف على مستوى القسم: نستخدم عنصره الوحيد (kontakt / header / profil)
+  if (found?.type === "section" && found.section.kind !== "list" && found.section.items[0]) {
+    return {
+      section: found.section.section,
+      sectionLabel: found.section.label,
+      index: 0,
+      label: found.section.items[0].label,
+      item: found.section.items[0]
+    };
+  }
   if (!found || !found.item) throw new ToolError(`لم أجد العنصر (${targetId}).`, "target_not_found");
   return {
     section: found.section.section,
@@ -35,4 +46,4 @@ export function resolveField(section, field) {
   throw new ToolError(`الحقل "${field}" غير موجود في قسم ${section}.`, "field_not_found");
 }
 
-export const isListSection = (section) => section !== "profil";
+export const isListSection = (section) => !["profil", "kontakt", "header"].includes(section);

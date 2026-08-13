@@ -1,7 +1,7 @@
 /**
  * CV Understanding Engine — بانِي السياق.
- * يرسل للوكيل الحد الأدنى الضروري فقط: بنية السيرة، النصوص ذات الصلة،
- * آخر رسائل المحادثة، والعنصر الذي كان المستخدم يتحدث عنه.
+ * يرسل للوكيل بنية السيرة الكاملة (أقسام → عناصر → حقول) بمعرّفات ثابتة،
+ * إضافة إلى النصوص ذات الصلة وسياق المحادثة.
  * لا يُرسل HTML ولا CSS ولا معلومات عن القالب.
  */
 import { buildCVIndex, summarizeIndex, getByRef } from "./cvIndex";
@@ -13,6 +13,22 @@ const extractKeywords = (text) =>
     .map((w) => w.trim())
     .filter((w) => w.length >= 3 && !/^\d+$/.test(w))
     .slice(0, 12);
+
+/** قيم الأقسام ذات العنصر الواحد (الاسم، الاتصال، الملف) — صغيرة وتُرسل كاملة */
+const singleSectionValues = (index) =>
+  index.sections
+    .filter((s) => s.kind !== "list")
+    .map((s) => ({
+      section: s.section,
+      label: s.label,
+      fields: s.items[0].fields.map((f) => ({
+        ref: f.id,
+        field: f.field,
+        role: f.role,
+        value: String(f.value ?? "").slice(0, 300),
+        empty: f.isEmpty
+      }))
+    }));
 
 /**
  * @param {object} p
@@ -40,6 +56,8 @@ export function buildAgentContext({ data, message, history = [], lastItemRef = n
         field: hit.field,
         role: hit.role,
         itemLabel: hit.itemLabel,
+        matchType: hit.matchType,
+        empty: hit.isEmpty,
         text: hit.snippet
       });
     }
@@ -61,7 +79,8 @@ export function buildAgentContext({ data, message, history = [], lastItemRef = n
     index,
     context: {
       structure,
-      relevant: relevant.slice(0, 10),
+      singleSections: singleSectionValues(index),
+      relevant: relevant.slice(0, 12),
       lastTarget: lastTargetInfo,
       conversation: history.slice(-historyLimit).map((m) => ({ role: m.role, content: String(m.content || "").slice(0, 400) }))
     }

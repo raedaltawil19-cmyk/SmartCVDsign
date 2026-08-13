@@ -15,8 +15,9 @@ const READ_ONLY_INTENTS = new Set(["locate", "read", "unknown"]);
 
 const REPLY_PROMPT = `Du är en CV-assistent. Svara på användarens språk (arabiska, svenska eller engelska — matcha meddelandet, blandat språk är tillåtet).
 Max 2–3 korta meningar. Ingen inre tankekedja, inga id:n, ingen JSON.
-- intent = locate: säg var elementet finns (sektion + etikett).
+- intent = locate: säg var elementet/fältet finns (sektion + etikett).
 - intent = read: återge det efterfrågade fältets innehåll.
+- Om fältet är tomt (empty = true): säg tydligt att värdet saknas i CV:t och vilket fält det gäller. Hitta inte på ett värde.
 Använd endast FACTS nedan. Hitta aldrig på innehåll.`;
 
 const PLAN_SCHEMA = {
@@ -33,7 +34,7 @@ const PLAN_SCHEMA = {
         beforeId: { type: "string" },
         afterId: { type: "string" },
         position: { type: "string", enum: ["first", "last"] },
-        section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] }
+        section: { type: "string", enum: ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] }
       }
     },
     needs_clarification: { type: "boolean" },
@@ -53,7 +54,8 @@ Verktyg:
 - delete_section(section): radera en hel sektion.
 
 Regler:
-- targetId/beforeId/afterId måste vara stabila id:n ur CV_STRUCTURE — hitta aldrig på id.
+- targetId/beforeId/afterId måste vara stabila id:n ur CV_STRUCTURE — hitta aldrig på id. Fält kan också vara mål (t.ex. targetId "contact_main", field "telefon").
+- RESOLVED_TARGET.type = "section" → använd delete_section med den sektionsnyckeln. type = "field" → edit_text/delete_text på det fältet.
 - Uppfinn ALDRIG nytt CV-innehåll. Vid omskrivning: utgå enbart från befintlig text.
 - Om målet eller åtgärden är otydlig, eller flera element kan matcha: tool = "none", needs_clarification = true och ställ EN kort fråga.
 - Radera aldrig mer än användaren bad om. "ta bort namnet ur beskrivningen" = delete_text, inte delete_item.`;
@@ -84,7 +86,7 @@ export async function runCVAgent({ data, layout = null, message, history = [], l
   };
 
   const wantsChange = !READ_ONLY_INTENTS.has(u.intent);
-  const sectionOnly = u.intent === "delete" && !u.target;
+  const sectionOnly = u.target?.type === "section" || (u.intent === "delete" && !u.target);
 
   if (u.needsClarification || (!u.target && !sectionOnly)) {
     return {
@@ -98,7 +100,11 @@ export async function runCVAgent({ data, layout = null, message, history = [], l
   const facts = {
     intent: u.intent,
     modifiers: u.modifiers,
+    target_type: u.target?.type || null,
     requested_field: u.target?.field || null,
+    requested_field_role: u.target?.role || null,
+    requested_field_value: u.target?.type === "field" ? u.target.value : null,
+    empty: u.target?.type === "field" ? u.target.isEmpty : undefined,
     section: u.target?.sectionLabel || null,
     item_label: u.target?.label || null,
     item_fields: u.target?.fields || null
@@ -137,7 +143,12 @@ ${message}`,
     }
 
     const args = { ...(plan.args || {}) };
-    if (!args.targetId && u.target?.ref) args.targetId = u.target.ref;
+    if (u.target?.type === "section") {
+      if (!args.section) args.section = u.target.section;
+    } else {
+      if (!args.targetId && u.target?.ref) args.targetId = u.target.ref;
+      if (!args.field && u.target?.field) args.field = u.target.field;
+    }
 
     const res = runTool(plan.tool, args, { data, layout });
     internal.result = { ok: res.ok, code: res.code || null };
