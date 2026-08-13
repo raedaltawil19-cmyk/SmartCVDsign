@@ -43,6 +43,21 @@ export const CV_EDIT_CONTENT_INPUT_SCHEMA = {
 const ALLOWED_INPUT_KEYS = Object.keys(CV_EDIT_CONTENT_INPUT_SCHEMA.properties);
 const PROFIL_ITEM_REF = "profile_main";
 
+/** المفاتيح المسموحة لكل عملية — صرامة كاملة، لا تجاهل صامت */
+export const OPERATION_KEYS = {
+  replace_field: ["section", "operation", "itemRef", "field", "value", "expectedValue"],
+  add_item: ["section", "operation", "item", "index"],
+  remove_item: ["section", "operation", "itemRef"]
+};
+
+/** حقول الهوية التي تدخل في Stable ID ويجب ألا تكون فارغة عند إنشاء عنصر */
+const IDENTITY_FIELDS = {
+  erfarenhet: ["roll", "foretag", "period"],
+  utbildning: ["examen", "skola", "period"],
+  fardigheter: ["namn"],
+  sprak: ["sprak"]
+};
+
 /** الحقول الفعلية لكل قسم — مشتقة من FIELD_ROLES وليست مكتوبة يدوياً */
 export const sectionFields = (section) => Object.keys(FIELD_ROLES[section] || {});
 
@@ -72,9 +87,6 @@ function checkValueType(section, field, value) {
   if (typeof value !== "string") return `الحقل «${field}» يجب أن يكون نصاً.`;
   return null;
 }
-
-/** القيمة الافتراضية لحقل عند إنشاء عنصر جديد */
-const defaultFor = (section, field) => (section === "fardigheter" && field === "niva" ? 80 : "");
 
 /**
  * يحدّد موقع العنصر داخل بيانات القسم عبر Stable ID فقط — بلا أي مطابقة نصية.
@@ -136,6 +148,11 @@ export function runCvEditContent(input, cvData) {
     return fail("SECTION_FORBIDDEN", `القسم «${section}» غير قابل للتعديل عبر هذه الأداة.`, section, operation);
   }
   if (!OPERATIONS.includes(operation)) return fail("OPERATION_INVALID", "العملية المطلوبة غير مدعومة.", section, operation);
+  const opKeys = OPERATION_KEYS[operation];
+  const irrelevant = Object.keys(inp).filter((k) => !opKeys.includes(k));
+  if (irrelevant.length) {
+    return fail("INPUT_UNKNOWN_KEYS", `مفاتيح لا تُستخدم في هذه العملية: ${irrelevant.join(", ")}.`, section, operation);
+  }
 
   const before = snap(cvData);
   const draft = deepClone(cvData);
@@ -144,7 +161,6 @@ export function runCvEditContent(input, cvData) {
   let result;
   try {
     if (operation === "replace_field") {
-      if (inp.item !== undefined) return fail("INPUT_UNKNOWN_KEYS", "«item» لا يُستخدم في تعديل حقل.", section, operation);
       if (!inp.itemRef) return fail("ITEM_REF_REQUIRED", "لم يُحدَّد العنصر المستهدف.", section, operation);
       if (inp.field === undefined || inp.field === null || inp.field === "") {
         return fail("FIELD_REQUIRED", "لم يُحدَّد الحقل المستهدف.", section, operation);
@@ -165,6 +181,9 @@ export function runCvEditContent(input, cvData) {
 
       const typeError = checkValueType(section, field, inp.value);
       if (typeError) return fail("VALUE_TYPE_INVALID", typeError, section, operation);
+      if (typeof inp.value === "string" && inp.value.trim() === "") {
+        return fail("VALUE_EMPTY", "لا يمكن تفريغ الحقل بقيمة نصية فارغة.", section, operation);
+      }
 
       if (section === "profil") {
         if (inp.itemRef !== PROFIL_ITEM_REF) return fail("ITEM_NOT_FOUND", `المرجع «${inp.itemRef}» غير موجود في قسم الملف الشخصي.`, section, operation);
@@ -210,17 +229,22 @@ export function runCvEditContent(input, cvData) {
 
     if (operation === "add_item") {
       if (!LIST_SECTIONS.includes(section)) return fail("OPERATION_NOT_ALLOWED_FOR_SECTION", `لا يمكن إضافة عنصر إلى ${SECTION_META[section]?.labelAr || section}.`, section, operation);
-      for (const k of ["field", "value", "expectedValue", "itemRef"]) {
-        if (inp[k] !== undefined) return fail("INPUT_UNKNOWN_KEYS", `«${k}» لا يُستخدم في إضافة عنصر.`, section, operation);
-      }
       if (!inp.item || typeof inp.item !== "object" || Array.isArray(inp.item)) {
         return fail("ITEM_REQUIRED", "لم تُمرَّر بيانات العنصر الجديد.", section, operation);
       }
       const extra = Object.keys(inp.item).filter((k) => !allowedFields.includes(k));
       if (extra.length) return fail("INPUT_UNKNOWN_KEYS", `حقول غير معروفة في العنصر: ${extra.join(", ")}.`, section, operation);
-      for (const f of Object.keys(inp.item)) {
+      const missing = allowedFields.filter((f) => inp.item[f] === undefined);
+      if (missing.length) {
+        return fail("ITEM_REQUIRED_FIELDS", `حقول مطلوبة ناقصة: ${missing.join(", ")}.`, section, operation);
+      }
+      for (const f of allowedFields) {
         const err = checkValueType(section, f, inp.item[f]);
         if (err) return fail("VALUE_TYPE_INVALID", err, section, operation);
+      }
+      const emptyIdentity = (IDENTITY_FIELDS[section] || []).filter((f) => String(inp.item[f] ?? "").trim() === "");
+      if (emptyIdentity.length) {
+        return fail("ITEM_IDENTITY_REQUIRED", `حقول الهوية لا يجوز أن تكون فارغة: ${emptyIdentity.join(", ")}.`, section, operation);
       }
       const arr = Array.isArray(draft[section]) ? draft[section] : [];
       let at = arr.length;
@@ -231,7 +255,7 @@ export function runCvEditContent(input, cvData) {
         at = inp.index;
       }
       const newItem = {};
-      for (const f of allowedFields) newItem[f] = inp.item[f] !== undefined ? inp.item[f] : defaultFor(section, f);
+      for (const f of allowedFields) newItem[f] = inp.item[f];
       arr.splice(at, 0, newItem);
       draft[section] = arr;
       const mutated = onlyChangedIn(cvData, draft, [section]);
@@ -249,9 +273,6 @@ export function runCvEditContent(input, cvData) {
 
     if (operation === "remove_item") {
       if (!LIST_SECTIONS.includes(section)) return fail("OPERATION_NOT_ALLOWED_FOR_SECTION", `لا يمكن حذف عنصر من ${SECTION_META[section]?.labelAr || section}.`, section, operation);
-      for (const k of ["field", "value", "expectedValue", "item", "index"]) {
-        if (inp[k] !== undefined) return fail("INPUT_UNKNOWN_KEYS", `«${k}» لا يُستخدم في حذف عنصر.`, section, operation);
-      }
       if (!inp.itemRef) return fail("ITEM_REF_REQUIRED", "لم يُحدَّد العنصر المطلوب حذفه.", section, operation);
       const loc = locateByRef(draft, section, inp.itemRef);
       if (loc.error) return fail(loc.error, loc.error === "ITEM_AMBIGUOUS" ? "المرجع يطابق أكثر من عنصر — حدِّد العنصر بدقة." : `لم أجد العنصر (${inp.itemRef}) في القسم.`, section, operation);

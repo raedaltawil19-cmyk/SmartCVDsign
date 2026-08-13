@@ -109,8 +109,8 @@ const check = (name, cond, info) => results.push({ test: name, pass: !!cond, ...
 }
 /* 16 */ {
   const d = BASE();
-  const r = runCvEditContent({ section: "utbildning", operation: "add_item", item: { examen: "Gymnasieexamen", skola: "Södra Latin" }, index: 0 }, d);
-  check("16 add_item utbildning at index 0", r.success && r.newData.utbildning.length === 2 && r.newData.utbildning[0].examen === "Gymnasieexamen" && r.newData.utbildning[0].period === "");
+  const r = runCvEditContent({ section: "utbildning", operation: "add_item", item: { examen: "Gymnasieexamen", skola: "Södra Latin", period: "2012 – 2015", beskrivning: "Naturvetenskap." }, index: 0 }, d);
+  check("16 add_item utbildning at index 0", r.success && r.newData.utbildning.length === 2 && r.newData.utbildning[0].examen === "Gymnasieexamen" && r.newData.utbildning[0].period === "2012 – 2015");
 }
 /* 17 */ {
   const d = BASE();
@@ -188,6 +188,76 @@ const check = (name, cond, info) => results.push({ test: name, pass: !!cond, ...
   const noLayout = r.success && !("layout" in r) && !("templateId" in r) && !("layout" in r.newData) && !("templateId" in r.newData);
   const rejectLayout = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "beskrivning", value: "x", expectedValue: "Byggde gränssnitt.", layout: { main: [] } }, d);
   check("30 layout/templateId neither accepted nor returned", noLayout && rejectLayout.errorCode === "INPUT_UNKNOWN_KEYS");
+}
+
+/* ===== إصلاحات جودة البيانات ===== */
+const FULL_EXP = { roll: "Praktikant", foretag: "Nordic AB", period: "2017 – 2018", beskrivning: "Praktik." };
+
+/* 31 */ {
+  const r = runCvEditContent({ section: "erfarenhet", operation: "add_item", item: {} }, BASE());
+  check("31 add_item with empty item rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 32 */ {
+  const r = runCvEditContent({ section: "erfarenhet", operation: "add_item", item: { roll: "X", foretag: "Y" } }, BASE());
+  check("32 add_item with partial item rejected", r.errorCode === "ITEM_REQUIRED_FIELDS", r.message);
+}
+/* 33 */ {
+  const { roll, ...rest } = FULL_EXP;
+  const r = runCvEditContent({ section: "erfarenhet", operation: "add_item", item: rest }, BASE());
+  check("33 erfarenhet without roll rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 34 */ {
+  const r = runCvEditContent({ section: "utbildning", operation: "add_item", item: { skola: "KTH", period: "2010 – 2013", beskrivning: "" } }, BASE());
+  check("34 utbildning without examen rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 35 */ {
+  const r = runCvEditContent({ section: "fardigheter", operation: "add_item", item: { niva: 70 } }, BASE());
+  check("35 fardigheter without namn rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 36 */ {
+  const r = runCvEditContent({ section: "sprak", operation: "add_item", item: { niva: "Flytande" } }, BASE());
+  check("36 sprak without sprak rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 37 */ {
+  const r = runCvEditContent({ section: "sprak", operation: "add_item", item: { sprak: "Engelska" } }, BASE());
+  check("37 sprak without niva rejected", r.errorCode === "ITEM_REQUIRED_FIELDS");
+}
+/* 38 */ {
+  const r = runCvEditContent({ section: "sprak", operation: "add_item", item: { sprak: "Engelska", niva: "Bra" } }, BASE());
+  check("38 sprak with invalid niva rejected", r.errorCode === "VALUE_TYPE_INVALID");
+}
+/* 39 */ {
+  const r = runCvEditContent({ section: "erfarenhet", operation: "add_item", item: { ...FULL_EXP, foretag: "   " } }, BASE());
+  check("39 empty identity field rejected", r.errorCode === "ITEM_IDENTITY_REQUIRED", r.message);
+}
+/* 40 */ {
+  const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
+  const r = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "beskrivning", value: "", expectedValue: "Byggde gränssnitt." }, d);
+  check("40 empty string value rejected", r.errorCode === "VALUE_EMPTY");
+}
+/* 41 */ {
+  const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
+  const r = runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "beskrivning", value: "Ny.", expectedValue: "Byggde gränssnitt.", index: 0 }, d);
+  check("41 index in replace_field rejected", r.errorCode === "INPUT_UNKNOWN_KEYS");
+}
+/* 42 */ {
+  const r = runCvEditContent({ section: "erfarenhet", operation: "add_item", item: { ...FULL_EXP, plats: "Stockholm" } }, BASE());
+  check("42 add_item with unknown item field rejected", r.errorCode === "INPUT_UNKNOWN_KEYS");
+}
+/* 43 */ {
+  const d = BASE(); const ref = refOf(d, "erfarenhet", 0);
+  const r = runCvEditContent({ section: "erfarenhet", operation: "remove_item", itemRef: ref, field: "roll" }, d);
+  check("43 remove_item with extra field rejected", r.errorCode === "INPUT_UNKNOWN_KEYS");
+}
+/* 44 */ {
+  const d = BASE(); const before = JSON.stringify(d); const ref = refOf(d, "erfarenhet", 0);
+  const failures = [
+    runCvEditContent({ section: "erfarenhet", operation: "add_item", item: {} }, d),
+    runCvEditContent({ section: "erfarenhet", operation: "replace_field", itemRef: ref, field: "roll", value: "", expectedValue: "Frontendutvecklare" }, d),
+    runCvEditContent({ section: "sprak", operation: "add_item", item: { sprak: "Engelska", niva: "Bra" } }, d),
+    runCvEditContent({ section: "erfarenhet", operation: "remove_item", itemRef: ref, index: 0 }, d)
+  ];
+  check("44 no failure mutates the original cvData", failures.every((f) => f.success === false) && JSON.stringify(d) === before);
 }
 
 check("levels list matches cvModel guidance", SPRAK_LEVELS.length === 4);
