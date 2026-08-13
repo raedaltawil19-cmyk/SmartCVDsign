@@ -331,7 +331,7 @@ export default function Builder() {
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
-        const rec = await cvRepository.create(payload);
+        const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current });
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
         toast({ title: "تم حفظ السيرة", description: titel });
