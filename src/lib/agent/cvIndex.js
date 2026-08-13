@@ -9,7 +9,8 @@
  */
 
 export function normalizeText(text) {
-  return (text || "")
+  // ملاحظة: بعض القيم أرقام (مثل fardigheter.niva) — لذلك التحويل إلى نص إلزامي.
+  return String(text ?? "")
     .toLowerCase()
     .replace(/[ًٌٍَُِّْـ]/g, "")
     .replace(/[أإآ]/g, "ا")

@@ -4,6 +4,7 @@ import { mergeCV } from "@/lib/cvModel";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { useServices } from "@/hooks/useServices";
 import AgentChatPanel from "@/components/agent/AgentChatPanel";
+import IsolatedUnderstandTest from "@/components/agent/IsolatedUnderstandTest";
 import { Loader2 } from "lucide-react";
 
 export default function UnderstandingLab() {
@@ -65,6 +66,8 @@ export default function UnderstandingLab() {
             ))}
           </div>
         )}
+
+        <IsolatedUnderstandTest data={data} />
 
         <AgentChatPanel data={data} allowEdits={false} disabled={!data} />
 

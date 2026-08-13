@@ -34,7 +34,12 @@ export default function AgentChatPanel({ data, layout = null, onChange, allowEdi
       if (res.change && onChange) onChange({ data: res.change.data, layout: res.change.layout });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, internal: res.internal }]);
     } catch (err) {
-      setMessages((m) => [...m, { role: "assistant", content: "تعذّر فهم الأمر الآن، حاول مرة أخرى." }]);
+      // نُظهر الخطأ التقني الحقيقي بدل رسالة عامة تخفي السبب
+      console.error("[cvAgent] failed:", err);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: `تعذّر تنفيذ الأمر: ${err?.message || err}` }
+      ]);
     } finally {
       setBusy(false);
     }
