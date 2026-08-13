@@ -22,6 +22,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange });
   ctxRef.current = { data, layout, templateId, cvId, onLayoutChange };
   const doneRef = useRef(new Set());
+  const seenContentRef = useRef(new Map());
 
   useEffect(() => {
     (async () => {
@@ -45,6 +46,8 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, notes]);
 
   // تنفيذ إجراءات الـlayout التي يقترحها الوكيل — عبر cv_move_section فقط، ومرة واحدة لكل رسالة.
+  // رسائل الوكيل تصل تدريجياً (streaming) وكتلة الإجراء تظهر في آخر النص، لذلك لا نعتبر الرسالة
+  // "منتهية" عند غياب الإجراء؛ نعيد فحصها فقط عندما يتغيّر نصها فعلاً، ونوسمها نهائياً بعد تنفيذ إجراء.
   useEffect(() => {
     const { data: d, layout: l, templateId: t, onLayoutChange: apply } = ctxRef.current;
     for (let i = 0; i < messages.length; i++) {
@@ -52,8 +55,11 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       if (m.role !== "assistant") continue;
       const key = m.id || `idx-${i}`;
       if (doneRef.current.has(key)) continue;
-      const res = executeAssistantAction({ content: m.content, templateId: t, layout: l, data: d });
-      if (res.status === "none") { doneRef.current.add(key); continue; }
+      const content = String(m.content || "");
+      if (seenContentRef.current.get(key) === content) continue;
+      seenContentRef.current.set(key, content);
+      const res = executeAssistantAction({ content, templateId: t, layout: l, data: d });
+      if (res.status === "none") continue;
       doneRef.current.add(key);
       if (res.status === "applied" && apply) {
         apply(res.newLayout);
