@@ -13,6 +13,8 @@ import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
 import SmartCVAssistantPanel from "@/components/agent/SmartCVAssistantPanel";
+import useTemplateDecision from "@/lib/agent/useTemplateDecision";
+import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import { logAction } from "@/lib/actionLog";
 
 const A4_W = 794;
@@ -65,6 +67,10 @@ export default function Builder() {
       ? { templateSource: "user", templateReviewStatus: "pending" }
       : { templateSource: "auto", templateReviewStatus: "skipped" }
   );
+  // حالة مراجعة القالب — تُقرأ من السجل عند التحميل، وتُقلب محلياً بعد قرار المستخدم فقط
+  const [templateSource, setTemplateSource] = useState(templateOriginRef.current.templateSource);
+  const [templateReviewStatus, setTemplateReviewStatus] = useState(templateOriginRef.current.templateReviewStatus);
+  const reviewCycleClosedRef = useRef(false);
 
   const nextUrl = () => window.location.pathname + window.location.search;
   const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
@@ -124,6 +130,8 @@ export default function Builder() {
           if (rec.data) setData(mergeCV(rec.data));
           if (rec.templateId) { skipLayoutResetRef.current = true; setTemplateId(rec.templateId); }
           if (rec.layout) setLayout(rec.layout);
+          if (rec.templateSource) setTemplateSource(rec.templateSource);
+          if (rec.templateReviewStatus) setTemplateReviewStatus(rec.templateReviewStatus);
           setCurrentCvId(rec.id);
         }
       } catch (e) {
@@ -344,6 +352,37 @@ export default function Builder() {
     }
   };
 
+  // ── مراجعة القالب: تشغيل داخلي للمستشار (قراءة فقط) ثم قرار المستخدم ──
+  const review = useTemplateDecision({ cvId: currentCvId, templateId, templateSource, data });
+  const [reviewDismissed, setReviewDismissed] = useState(false);
+  const runReviewRef = useRef(review.run);
+  runReviewRef.current = review.run;
+
+  useEffect(() => {
+    if (processing) return;
+    if (!currentCvId) return;
+    if (templateSource !== "user" || templateReviewStatus !== "pending") return;
+    if (reviewCycleClosedRef.current) return;
+    runReviewRef.current(); // idempotent داخل الـHook — تشغيل واحد لكل دورة مراجعة
+  }, [processing, currentCvId, templateSource, templateReviewStatus]);
+
+  const closeReview = async () => {
+    reviewCycleClosedRef.current = true;
+    setReviewDismissed(true);
+    setTemplateReviewStatus("reviewed");
+    try {
+      // تحديث حقل واحد فقط — لا يمسّ data/templateId/layout
+      if (currentCvId) await cvRepository.update(currentCvId, { templateReviewStatus: "reviewed" });
+    } catch (e) {}
+  };
+
+  const acceptSuggestedTemplate = async () => {
+    // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
+    setTemplateId(review.templateId);
+    logAction("template_change", { template: review.templateId });
+    await closeReview();
+  };
+
   return (
     <div dir={dir} className="cv-builder-root h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
@@ -396,6 +435,23 @@ export default function Builder() {
           </div>
         </div>
       </header>
+
+      {review.ready && !reviewDismissed && !processing && (
+        <div className="no-print shrink-0 px-4 pt-3 bg-slate-200/60">
+          <TemplateReviewCard
+            visible
+            decision={review.decision}
+            currentTemplateId={templateId}
+            suggestedTemplateId={review.templateId}
+            reason={review.reason}
+            data={data}
+            currentLayout={layout}
+            onAccept={acceptSuggestedTemplate}
+            onReject={closeReview}
+            onContinue={closeReview}
+          />
+        </div>
+      )}
 
       <div className="flex-1 flex min-h-0">
         {processing && (
