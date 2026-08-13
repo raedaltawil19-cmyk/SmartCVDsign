@@ -464,6 +464,7 @@ export default function Builder() {
             templateId={templateId}
             cvId={currentCvId}
             onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
+            onDataChange={(d) => { setData(d); logAction("ai_command", { command: "تعديل محتوى عبر مساعد السيرة" }); }}
             onClose={() => setShowSmart(false)}
           />
         </div>

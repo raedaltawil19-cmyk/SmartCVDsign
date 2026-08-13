@@ -1,15 +1,21 @@
 /**
- * طبقة وسيطة بين Smart CV Assistant (فهم اللغة) وأداة cv_move_section (تنفيذ + تحقق).
- * لا تلمس بيانات السيرة، ولا تعدّل أي مصفوفة layout بنفسها — التنفيذ حصراً عبر runCvMoveSection.
+ * طبقة وسيطة بين Smart CV Assistant (فهم اللغة) وأدوات التنفيذ:
+ *   - cv_move_section  → تعديل الـlayout فقط
+ *   - cv_edit_content  → تعديل محتوى السيرة فقط
+ * لا تلمس هذه الطبقة بيانات السيرة ولا مصفوفات layout بنفسها — التنفيذ حصراً داخل الأداتين.
  */
-import { runCvMoveSection, TOOL_NAME, CV_MOVE_SECTION_INPUT_SCHEMA } from "@/lib/agent/tools/cvMoveSectionTool";
+import { runCvMoveSection, TOOL_NAME as MOVE_TOOL, CV_MOVE_SECTION_INPUT_SCHEMA } from "@/lib/agent/tools/cvMoveSectionTool";
+import { runCvEditContent, TOOL_NAME as EDIT_TOOL, CV_EDIT_CONTENT_INPUT_SCHEMA } from "@/lib/agent/tools/cvEditContentTool";
 
 export const ACTION_OPEN = "<<<CV_ACTION";
 export const ACTION_CLOSE = "CV_ACTION>>>";
 
-/** الإجراء الوحيد المسموح في هذه المرحلة */
-const ALLOWED_ACTIONS = [TOOL_NAME];
-const ALLOWED_ARG_KEYS = Object.keys(CV_MOVE_SECTION_INPUT_SCHEMA.properties);
+/** الإجراءان الوحيدان المسموحان — لا إجراء ثالث */
+const ALLOWED_ARG_KEYS = {
+  [MOVE_TOOL]: Object.keys(CV_MOVE_SECTION_INPUT_SCHEMA.properties),
+  [EDIT_TOOL]: Object.keys(CV_EDIT_CONTENT_INPUT_SCHEMA.properties)
+};
+const ALLOWED_ACTIONS = Object.keys(ALLOWED_ARG_KEYS);
 
 /** يستخرج كتلة الإجراء من نص رسالة الوكيل، أو null إن لم توجد */
 export function extractAction(content) {
@@ -43,17 +49,31 @@ export function validateAction(action, activeTemplateId) {
   if (!ALLOWED_ACTIONS.includes(action.action)) return { ok: false, message: "هذا الإجراء غير مدعوم." };
   const args = action.arguments;
   if (!args || typeof args !== "object" || Array.isArray(args)) return { ok: false, message: "معطيات الإجراء غير صالحة." };
-  const unknown = Object.keys(args).filter((k) => !ALLOWED_ARG_KEYS.includes(k));
+  const unknown = Object.keys(args).filter((k) => !ALLOWED_ARG_KEYS[action.action].includes(k));
   if (unknown.length) return { ok: false, message: "معطيات الإجراء تحتوي حقولاً غير مسموحة." };
-  if (!args.templateId || args.templateId !== activeTemplateId) {
+  if (action.action === MOVE_TOOL && (!args.templateId || args.templateId !== activeTemplateId)) {
     return { ok: false, message: "القالب المذكور لا يطابق القالب المعروض حالياً." };
   }
   return { ok: true };
 }
 
+/** رسائل بشرية لأكواد فشل تعديل المحتوى — بلا أي إعادة محاولة تلقائية */
+const EDIT_ERROR_MESSAGES = {
+  STALE_VALUE: "تغيّرت قيمة الحقل بعد قراءتها، فلم يُنفَّذ التعديل. أعد الطلب ليُقرأ النص الحالي من جديد.",
+  FIELD_NOT_FOUND: "هذا الحقل غير موجود في هذا القسم من السيرة.",
+  ITEM_NOT_FOUND: "لم أتعرّف على العنصر المقصود في السيرة — وضّح أي عنصر تريد تعديله.",
+  ITEM_AMBIGUOUS: "أكثر من عنصر يطابق الوصف — حدِّد العنصر بدقة.",
+  VALUE_TYPE_INVALID: "القيمة الجديدة غير مقبولة لهذا الحقل.",
+  VALUE_EMPTY: "لا يمكن تفريغ هذا الحقل.",
+  VALUE_FORMAT_INVALID: "صيغة القيمة الجديدة غير صحيحة.",
+  ITEM_REQUIRED_FIELDS: "بيانات العنصر الجديد ناقصة.",
+  ITEM_IDENTITY_REQUIRED: "بيانات العنصر الجديد الأساسية ناقصة.",
+  SECTION_WOULD_BE_EMPTY: "لا يمكن حذف العنصر الأخير في هذا القسم."
+};
+
 /**
- * ينفّذ إجراء الوكيل بشكل ذرّي.
- * @returns {{status:"none"|"invalid"|"failed"|"applied", message?:string, newLayout?:object}}
+ * ينفّذ إجراء الوكيل بشكل ذرّي — إمّا layout وإمّا content، وليس الاثنين.
+ * @returns {{status:"none"|"invalid"|"failed"|"applied", kind?:"layout"|"content", message?:string, newLayout?:object, newData?:object}}
  */
 export function executeAssistantAction({ content, templateId, layout, data }) {
   const action = extractAction(content);
@@ -62,12 +82,18 @@ export function executeAssistantAction({ content, templateId, layout, data }) {
   const shape = validateAction(action, templateId);
   if (!shape.ok) return { status: "invalid", message: shape.message };
 
-  const result = runCvMoveSection(action.arguments, layout, data);
-  if (!result || result.success !== true) {
-    return { status: "failed", message: result?.message || "تعذّر تنفيذ التغيير." };
+  if (action.action === MOVE_TOOL) {
+    const result = runCvMoveSection(action.arguments, layout, data);
+    if (!result || result.success !== true || !result.newLayout || typeof result.newLayout !== "object") {
+      return { status: "failed", kind: "layout", message: result?.message || "تعذّر تنفيذ التغيير." };
+    }
+    return { status: "applied", kind: "layout", message: result.summary, newLayout: result.newLayout };
   }
-  if (!result.newLayout || typeof result.newLayout !== "object") {
-    return { status: "failed", message: "تعذّر تنفيذ التغيير." };
+
+  const result = runCvEditContent(action.arguments, data);
+  if (!result || result.success !== true || !result.newData || typeof result.newData !== "object") {
+    const msg = EDIT_ERROR_MESSAGES[result?.errorCode] || result?.message || "تعذّر تنفيذ التعديل.";
+    return { status: "failed", kind: "content", message: msg };
   }
-  return { status: "applied", message: result.summary, newLayout: result.newLayout };
+  return { status: "applied", kind: "content", message: result.summary, newData: result.newData };
 }

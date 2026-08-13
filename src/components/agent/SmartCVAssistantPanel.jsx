@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import MessageBubble from "@/components/agent/MessageBubble";
 import { Send, Loader2, X, Sparkles } from "lucide-react";
 import { executeAssistantAction, stripAction } from "@/lib/agent/smartAssistantAction";
+import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 
 const MARK = "<<<CV_CONTEXT";
 const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split(MARK)[0]).trim() });
@@ -12,15 +13,15 @@ const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split
  * ترسل السيرة الحالية (cvModel + template + layout) كسياق مع كل رسالة،
  * فتكون إجابات الوكيل مبنية على السيرة المعروضة فعلاً لا على شكلها البصري.
  */
-export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, onLayoutChange, onClose }) {
+export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, onLayoutChange, onDataChange, onClose }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [notes, setNotes] = useState([]);
   const endRef = useRef(null);
-  const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange });
-  ctxRef.current = { data, layout, templateId, cvId, onLayoutChange };
+  const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange, onDataChange });
+  ctxRef.current = { data, layout, templateId, cvId, onLayoutChange, onDataChange };
   const doneRef = useRef(new Set());
   const seenContentRef = useRef(new Map());
 
@@ -49,7 +50,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   // رسائل الوكيل تصل تدريجياً (streaming) وكتلة الإجراء تظهر في آخر النص، لذلك لا نعتبر الرسالة
   // "منتهية" عند غياب الإجراء؛ نعيد فحصها فقط عندما يتغيّر نصها فعلاً، ونوسمها نهائياً بعد تنفيذ إجراء.
   useEffect(() => {
-    const { data: d, layout: l, templateId: t, onLayoutChange: apply } = ctxRef.current;
+    const { data: d, layout: l, templateId: t, onLayoutChange: applyLayout, onDataChange: applyData } = ctxRef.current;
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
       if (m.role !== "assistant") continue;
@@ -61,10 +62,11 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       const res = executeAssistantAction({ content, templateId: t, layout: l, data: d });
       if (res.status === "none") continue;
       doneRef.current.add(key);
-      if (res.status === "applied" && apply) {
-        apply(res.newLayout);
+      if (res.status === "applied") {
+        if (res.kind === "content" && applyData) applyData(res.newData);
+        else if (res.kind === "layout" && applyLayout) applyLayout(res.newLayout);
         setNotes((n) => [...n, { key, ok: true, text: res.message }]);
-      } else if (res.status !== "applied") {
+      } else {
         setNotes((n) => [...n, { key, ok: false, text: res.message }]);
       }
     }
@@ -79,7 +81,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
     setSending(true);
     await base44.agents.addMessage(conversation, {
       role: "user",
-      content: `${text}\n\n${MARK}\n${JSON.stringify({ cvId: id, templateId: t, layout: l, CV_DATA: d })}\nCV_CONTEXT>>>`
+      content: `${text}\n\n${MARK}\n${JSON.stringify({ cvId: id, templateId: t, layout: l, CV_DATA: d, CV_INDEX: summarizeIndex(buildCVIndex(d)) })}\nCV_CONTEXT>>>`
     });
   };
 
@@ -88,7 +90,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       <div className="shrink-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200">
         <Sparkles className="w-4 h-4 text-[#000066]" />
         <span className="text-sm font-semibold text-slate-800">مساعد السيرة</span>
-        <span className="text-[10px] text-slate-400">قراءة + ترتيب الأقسام</span>
+        <span className="text-[10px] text-slate-400">قراءة + تعديل + ترتيب</span>
         <button onClick={onClose} className="mr-auto text-slate-400 hover:text-slate-700 transition-colors">
           <X className="w-4 h-4" />
         </button>
