@@ -6,10 +6,9 @@ import { useServices } from "@/hooks/useServices";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
-import CVAgent from "@/components/CVAgent";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, Eye, LayoutGrid, Save, Target, LayoutTemplate, Check } from "lucide-react";
+import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate, Check } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
@@ -38,8 +37,7 @@ export default function Builder() {
   const [showLayout, setShowLayout] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
-  const [mode, setMode] = useState("preview");
-  const [agentOpen, setAgentOpen] = useState(false);
+  const mode = "preview";
   const panelRef = useRef(null);
   const wrapperRef = useRef(null);
   const [contentH, setContentH] = useState(A4_H);
@@ -84,7 +82,7 @@ export default function Builder() {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [data, mode, templateId, layout, processing]);
+  }, [data, templateId, layout, processing]);
 
   const runProcess = useCallback(async (text, fileUrl) => {
     setProcessing(true);
@@ -349,12 +347,6 @@ export default function Builder() {
                 <span className="hidden sm:inline">استشارة قالب</span>
               </button>
             )}
-            {mode === "edit" && (
-              <button onClick={() => setMode("preview")} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <Eye className="w-4 h-4" />
-                <span>{t("builder.preview")}</span>
-              </button>
-            )}
             <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
               {authChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <span>{t("builder.pdf")}</span>
@@ -374,10 +366,6 @@ export default function Builder() {
           <div ref={panelRef} className="cv-builder-panel flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 flex">
             <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30">
               <CVSideToolbar
-                mode={mode}
-                onManualEdit={() => setMode("edit")}
-                onToggleAgent={() => setAgentOpen((v) => !v)}
-                agentOpen={agentOpen}
                 onImprove={regenerate}
                 regenerating={regenerating}
                 processing={processing}
@@ -399,7 +387,7 @@ export default function Builder() {
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
               <div ref={wrapperRef} className="cv-scale-wrapper relative" style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_W }}>
-                <EditProvider value={{ activateEdit: () => setMode("edit") }}>
+                <EditProvider value={{ activateEdit: () => {} }}>
                 <CVPages templateId={templateId} data={data} editable={mode === "edit"} actions={actions} layout={layout} />
               </EditProvider>
               </div>
@@ -409,18 +397,6 @@ export default function Builder() {
       </div>
 
       <div className="print-notice">{t("builder.printLocked")}</div>
-
-      <CVAgent
-        open={agentOpen}
-        onClose={() => setAgentOpen(false)}
-        data={data}
-        layout={layout}
-        templateId={templateId}
-        onApply={(result) => {
-          if (result?.data) setData(result.data);
-          if (result?.layout) setLayout(result.layout);
-        }}
-      />
 
       {showLayout && (
         <LayoutEditor
