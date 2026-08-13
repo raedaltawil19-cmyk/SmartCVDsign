@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useActionLog, clearActionLog } from "@/lib/actionLog";
-import { ScrollText, Trash2, ChevronUp, ChevronDown, AlertCircle, MousePointer2, LayoutGrid, Sparkles, FileText } from "lucide-react";
+import { ScrollText, Trash2, X, AlertCircle, MousePointer2, LayoutGrid, Sparkles, FileText } from "lucide-react";
 
 const TYPE_META = {
   ai_command: { label: "أمر ذكي", icon: Sparkles, color: "text-[#1B4FD8]" },
@@ -33,24 +32,24 @@ function summarize(entry) {
   }
 }
 
-export default function ActionLogPanel() {
+export default function ActionLogPanel({ open, onClose }) {
   const log = useActionLog();
-  const [open, setOpen] = useState(false);
+
+  if (!open) return null;
 
   return (
     <div dir="rtl" className="no-print fixed bottom-3 left-3 z-50 w-[330px] max-w-[calc(100vw-1.5rem)] rounded-xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2 flex items-center justify-between bg-slate-900 text-white hover:bg-slate-800 transition-colors"
-      >
+      <div className="px-3 py-2 flex items-center justify-between bg-slate-900 text-white">
         <span className="inline-flex items-center gap-1.5 text-[12px] font-medium">
           <ScrollText className="w-3.5 h-3.5" />
           سجل الإجراءات
           {log.length > 0 && <span className="bg-white/20 rounded-full px-1.5 text-[10px]">{log.length}</span>}
         </span>
-        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-      </button>
-      {open && (
+        <button onClick={onClose} className="p-1 rounded hover:bg-white/15 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      {(
         <div className="max-h-[280px] overflow-y-auto">
           {log.length === 0 && (
             <div className="px-3 py-6 text-center text-[12px] text-slate-400">لا توجد إجراءات بعد. جرّب تعديلاً أو أمراً ذكياً.</div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n";
-import { LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize, Undo2, Redo2, MessageSquare } from "lucide-react";
+import { LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText } from "lucide-react";
 import CVTools from "./CVTools";
 import JobMatchModal from "./JobMatchModal";
 import TemplatePickerModal from "./TemplatePickerModal";
@@ -25,6 +25,8 @@ export default function CVSideToolbar({
   onRedo,
   onAgent,
   agentActive,
+  onLog,
+  logActive,
 }) {
   const { t, dir } = useLanguage();
   const [jobOpen, setJobOpen] = useState(false);
@@ -65,6 +67,7 @@ export default function CVSideToolbar({
         <Btn icon={Redo2} label={t("builder.redo")} onClick={onRedo} disabled={!canRedo} />
         <div className="w-8 h-px bg-slate-200 my-0.5" />
         <Btn icon={MessageSquare} label="مساعد السيرة" onClick={onAgent} active={agentActive} />
+        <Btn icon={ScrollText} label="سجل الإجراءات" onClick={onLog} active={logActive} />
         <Btn icon={LayoutTemplate} label={t("builder.changeTemplate")} onClick={() => setTplOpen(true)} />
         <Btn icon={Target} label={t("builder.matchJob")} onClick={() => setJobOpen(true)} />
         <Btn icon={RefreshCw} label={t("builder.improve")} onClick={onImprove} disabled={regenerating || processing} busy={regenerating} />

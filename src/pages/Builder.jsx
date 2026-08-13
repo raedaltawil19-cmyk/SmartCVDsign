@@ -37,6 +37,7 @@ export default function Builder() {
   const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -387,6 +388,8 @@ export default function Builder() {
                 onRedo={redo}
                 onAgent={() => setShowAgent((v) => !v)}
                 agentActive={showAgent}
+                onLog={() => setShowLog((v) => !v)}
+                logActive={showLog}
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
@@ -434,7 +437,7 @@ export default function Builder() {
         </div>
       )}
 
-      <ActionLogPanel />
+      <ActionLogPanel open={showLog} onClose={() => setShowLog(false)} />
 
     </div>
   );
