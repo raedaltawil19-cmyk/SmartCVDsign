@@ -12,7 +12,6 @@ import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
-import AgentChatPanel from "@/components/agent/AgentChatPanel";
 import SmartCVAssistantPanel from "@/components/agent/SmartCVAssistantPanel";
 import { logAction } from "@/lib/actionLog";
 
@@ -37,7 +36,6 @@ export default function Builder() {
   const [layout, setLayout] = useState(() => DEFAULT_LAYOUTS[incoming?.templateId || "stockholm"] || DEFAULT_LAYOUTS.stockholm);
   const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
-  const [showAgent, setShowAgent] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSmart, setShowSmart] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
@@ -361,7 +359,7 @@ export default function Builder() {
                 تم الحفظ
               </span>
             )}
-            <button onClick={() => { setShowSmart((v) => !v); setShowAgent(false); }} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            <button onClick={() => setShowSmart((v) => !v)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">مساعد السيرة</span>
             </button>
@@ -421,8 +419,8 @@ export default function Builder() {
                 canRedo={canRedo}
                 onUndo={undo}
                 onRedo={redo}
-                onAgent={() => setShowAgent((v) => !v)}
-                agentActive={showAgent}
+                onAgent={() => setShowSmart((v) => !v)}
+                agentActive={showSmart}
                 onLog={() => setShowLog((v) => !v)}
                 logActive={showLog}
               />
@@ -456,21 +454,6 @@ export default function Builder() {
           onSave={saveCV}
           onClose={() => setSaveOpen(false)}
         />
-      )}
-
-      {showAgent && (
-        <div className="no-print fixed bottom-4 left-4 z-40 w-[360px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl">
-          <AgentChatPanel
-            data={data}
-            layout={layout}
-            templateId={templateId}
-            onChange={({ data: nextData, layout: nextLayout }) => {
-              setData(nextData);
-              if (nextLayout) { skipLayoutResetRef.current = true; setLayout(nextLayout); }
-              logAction("ai_command", { field: "تعديل عبر المساعد" });
-            }}
-          />
-        </div>
       )}
 
       {showSmart && (
