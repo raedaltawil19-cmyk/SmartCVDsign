@@ -463,6 +463,7 @@ export default function Builder() {
             layout={layout}
             templateId={templateId}
             cvId={currentCvId}
+            onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
             onClose={() => setShowSmart(false)}
           />
         </div>
