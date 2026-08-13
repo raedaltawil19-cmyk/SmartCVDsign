@@ -9,12 +9,13 @@ const listeners = new Set();
 
 const emit = () => listeners.forEach((l) => l([...operations]));
 
-export function recordOperation({ tool, targetId, field, before, after, summary }) {
+export function recordOperation({ tool, targetId, field, before, after, summary, meta }) {
   const op = {
     operationId: `op_${++counter}`,
     tool,
     targetId: targetId || null,
     field: field || null,
+    meta: meta || null,
     previousState: before,
     newState: after,
     summary: summary || "",

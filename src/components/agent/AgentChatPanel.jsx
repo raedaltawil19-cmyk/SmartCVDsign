@@ -3,7 +3,7 @@ import { runCVAgent } from "@/lib/agent/cvAgent";
 import { Loader2, Send, Eye } from "lucide-react";
 import UnderstandingResult from "./UnderstandingResult";
 
-export default function AgentChatPanel({ data, layout = null, onChange, allowEdits = true, disabled }) {
+export default function AgentChatPanel({ data, layout = null, templateId = null, onChange, allowEdits = true, disabled }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,6 +25,7 @@ export default function AgentChatPanel({ data, layout = null, onChange, allowEdi
       const res = await runCVAgent({
         data,
         layout,
+        templateId,
         message,
         history,
         lastItemRef: lastRefRef.current,

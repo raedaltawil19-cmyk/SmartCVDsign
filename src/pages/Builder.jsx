@@ -457,6 +457,7 @@ export default function Builder() {
           <AgentChatPanel
             data={data}
             layout={layout}
+            templateId={templateId}
             onChange={({ data: nextData, layout: nextLayout }) => {
               setData(nextData);
               if (nextLayout) { skipLayoutResetRef.current = true; setLayout(nextLayout); }

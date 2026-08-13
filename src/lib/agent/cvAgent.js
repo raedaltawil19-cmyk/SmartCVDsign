@@ -10,6 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { understandCommand } from "./understandCommand";
 import { runTool } from "./tools/runner";
 import { TOOLS } from "./tools/registry";
+import { layoutCapabilities } from "@/lib/layout/layoutOps";
 
 const READ_ONLY_INTENTS = new Set(["locate", "read", "unknown"]);
 
@@ -34,7 +35,11 @@ const PLAN_SCHEMA = {
         beforeId: { type: "string" },
         afterId: { type: "string" },
         position: { type: "string", enum: ["first", "last"] },
-        section: { type: "string", enum: ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] }
+        section: { type: "string", enum: ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
+        targetSlot: { type: "string", description: "endast move_section: användarens EGNA ord om kolumnen ('العمود الأيمن', 'höger', 'sidebar') — översätt inte till main/sidebar själv" },
+        before: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], description: "endast move_section: sektionsnyckel som målsektionen ska hamna OVANFÖR" },
+        after: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], description: "endast move_section: sektionsnyckel som målsektionen ska hamna UNDER" },
+        index: { type: "number", description: "endast move_section: position i kolumnen (0 = först)" }
       }
     },
     needs_clarification: { type: "boolean" },
@@ -52,6 +57,12 @@ Verktyg:
 - delete_item(targetId): radera ett helt element.
 - move_item(targetId, beforeId | afterId | position): flytta element inom sin sektion.
 - delete_section(section): radera en hel sektion.
+- move_section(section, targetSlot, before | after | index): flytta en HEL sektion till en annan kolumn eller till en ny position. section är en stabil nyckel: profil | erfarenhet | utbildning | fardigheter | sprak.
+
+Regler för move_section:
+- Skriv ANVÄNDARENS egna ord om kolumnen i targetSlot ("العمود الأيمن", "يمين", "höger", "sidebar"). Översätt ALDRIG själv till main/sidebar — mallens schema avgör vilken kolumn som ligger till höger/vänster.
+- Om användaren bara anger ny position utan kolumn (t.ex. "خليه قبل اللغات"), lämna targetSlot tomt — sektionen stannar i sin nuvarande kolumn.
+- before/after måste vara sektionsnycklar, inte element-id.
 
 Regler:
 - targetId/beforeId/afterId måste vara stabila id:n ur CV_STRUCTURE — hitta aldrig på id. Fält kan också vara mål (t.ex. targetId "contact_main", field "telefon").
@@ -70,7 +81,7 @@ Regler:
  * @param {boolean} p.allowEdits false = وضع القراءة فقط
  * @returns {{ reply, internal, lastItemRef, change: {data, layout, operation}|null }}
  */
-export async function runCVAgent({ data, layout = null, message, history = [], lastItemRef = null, allowEdits = true } = {}) {
+export async function runCVAgent({ data, layout = null, templateId = null, message, history = [], lastItemRef = null, allowEdits = true } = {}) {
   const u = await understandCommand({ data, message, history, lastItemRef });
 
   const internal = {
@@ -118,6 +129,12 @@ export async function runCVAgent({ data, layout = null, message, history = [], l
 CV_STRUCTURE:
 ${JSON.stringify(u.context.structure)}
 
+TEMPLATE_LAYOUT (kolumner, sidor och vad som får flyttas — för move_section):
+${JSON.stringify(layoutCapabilities(templateId))}
+
+CURRENT_LAYOUT:
+${JSON.stringify(layout)}
+
 RESOLVED_TARGET:
 ${JSON.stringify(u.target)}
 
@@ -143,14 +160,17 @@ ${message}`,
     }
 
     const args = { ...(plan.args || {}) };
-    if (u.target?.type === "section") {
+    if (plan.tool === "move_section") {
+      if (!args.section) args.section = u.target?.section || null;
+      args.templateId = templateId;
+    } else if (u.target?.type === "section") {
       if (!args.section) args.section = u.target.section;
     } else {
       if (!args.targetId && u.target?.ref) args.targetId = u.target.ref;
       if (!args.field && u.target?.field) args.field = u.target.field;
     }
 
-    const res = runTool(plan.tool, args, { data, layout });
+    const res = runTool(plan.tool, args, { data, layout, templateId });
     internal.result = { ok: res.ok, code: res.code || null };
 
     if (!res.ok) {

@@ -6,6 +6,7 @@
  */
 import { locateItem, resolveField, isListSection, ToolError } from "./locate";
 import { SECTION_META, ALL_SECTION_KEYS } from "@/lib/agent/cvIndex";
+import { moveSectionTool } from "./moveSection";
 
 const cloneData = (d) => JSON.parse(JSON.stringify(d));
 
@@ -139,7 +140,10 @@ export const TOOLS = {
         summary: `تم حذف قسم ${SECTION_META[section].labelAr}.`
       };
     }
-  }
+  },
+
+  /** نقل قسم كامل بين أعمدة القالب أو داخل عموده — يعدّل الـlayout فقط */
+  move_section: moveSectionTool
 };
 
 export const TOOL_NAMES = Object.keys(TOOLS);

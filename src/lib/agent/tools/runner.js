@@ -37,6 +37,7 @@ export function runTool(toolName, args, state) {
     field: result.operation.field,
     before: result.operation.before,
     after: result.operation.after,
+    meta: result.operation.meta,
     summary: result.summary
   });
 
