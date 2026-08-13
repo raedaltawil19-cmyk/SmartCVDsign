@@ -3,7 +3,7 @@ import { runCVAgent } from "@/lib/agent/cvAgent";
 import { Loader2, Send, Eye } from "lucide-react";
 import UnderstandingResult from "./UnderstandingResult";
 
-export default function AgentChatPanel({ data, disabled }) {
+export default function AgentChatPanel({ data, layout = null, onChange, allowEdits = true, disabled }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,8 +22,16 @@ export default function AgentChatPanel({ data, disabled }) {
     setMessages((m) => [...m, { role: "user", content: message }]);
     setBusy(true);
     try {
-      const res = await runCVAgent({ data, message, history, lastItemRef: lastRefRef.current });
+      const res = await runCVAgent({
+        data,
+        layout,
+        message,
+        history,
+        lastItemRef: lastRefRef.current,
+        allowEdits: allowEdits && !!onChange
+      });
       lastRefRef.current = res.lastItemRef;
+      if (res.change && onChange) onChange({ data: res.change.data, layout: res.change.layout });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, internal: res.internal }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: "تعذّر فهم الأمر الآن، حاول مرة أخرى." }]);
@@ -35,7 +43,9 @@ export default function AgentChatPanel({ data, disabled }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white flex flex-col h-[520px]">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-        <div className="text-[13px] font-semibold text-slate-800">محادثة الوكيل — وضع القراءة فقط</div>
+        <div className="text-[13px] font-semibold text-slate-800">
+          {allowEdits && onChange ? "مساعد السيرة" : "مساعد السيرة — قراءة فقط"}
+        </div>
         <button onClick={() => setShowDebug((v) => !v)} className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border ${showDebug ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-500"}`}>
           <Eye className="w-3.5 h-3.5" /> تفاصيل الفهم
         </button>

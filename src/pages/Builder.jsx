@@ -12,6 +12,7 @@ import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
+import AgentChatPanel from "@/components/agent/AgentChatPanel";
 import { logAction } from "@/lib/actionLog";
 
 const A4_W = 794;
@@ -35,6 +36,7 @@ export default function Builder() {
   const [layout, setLayout] = useState(() => DEFAULT_LAYOUTS[incoming?.templateId || "stockholm"] || DEFAULT_LAYOUTS.stockholm);
   const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -383,6 +385,8 @@ export default function Builder() {
                 canRedo={canRedo}
                 onUndo={undo}
                 onRedo={redo}
+                onAgent={() => setShowAgent((v) => !v)}
+                agentActive={showAgent}
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
@@ -414,6 +418,20 @@ export default function Builder() {
           onSave={saveCV}
           onClose={() => setSaveOpen(false)}
         />
+      )}
+
+      {showAgent && (
+        <div className="no-print fixed bottom-4 left-4 z-40 w-[360px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl">
+          <AgentChatPanel
+            data={data}
+            layout={layout}
+            onChange={({ data: nextData, layout: nextLayout }) => {
+              setData(nextData);
+              if (nextLayout) { skipLayoutResetRef.current = true; setLayout(nextLayout); }
+              logAction("ai_command", { field: "تعديل عبر المساعد" });
+            }}
+          />
+        </div>
       )}
 
       <ActionLogPanel />

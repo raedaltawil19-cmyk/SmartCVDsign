@@ -66,7 +66,7 @@ export default function UnderstandingLab() {
           </div>
         )}
 
-        <AgentChatPanel data={data} disabled={!data} />
+        <AgentChatPanel data={data} allowEdits={false} disabled={!data} />
 
         {data && (
           <details className="rounded-xl border border-slate-200 bg-white p-4">
