@@ -170,7 +170,12 @@ export default function Builder() {
   // الحفظ التلقائي بعد كل تعديل (مع تأخير بسيط)
   useEffect(() => {
     if (processing) return;
-    if (!autoSaveReadyRef.current) { autoSaveReadyRef.current = true; return; }
+    if (!autoSaveReadyRef.current) {
+      autoSaveReadyRef.current = true;
+      // لا نتخطى الحفظ إذا كانت السيرة تحتوي بيانات فعلية (مثل نتيجة قراءة PDF)
+      const hasContent = !!(data.namn || data.titel || data.profil || data.erfarenhet?.length || data.utbildning?.length);
+      if (!hasContent) return;
+    }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setAutoSaveStatus("saving");
     autoSaveTimerRef.current = setTimeout(async () => {
