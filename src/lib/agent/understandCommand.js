@@ -81,7 +81,7 @@ ${JSON.stringify(context.conversation)}
 USER_MESSAGE:
 ${message}`,
     response_json_schema: UNDERSTAND_SCHEMA,
-    model: "gemini_3_flash"
+    model: "gpt_5_6_sol"
   });
 
   // 2) تثبيت الهدف: ref من الـ LLM → الإشارة الحتمية → البحث النصي

@@ -69,7 +69,7 @@ ${JSON.stringify(facts)}
 
 USER_MESSAGE:
 ${message}`,
-    model: "gemini_3_flash"
+    model: "gpt_5_6_sol"
   });
 
   return { reply: String(reply || "").trim(), internal, lastItemRef: u.target.ref };
