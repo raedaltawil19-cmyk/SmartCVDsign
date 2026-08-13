@@ -11,7 +11,7 @@ export function createCVRepository() {
 
   const service = {
     name: "cvRepository",
-    list: () => repo.list(),
+    list: (sort) => repo.list(sort),
     get: (id) => repo.get(id),
     create: (payload) => repo.create(payload),
     update: (id, payload) => repo.update(id, payload),

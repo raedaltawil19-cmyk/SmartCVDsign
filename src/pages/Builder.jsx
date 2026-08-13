@@ -182,10 +182,23 @@ export default function Builder() {
             await cvRepository.update(currentCvId, { titel, ...draft });
           } else if (!creatingRef.current) {
             creatingRef.current = true;
-            const rec = await cvRepository.create({ titel, ...draft });
-            setCurrentCvId(rec.id);
-            navigate(`/builder/${rec.id}`, { replace: true });
-            creatingRef.current = false;
+            try {
+              // نسخة واحدة فقط: نتبنّى أحدث سجل موجود ونحذف الباقي، ولا ننشئ سجلاً جديداً إلا إذا لا يوجد أي سجل
+              const existing = await cvRepository.list("-updated_date");
+              let id;
+              if (existing && existing.length > 0) {
+                id = existing[0].id;
+                await cvRepository.update(id, { titel, ...draft });
+                for (const rec of existing.slice(1)) await cvRepository.remove(rec.id);
+              } else {
+                const rec = await cvRepository.create({ titel, ...draft });
+                id = rec.id;
+              }
+              setCurrentCvId(id);
+              navigate(`/builder/${id}`, { replace: true });
+            } finally {
+              creatingRef.current = false;
+            }
           }
           setAutoSaveStatus("saved");
         } catch (e) {
