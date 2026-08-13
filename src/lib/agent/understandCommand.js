@@ -20,7 +20,7 @@ const UNDERSTAND_SCHEMA = {
       type: "object",
       properties: {
         section: { type: "string" },
-        item_ref: { type: "string", description: "t.ex. erfarenhet[1]" },
+        item_ref: { type: "string", description: "stabilt id ur strukturen, t.ex. experience_8f31a" },
         field: { type: "string", description: "roll | foretag | period | beskrivning | namn | niva | sprak | examen | skola | profil" },
         search_text: { type: "string", description: "texten användaren pekade på, om ingen ref kunde bestämmas" },
         uses_reference: { type: "boolean", description: "true om användaren använde 'denna/هذه/اللي فوق' m.m." }
@@ -28,6 +28,7 @@ const UNDERSTAND_SCHEMA = {
     },
     modifiers: { type: "array", items: { type: "string" }, description: "t.ex. mer professionellt, kortare" },
     languages: { type: "array", items: { type: "string" } },
+    confidence: { type: "number", description: "0-1, hur säker tolkningen är" },
     needs_clarification: { type: "boolean" },
     clarification_question: { type: "string" },
     understanding: { type: "string", description: "kort sammanfattning på användarens språk av vad som efterfrågas" }
@@ -44,12 +45,12 @@ Regler:
 - Kommandon kan blanda arabiska, svenska och engelska i samma mening. Tolka blandat språk korrekt.
 - Referensord ("هذه", "اللي فوق", "اللي بعدها", "احذفها", "denna", "nästa") syftar på lastTarget eller dess granne.
 - Om målet är otydligt eller flera element matchar: sätt needs_clarification = true och ställ EN kort fråga på användarens språk. GISSA ALDRIG.
-- item_ref måste vara exakt ett id ur strukturen (t.ex. "erfarenhet[2]").`;
+- item_ref måste vara exakt ett stabilt id ur strukturen (t.ex. "experience_8f31a"). Id:n är innehållsbaserade och ändras inte vid omordning — hitta aldrig på id.`;
 
 /**
  * @returns {{
  *  intent: string, target: object|null, modifiers: string[], languages: string[],
- *  needsClarification: boolean, clarificationQuestion: string|null,
+ *  confidence: number, needsClarification: boolean, clarificationQuestion: string|null,
  *  understanding: string, resolution: object, context: object
  * }}
  */
@@ -123,6 +124,12 @@ ${message}`,
       : null,
     modifiers: res?.modifiers || [],
     languages: res?.languages || [],
+    confidence: (() => {
+      const base = typeof res?.confidence === "number" ? res.confidence : 0.5;
+      if (resolution.status === "ambiguous" || resolution.status === "needs_clarification") return Math.min(base, 0.4);
+      if (resolution.status === "resolved" && resolution.via !== "llm_ref") return Math.max(base, 0.7);
+      return base;
+    })(),
     needsClarification,
     clarificationQuestion: needsClarification
       ? res?.clarification_question || "أي عنصر تقصد بالتحديد؟"
