@@ -59,6 +59,12 @@ export default function Builder() {
   const autoSaveTimerRef = useRef(null);
   const autoSaveReadyRef = useRef(false);
   const creatingRef = useRef(false);
+  // مصدر اختيار القالب — يُحدَّد مرة واحدة في Home ويُكتب فقط عند أول حفظ فعلي لهذه السيرة.
+  const templateOriginRef = useRef(
+    incoming?.templateSource === "user"
+      ? { templateSource: "user", templateReviewStatus: "pending" }
+      : { templateSource: "auto", templateReviewStatus: "skipped" }
+  );
 
   const nextUrl = () => window.location.pathname + window.location.search;
   const guard = () => auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
@@ -193,10 +199,10 @@ export default function Builder() {
               let id;
               if (existing && existing.length > 0) {
                 id = existing[0].id;
-                await cvRepository.update(id, { titel, ...draft });
+                await cvRepository.update(id, { titel, ...draft, ...templateOriginRef.current });
                 for (const rec of existing.slice(1)) await cvRepository.remove(rec.id);
               } else {
-                const rec = await cvRepository.create({ titel, ...draft });
+                const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current });
                 id = rec.id;
               }
               setCurrentCvId(id);

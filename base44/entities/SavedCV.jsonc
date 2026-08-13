@@ -17,6 +17,25 @@
     "layout": {
       "type": "object",
       "description": "Layoutkonfiguration (kolumnordning)"
+    },
+    "templateSource": {
+      "type": "string",
+      "enum": [
+        "user",
+        "auto"
+      ],
+      "default": "auto",
+      "description": "Vem valde mallen: 'user' = anv\u00e4ndaren valde sj\u00e4lv, 'auto' = systemet (templateMatcher) valde"
+    },
+    "templateReviewStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "reviewed",
+        "skipped"
+      ],
+      "default": "pending",
+      "description": "Status f\u00f6r mallgranskning: 'pending' = ej granskad, 'reviewed' = granskad, 'skipped' = granskning ej till\u00e4mplig (systemvalt mall)"
     }
   },
   "rls": {
@@ -32,5 +51,6 @@
     "delete": {
       "created_by_id": "{{user.id}}"
     }
-  }
+  },
+  "required": []
 }

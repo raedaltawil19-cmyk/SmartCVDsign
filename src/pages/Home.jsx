@@ -125,7 +125,7 @@ export default function Home() {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         fileUrl = file_url;
       }
-      navigate("/builder", { state: { templateId: finalTemplateId, text, fileUrl } });
+      navigate("/builder", { state: { templateId: finalTemplateId, templateSource: manuallySelected ? "user" : "auto", text, fileUrl } });
     } catch (e) {
       toast({ title: "Något gick fel", description: "Kunde inte ladda upp filen. Försök igen.", variant: "destructive" });
       setBusy(false);
