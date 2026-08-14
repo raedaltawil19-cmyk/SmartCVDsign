@@ -14,6 +14,7 @@ import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
 import SmartCVAssistantPanel from "@/components/agent/SmartCVAssistantPanel";
 import useTemplateDecision from "@/lib/agent/useTemplateDecision";
+import { startCVReview, isReviewContextReady } from "@/lib/agent/cvReviewSession";
 import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import { logAction } from "@/lib/actionLog";
 
@@ -375,6 +376,22 @@ export default function Builder() {
       if (currentCvId) await cvRepository.update(currentCvId, { templateReviewStatus: "reviewed" });
     } catch (e) {}
   };
+
+  // ── M2: تمرير حالة السيرة الحيّة إلى cv_review_coach (بلا واجهة، وبلا أي كتابة) ──
+  const reviewStateRef = useRef(null);
+  reviewStateRef.current = { cvId: currentCvId, templateId, layout, data, templateReviewStatus };
+
+  const startReview = useCallback(async (userRequest) => {
+    const state = reviewStateRef.current;
+    if (processing || !isReviewContextReady(state)) return { error: "CV_NOT_READY" };
+    return startCVReview(state, userRequest);
+  }, [processing]);
+
+  // مقبس مؤقّت للتشغيل والتحقّق حتى تُبنى واجهة المراجعة في M3
+  useEffect(() => {
+    window.__cvcraftStartReview = startReview;
+    return () => { delete window.__cvcraftStartReview; };
+  }, [startReview]);
 
   const acceptSuggestedTemplate = async () => {
     // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
