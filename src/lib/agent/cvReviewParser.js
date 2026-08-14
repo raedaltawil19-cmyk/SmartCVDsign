@@ -1,0 +1,163 @@
+/**
+ * cvReviewParser — استخراج وتحقّق كتلة CV_REVIEW الصادرة عن cv_review_coach.
+ *
+ * قواعد معمارية:
+ * - منطق نقيّ بالكامل (Pure Logic): لا base44، لا SavedCV، لا cvRepository، لا React،
+ *   لا navigate، لا Agent API، لا UI، لا smartAssistantAction، ولا أي أداة تعديل سيرة.
+ * - fail-closed على نمط TEMPLATE_DECISION: أي نقص أو خطأ ⇒ ready:false. لا fallback،
+ *   ولا إصلاح JSON تلقائي، ولا مطابقة تقريبية، ولا قبول جزئي.
+ * - لا يقرأ قاعدة بيانات ولا يعدّل شيئاً، ولا يحوّل التوصيات إلى CV_ACTION.
+ * - مصدر الأقسام: ALL_SECTION_KEYS في cvIndex.js (بلا قائمة ثانية موازية).
+ */
+import { ALL_SECTION_KEYS } from "@/lib/agent/cvIndex";
+
+export const REVIEW_OPEN = "<<<CV_REVIEW";
+export const REVIEW_CLOSE = "CV_REVIEW>>>";
+
+/** قوائم مغلقة مطابقة لعقد cv_review_coach.jsonc — لا اختراع أنواع */
+export const REVIEW_STATUSES = ["no_improvement", "improvements_found"];
+export const RECOMMENDATION_TYPES = ["content", "structure", "layout", "ats", "positioning", "job_alignment", "language"];
+export const SEVERITIES = ["necessary", "valuable", "cosmetic"];
+/** أقسام السيرة الفعلية + "layout" كهدف بنيوي منصوص عليه في العقد */
+export const TARGET_SECTIONS = [...ALL_SECTION_KEYS, "layout"];
+export const RECOMMENDATION_FIELDS = ["id", "type", "severity", "title", "problem", "why", "recommendation", "target", "dependsOn"];
+export const REVIEW_FIELDS = ["reviewStatus", "summary", "recommendations"];
+export const MAX_RECOMMENDATIONS = 7;
+
+const fail = (error) => ({ ready: false, review: null, error });
+const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isFilledString = (v) => typeof v === "string" && v.trim() !== "";
+
+/**
+ * يستخرج كائن الكتلة من نصّ الرسالة.
+ * @returns {object|null} null إن غابت الافتتاحية، أو لم تُغلق بعد (بثّ جارٍ)، أو تعذّر تحليل JSON.
+ */
+export function extractCVReview(content) {
+  const text = String(content || "");
+  const start = text.indexOf(REVIEW_OPEN);
+  if (start === -1) return null;
+  const end = text.indexOf(REVIEW_CLOSE, start + REVIEW_OPEN.length);
+  if (end === -1) return null; // الكتلة لم تُغلق → ليست مراجعة
+  const raw = text.slice(start + REVIEW_OPEN.length, end).trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return isPlainObject(parsed) ? parsed : null;
+  } catch {
+    return null; // JSON جزئي أو تالف → لا مراجعة، ولا إصلاح
+  }
+}
+
+/** يحذف كتلة CV_REVIEW ويُبقي الشرح البشري كما هو */
+export function stripCVReview(content) {
+  const text = String(content || "");
+  const start = text.indexOf(REVIEW_OPEN);
+  if (start === -1) return text;
+  const end = text.indexOf(REVIEW_CLOSE, start + REVIEW_OPEN.length);
+  if (end === -1) return text.slice(0, start).trim();
+  return (text.slice(0, start) + text.slice(end + REVIEW_CLOSE.length)).trim();
+}
+
+/** كل معرّفات العناصر الموجودة في CV_INDEX المُمرَّر (مخرج summarizeIndex) */
+function collectIndexItemIds(cvIndex) {
+  const sections = Array.isArray(cvIndex) ? cvIndex : Array.isArray(cvIndex?.sections) ? cvIndex.sections : null;
+  if (!sections) return null; // فهرس غير متاح أو غير معروف الشكل → لا تخمين
+  const ids = new Set();
+  for (const s of sections) {
+    for (const item of Array.isArray(s?.items) ? s.items : []) {
+      if (isFilledString(item?.id)) ids.add(item.id);
+    }
+  }
+  return ids;
+}
+
+/** تحقّق توصية واحدة — يعيد رسالة الخطأ أو null */
+function validateRecommendation(rec, i, indexIds) {
+  const at = `recommendations[${i}]`;
+  if (!isPlainObject(rec)) return `${at}: NOT_AN_OBJECT`;
+
+  const keys = Object.keys(rec);
+  const missing = RECOMMENDATION_FIELDS.filter((f) => !keys.includes(f));
+  if (missing.length) return `${at}: MISSING_FIELDS(${missing.join(",")})`;
+  const extra = keys.filter((k) => !RECOMMENDATION_FIELDS.includes(k));
+  if (extra.length) return `${at}: UNKNOWN_FIELDS(${extra.join(",")})`;
+
+  if (!isFilledString(rec.id)) return `${at}: ID_INVALID`;
+  if (!RECOMMENDATION_TYPES.includes(rec.type)) return `${at}: TYPE_INVALID`;
+  if (!SEVERITIES.includes(rec.severity)) return `${at}: SEVERITY_INVALID`;
+  for (const f of ["title", "problem", "why", "recommendation"]) {
+    if (!isFilledString(rec[f])) return `${at}: ${f.toUpperCase()}_INVALID`;
+  }
+
+  if (!isPlainObject(rec.target)) return `${at}: TARGET_NOT_AN_OBJECT`;
+  const targetKeys = Object.keys(rec.target);
+  const unknownTargetKeys = targetKeys.filter((k) => k !== "section" && k !== "itemRef");
+  if (unknownTargetKeys.length) return `${at}: TARGET_UNKNOWN_FIELDS(${unknownTargetKeys.join(",")})`;
+  if (!TARGET_SECTIONS.includes(rec.target.section)) return `${at}: TARGET_SECTION_INVALID`;
+
+  if (targetKeys.includes("itemRef")) {
+    if (!isFilledString(rec.target.itemRef)) return `${at}: ITEM_REF_INVALID`;
+    // itemRef يُقبل فقط إذا أمكن التحقّق منه فعلاً في CV_INDEX — بلا تخمين وبلا مطابقة تقريبية
+    if (!indexIds) return `${at}: ITEM_REF_UNVERIFIABLE`;
+    if (!indexIds.has(rec.target.itemRef)) return `${at}: ITEM_REF_NOT_IN_INDEX`;
+  }
+
+  if (!Array.isArray(rec.dependsOn)) return `${at}: DEPENDS_ON_NOT_ARRAY`;
+  if (rec.dependsOn.some((d) => !isFilledString(d))) return `${at}: DEPENDS_ON_ITEM_INVALID`;
+  if (rec.dependsOn.includes(rec.id)) return `${at}: SELF_DEPENDENCY`;
+
+  return null;
+}
+
+/**
+ * تحقّق صارم من كائن المراجعة مقابل العقد.
+ * @param {object} review الكائن المستخرج
+ * @param {object} [context] { templateId?, cvIndex? } — للتحقّق الإضافي فقط
+ * @returns {{ok:true, review:object}|{ok:false, error:string}}
+ */
+export function validateCVReview(review, context) {
+  if (!isPlainObject(review)) return { ok: false, error: "NOT_AN_OBJECT" };
+
+  const keys = Object.keys(review);
+  const missing = REVIEW_FIELDS.filter((f) => !keys.includes(f));
+  if (missing.length) return { ok: false, error: `MISSING_FIELDS(${missing.join(",")})` };
+  const extra = keys.filter((k) => !REVIEW_FIELDS.includes(k));
+  if (extra.length) return { ok: false, error: `UNKNOWN_FIELDS(${extra.join(",")})` };
+
+  if (!REVIEW_STATUSES.includes(review.reviewStatus)) return { ok: false, error: "REVIEW_STATUS_INVALID" };
+  if (!isFilledString(review.summary)) return { ok: false, error: "SUMMARY_INVALID" };
+  if (!Array.isArray(review.recommendations)) return { ok: false, error: "RECOMMENDATIONS_NOT_ARRAY" };
+
+  const list = review.recommendations;
+  if (review.reviewStatus === "no_improvement" && list.length !== 0) return { ok: false, error: "NO_IMPROVEMENT_WITH_RECOMMENDATIONS" };
+  if (review.reviewStatus === "improvements_found" && list.length === 0) return { ok: false, error: "IMPROVEMENTS_FOUND_WITHOUT_RECOMMENDATIONS" };
+  if (list.length > MAX_RECOMMENDATIONS) return { ok: false, error: "TOO_MANY_RECOMMENDATIONS" };
+
+  const indexIds = context && "cvIndex" in context ? collectIndexItemIds(context.cvIndex) : null;
+
+  for (let i = 0; i < list.length; i++) {
+    const err = validateRecommendation(list[i], i, indexIds);
+    if (err) return { ok: false, error: err };
+  }
+
+  const ids = list.map((r) => r.id);
+  if (new Set(ids).size !== ids.length) return { ok: false, error: "DUPLICATE_RECOMMENDATION_ID" };
+
+  return { ok: true, review };
+}
+
+/**
+ * المسار الكامل: استخراج ثم تحقّق. fail-closed في كل خطوة.
+ * @param {string} content نصّ رسالة الوكيل (قد يكون بثّاً جزئياً)
+ * @param {object} [context] { templateId?, cvIndex? }
+ * @returns {{ready:boolean, review:object|null, error:string|null}}
+ */
+export function parseCVReview(content, context) {
+  const parsed = extractCVReview(content);
+  if (!parsed) return fail("NOT_READY");
+  const check = validateCVReview(parsed, context);
+  if (!check.ok) return fail(check.error);
+  return { ready: true, review: check.review, error: null };
+}
+
+export default parseCVReview;
