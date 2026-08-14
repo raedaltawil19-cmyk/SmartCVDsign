@@ -14,7 +14,8 @@ import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
 import SmartCVAssistantPanel from "@/components/agent/SmartCVAssistantPanel";
 import useTemplateDecision from "@/lib/agent/useTemplateDecision";
-import { startCVReview, isReviewContextReady } from "@/lib/agent/cvReviewSession";
+import useCVReview from "@/lib/agent/useCVReview";
+import CVReviewCard from "@/components/review/CVReviewCard";
 import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import { logAction } from "@/lib/actionLog";
 
@@ -377,21 +378,19 @@ export default function Builder() {
     } catch (e) {}
   };
 
-  // ── M2: تمرير حالة السيرة الحيّة إلى cv_review_coach (بلا واجهة، وبلا أي كتابة) ──
-  const reviewStateRef = useRef(null);
-  reviewStateRef.current = { cvId: currentCvId, templateId, layout, data, templateReviewStatus };
+  // ── مراجعة السيرة (cv_review_coach): عرض واختيار فقط — لا تعديل ولا حفظ ولا CV_ACTION ──
+  const cvReview = useCVReview({ cvId: currentCvId, templateId, layout, data, templateReviewStatus });
+  const startReviewRef = useRef(cvReview.run);
+  startReviewRef.current = cvReview.run;
 
-  const startReview = useCallback(async (userRequest) => {
-    const state = reviewStateRef.current;
-    if (processing || !isReviewContextReady(state)) return { error: "CV_NOT_READY" };
-    return startCVReview(state, userRequest);
-  }, [processing]);
-
-  // مقبس مؤقّت للتشغيل والتحقّق حتى تُبنى واجهة المراجعة في M3
+  // مقبس التشغيل اليدوي — لا تشغيل تلقائي عند تغيّر data/layout/templateId أو إعادة الرسم
   useEffect(() => {
-    window.__cvcraftStartReview = startReview;
+    window.__cvcraftStartReview = (userRequest) => {
+      if (processing) return { error: "CV_NOT_READY" };
+      return startReviewRef.current(userRequest);
+    };
     return () => { delete window.__cvcraftStartReview; };
-  }, [startReview]);
+  }, [processing]);
 
   const acceptSuggestedTemplate = async () => {
     // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
@@ -466,6 +465,17 @@ export default function Builder() {
             onAccept={acceptSuggestedTemplate}
             onReject={closeReview}
             onContinue={closeReview}
+          />
+        </div>
+      )}
+
+      {cvReview.ready && !processing && (
+        <div className="no-print shrink-0 px-4 pt-3 bg-slate-200/60">
+          <CVReviewCard
+            review={cvReview.review}
+            selectedIds={cvReview.selectedIds}
+            onToggle={cvReview.toggleRecommendation}
+            onClose={cvReview.dismiss}
           />
         </div>
       )}

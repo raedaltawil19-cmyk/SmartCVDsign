@@ -1,0 +1,166 @@
+/**
+ * useCVReview — M5: استهلاك مخرج cv_review_coach وتحويله إلى حالة عرض فقط.
+ *
+ * قواعد معمارية (بالتصميم لا بالتعليق):
+ * - لا يقرأ SavedCV ولا cvRepository — الحالة تأتي من Builder حصراً.
+ * - لا يكتب أي شيء: لا setData ولا setLayout ولا setTemplateId ولا update.
+ * - لا CV_ACTION، ولا executeAssistantAction، ولا أدوات تعديل السيرة.
+ * - fail-closed: لا عرض إلا عند parseCVReview(...).ready === true.
+ * لذلك لا يستورد سوى React + جسر السياق (cvReviewSession) + الـparser النقيّ.
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
+import { startCVReview, isReviewContextReady } from "@/lib/agent/cvReviewSession";
+import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { parseCVReview, stripCVReview } from "@/lib/agent/cvReviewParser";
+import { base44 } from "@/api/base44Client";
+
+/**
+ * بوابة البثّ — منطق نقيّ قابل للاختبار بلا React.
+ * تُستدعى عند كل تحديث اشتراك وتفحص فقط ما تغيّر نصه فعلاً.
+ * @param {object} p
+ * @param {Array} p.messages رسائل المحادثة
+ * @param {object} p.context سياق التحقّق { templateId, cvIndex } — لقطة لحظة بدء المراجعة
+ * @param {Map} p.seen مرجع دائم: message key → آخر نص فُحص
+ * @param {Set} p.done مرجع دائم: مفاتيح ثُبِّتت نتيجتها
+ * @returns {{review:object, text:string}|{error:string}|null}
+ */
+export function scanForReview({ messages, context, seen, done }) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if (!m || m.role !== "assistant") continue;
+    const key = m.id || `idx-${i}`;
+    if (done.has(key)) continue; // نتيجة هذه الرسالة مُثبَّتة — لا إعادة معالجة
+    const content = String(m.content || "");
+    if (seen.get(key) === content) continue; // لا تغيّر فعلي → لا تحليل
+    seen.set(key, content);
+
+    const res = parseCVReview(content, context);
+    if (!res.ready) {
+      // NOT_READY = بثّ جارٍ أو لا كتلة → ننتظر بلا توسيم وبلا خطأ.
+      if (res.error === "NOT_READY") continue;
+      done.add(key); // كتلة وصلت مكتملة لكنها تخرق العقد → تُهمل نهائياً
+      return { error: res.error };
+    }
+    done.add(key);
+    return { review: res.review, text: stripCVReview(content) };
+  }
+  return null;
+}
+
+/**
+ * الخُطّاف. لا يشتغل تلقائياً — يبدأ فقط عند استدعاء run().
+ * النتيجة snapshot: تثبُت حتى dismiss() أو تغيّر cvId.
+ */
+export default function useCVReview(state) {
+  const [review, setReview] = useState(null);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [dismissed, setDismissed] = useState(false);
+
+  const seenRef = useRef(new Map());
+  const doneRef = useRef(new Set());
+  const settledRef = useRef(false);
+  const startedRef = useRef(false);
+  const unsubRef = useRef(null);
+  const contextRef = useRef(null); // لقطة { templateId, cvIndex } لحظة بدء المراجعة
+  const conversationRef = useRef(null);
+
+  // حالة Builder الحالية — تُقرأ لحظة الإرسال فقط، ولا تُشغّل مراجعة جديدة عند تغيّرها
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const cleanup = useCallback(() => {
+    if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
+  }, []);
+
+  const reset = useCallback(() => {
+    cleanup();
+    seenRef.current = new Map();
+    doneRef.current = new Set();
+    settledRef.current = false;
+    startedRef.current = false;
+    contextRef.current = null;
+    conversationRef.current = null;
+    setReview(null);
+    setMessage("");
+    setSelectedIds([]);
+    setLoading(false);
+    setError(null);
+    setDismissed(false);
+  }, [cleanup]);
+
+  // تغيّر السيرة ⇒ إسقاط نتيجة المراجعة القديمة نهائياً (لا تُعرض على سيرة أخرى)
+  const cvId = state?.cvId || null;
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+  useEffect(() => { resetRef.current(); }, [cvId]);
+
+  useEffect(() => cleanup, [cleanup]);
+
+  const run = useCallback(async (userRequest) => {
+    if (startedRef.current) return; // دورة واحدة لكل مراجعة
+    const ctxState = stateRef.current;
+    if (!isReviewContextReady(ctxState || {})) return;
+    startedRef.current = true;
+    setLoading(true);
+    setError(null);
+    // لقطة سياق التحقّق: نفس البيانات التي أُرسلت للوكيل، فلا يتغيّر معيار itemRef أثناء المراجعة
+    contextRef.current = {
+      templateId: ctxState.templateId,
+      cvIndex: summarizeIndex(buildCVIndex(ctxState.data))
+    };
+    try {
+      const res = await startCVReview(ctxState, userRequest);
+      if (res.error || !res.conversation) {
+        setError("REVIEW_START_FAILED");
+        setLoading(false);
+        return;
+      }
+      conversationRef.current = res.conversation;
+      unsubRef.current = base44.agents.subscribeToConversation(res.conversation.id, (payload) => {
+        if (settledRef.current) return;
+        const hit = scanForReview({
+          messages: payload?.messages,
+          context: contextRef.current,
+          seen: seenRef.current,
+          done: doneRef.current
+        });
+        if (!hit) return; // بثّ جارٍ → ننتظر
+        settledRef.current = true;
+        setLoading(false);
+        cleanup();
+        if (hit.error) { setError(hit.error); return; }
+        setReview(hit.review);
+        setMessage(hit.text);
+      });
+    } catch {
+      setError("REVIEW_START_FAILED");
+      setLoading(false);
+      cleanup();
+    }
+  }, [cleanup]);
+
+  /** اختيار محلي بحت — لا استدعاء شبكة ولا تعديل سيرة */
+  const toggleRecommendation = useCallback((id) => {
+    if (typeof id !== "string" || !id) return;
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const dismiss = useCallback(() => { setDismissed(true); }, []);
+
+  return {
+    review,
+    ready: !!review && !dismissed,
+    message,
+    loading,
+    error,
+    selectedIds,
+    toggleRecommendation,
+    dismiss,
+    reset,
+    run
+  };
+}
