@@ -6,6 +6,8 @@ import { executeAssistantAction, stripAction } from "@/lib/agent/smartAssistantA
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { summaryText } from "@/lib/agent/changeSummary";
 import ChangeSummaryNote from "@/components/agent/ChangeSummaryNote";
+import { cvLanguageTag } from "@/lib/agent/cvLanguage";
+import { useLanguage } from "@/lib/i18n";
 
 const MARK = "<<<CV_CONTEXT";
 const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split(MARK)[0]).trim() });
@@ -16,14 +18,15 @@ const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split
  * فتكون إجابات الوكيل مبنية على السيرة المعروضة فعلاً لا على شكلها البصري.
  */
 export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, pendingIntents, onLayoutChange, onDataChange, onClose }) {
+  const { dir, lang, t } = useLanguage();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [notes, setNotes] = useState([]);
   const endRef = useRef(null);
-  const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange, onDataChange });
-  ctxRef.current = { data, layout, templateId, cvId, onLayoutChange, onDataChange };
+  const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange, onDataChange, uiLang: lang });
+  ctxRef.current = { data, layout, templateId, cvId, onLayoutChange, onDataChange, uiLang: lang };
   const doneRef = useRef(new Set());
   const seenContentRef = useRef(new Map());
 
@@ -31,7 +34,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
     (async () => {
       const conv = await base44.agents.createConversation({
         agent_name: "smart_cv_assistant",
-        metadata: { name: "Smart CV Assistant", description: "قراءة وفهم السيرة الحالية" }
+        metadata: { name: "Smart CV Assistant", description: "Reads and edits the current CV" }
       });
       setConversation(conv);
     })();
@@ -79,11 +82,20 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   const postRef = useRef(null);
   postRef.current = async (text) => {
     if (!conversation) return;
-    const { data: d, layout: l, templateId: t, cvId: id } = ctxRef.current;
+    const { data: d, layout: l, templateId: tid, cvId: id, uiLang } = ctxRef.current;
     setSending(true);
     await base44.agents.addMessage(conversation, {
       role: "user",
-      content: `${text}\n\n${MARK}\n${JSON.stringify({ cvId: id, templateId: t, layout: l, CV_DATA: d, CV_INDEX: summarizeIndex(buildCVIndex(d)) })}\nCV_CONTEXT>>>`
+      content: `${text}\n\n${MARK}\n${JSON.stringify({
+        cvId: id,
+        templateId: tid,
+        layout: l,
+        CV_DATA: d,
+        CV_INDEX: summarizeIndex(buildCVIndex(d)),
+        // لغتان منفصلتان: cvLanguage تحكم كل نصّ يدخل السيرة، uiLanguage تحكم لغة التواصل فقط
+        cvLanguage: cvLanguageTag(d),
+        uiLanguage: uiLang
+      })}\nCV_CONTEXT>>>`
     });
   };
 
@@ -109,12 +121,12 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   };
 
   return (
-    <div dir="rtl" className="flex flex-col h-[460px] bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+    <div dir={dir} className="flex flex-col h-[460px] bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
       <div className="shrink-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200">
         <Sparkles className="w-4 h-4 text-[#000066]" />
-        <span className="text-sm font-semibold text-slate-800">مساعد السيرة</span>
-        <span className="text-[10px] text-slate-400">قراءة + تعديل + ترتيب</span>
-        <button onClick={onClose} className="mr-auto text-slate-400 hover:text-slate-700 transition-colors">
+        <span className="text-sm font-semibold text-slate-800">{t("assistant.title")}</span>
+        <span className="text-[10px] text-slate-400">{t("assistant.subtitle")}</span>
+        <button onClick={onClose} aria-label={t("assistant.close")} className="ms-auto text-slate-400 hover:text-slate-700 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -122,7 +134,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-xs text-slate-400 text-center pt-8 leading-relaxed">
-            اسألني عن أي شيء في سيرتك.<br />مثال: «شو آخر خبرة عندي؟» أو «شو رقم التلفون؟»
+            {t("assistant.empty")}<br />{t("assistant.emptyExample")}
           </p>
         )}
         {messages.map((m, i) => <MessageBubble key={i} message={strip(m)} />)}
@@ -141,7 +153,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={conversation ? "اكتب سؤالك…" : "جارٍ التهيئة…"}
+          placeholder={conversation ? t("assistant.placeholder") : t("assistant.initializing")}
           disabled={!conversation}
           className="inp"
         />

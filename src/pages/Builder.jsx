@@ -24,6 +24,7 @@ import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage
 import { needsEvidence, buildEvidenceRequest, verifyEvidenceStillValid, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 import EvidenceDialog from "@/components/review/EvidenceDialog";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 
@@ -35,7 +36,7 @@ export default function Builder() {
   const navigate = useNavigate();
   const { cvId: paramCvId } = useParams();
   const { toast } = useToast();
-  const { dir, t } = useLanguage();
+  const { dir, t, lang } = useLanguage();
   const { isAuthenticated } = useAuth();
   const { llm, cvRepository, auth, export: exportSvc } = useServices();
   const incoming = location.state;
@@ -426,7 +427,9 @@ export default function Builder() {
       selectedIds,
       cvId: currentCvId,
       templateId,
-      indexSummary: summarizeIndex(buildCVIndex(data)) // الحالة الحالية لا لقطة المراجعة
+      indexSummary: summarizeIndex(buildCVIndex(data)), // الحالة الحالية لا لقطة المراجعة
+      cvLanguage: cvLanguageTag(data), // لغة السيرة: من محتوى السيرة
+      uiLanguage: lang // لغة الواجهة: من مبدّل اللغة — منفصلة تماماً
     });
     if (rejected.length) {
       toast({ title: "لم تُرسَل بعض التوصيات", description: describeRejection(rejected[0].error), variant: "destructive" });

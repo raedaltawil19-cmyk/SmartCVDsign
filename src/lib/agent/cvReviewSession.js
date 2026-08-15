@@ -9,6 +9,7 @@
  */
 import { base44 } from "@/api/base44Client";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 
 export const AGENT_NAME = "cv_review_coach";
 export const CONTEXT_OPEN = "<<<CV_CONTEXT";
@@ -35,6 +36,8 @@ export function buildCVContextBlock({ cvId, templateId, layout, data, templateRe
     layout,
     CV_DATA: data,
     CV_INDEX: summarizeIndex(buildCVIndex(data)),
+    // لغة السيرة: قيمة صريحة مشتقّة من محتوى السيرة نفسه، لا من لغة الواجهة ولا من لغة المحادثة
+    cvLanguage: cvLanguageTag(data),
     templateReviewStatus: templateReviewStatus || null
   };
   return `${CONTEXT_OPEN}\n${JSON.stringify(payload)}\n${CONTEXT_CLOSE}`;
@@ -49,6 +52,7 @@ export function buildReviewMessage(state, userRequest) {
     block,
     "السياق أعلاه هو الحالة الحالية للسيرة التي تعمل عليها الآن. اعتمد عليه كمصدر الحقيقة الأساسي لهذه المراجعة، ولا تقرأ نسخة أخرى من السيرة ولا تعتمد على محادثة سابقة.",
     "قم بتحليل السيرة وفق تعليماتك الحالية. لا تعدّل السيرة ولا تطبّق أي تغيير.",
+    "لغة السيرة معلنة صراحةً في cvLanguage داخل السياق أعلاه: كل نصّ مقترح أو قابل للتنفيذ يجب أن يكون بتلك اللغة. أما شرحك وتوصياتك وأسئلتك للمستخدم فبلغة هذه المحادثة. لا تستنتج لغة السيرة من لغة رسالتي.",
     request ? `طلب المستخدم:\n${request}` : "لم يكتب المستخدم طلباً محدداً — قدّم مراجعة تشخيصية عامة."
   ].join("\n\n");
 }

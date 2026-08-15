@@ -104,17 +104,19 @@ export function verifyEvidenceStillValid({ intent, data, request }) {
   return { ok: true };
 }
 
-/** صياغة مبدئية من القيمة الحالية + ما أكّده المستخدم فقط — تُستخدم فقط إن لم يوجد draft */
+/**
+ * صياغة مبدئية من القيمة الحالية + ما أكّده المستخدم فقط — تُستخدم فقط إن لم يوجد draft.
+ * محيَّدة لغوياً بالتصميم: لا كلمات وصل بأي لغة (لا سويدية ولا عربية ولا إنجليزية)،
+ * فقط ترقيم، حتى لا تُدخل هذه الدالة لغة لا تطابق لغة السيرة. الصياغة اللغوية النهائية
+ * مسؤولية المستخدم (تحرير النصّ) أو مسار التنفيذ بلغة السيرة المعلنة.
+ */
 export function composeDraft({ currentValue, confirmed = [], userText = "" }) {
   const base = String(currentValue || "").trim().replace(/[.،,]\s*$/, "");
   const items = confirmed.map((c) => String(c).trim()).filter(Boolean);
   const extra = String(userText || "").trim();
-  const list =
-    items.length > 1 ? `${items.slice(0, -1).join(", ")} och ${items[items.length - 1]}` : items[0] || "";
   const parts = [];
-  if (base && list) parts.push(`${base} inom ${list}`);
-  else if (base) parts.push(base);
-  else if (list) parts.push(list);
+  if (base) parts.push(base);
+  if (items.length) parts.push(items.join(", "));
   if (extra) parts.push(extra);
   return parts.join(". ").replace(/\.\.+/g, ".").trim();
 }

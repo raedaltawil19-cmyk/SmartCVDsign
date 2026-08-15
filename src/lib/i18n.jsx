@@ -57,6 +57,14 @@ const DICT = {
   "builder.undo": { ar: "تراجع", sv: "Ångra", en: "Undo" },
   "builder.redo": { ar: "تقدّم", sv: "Gör om", en: "Redo" },
 
+  "assistant.title": { ar: "مساعد السيرة", sv: "CV-assistent", en: "CV Assistant" },
+  "assistant.subtitle": { ar: "قراءة + تعديل + ترتيب", sv: "Läs + redigera + ordna", en: "Read + edit + arrange" },
+  "assistant.empty": { ar: "اسألني عن أي شيء في سيرتك.", sv: "Fråga mig om vad som helst i ditt CV.", en: "Ask me anything about your CV." },
+  "assistant.emptyExample": { ar: "مثال: «شو آخر خبرة عندي؟»", sv: "Exempel: ”Vad är min senaste erfarenhet?”", en: "Example: “What is my latest experience?”" },
+  "assistant.placeholder": { ar: "اكتب سؤالك…", sv: "Skriv din fråga…", en: "Type your question…" },
+  "assistant.initializing": { ar: "جارٍ التهيئة…", sv: "Initierar…", en: "Initializing…" },
+  "assistant.close": { ar: "إغلاق", sv: "Stäng", en: "Close" },
+
   "corner.login": { ar: "دخول", sv: "Logga in", en: "Log in" },
   "corner.register": { ar: "حساب جديد", sv: "Skapa konto", en: "Sign up" },
   "corner.logout": { ar: "خروج", sv: "Logga ut", en: "Log out" },
