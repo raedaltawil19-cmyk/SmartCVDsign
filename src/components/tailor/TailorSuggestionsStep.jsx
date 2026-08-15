@@ -5,7 +5,7 @@ import { Send } from "lucide-react";
  * شاشة اقتراحات التخصيص داخل نفس النافذة — عرض واختيار فقط.
  * لا تطبيق هنا: الإرسال يمرّ بمساعد السيرة وهو نقطة التنفيذ الوحيدة.
  */
-export default function TailorSuggestionsStep({ review, selectedIds, onToggle, onSend, error }) {
+export default function TailorSuggestionsStep({ review, selectedIds, sentIds = [], onToggle, onSend, error }) {
   const recs = Array.isArray(review?.recommendations) ? review.recommendations : [];
   return (
     <div className="space-y-3">
@@ -15,13 +15,14 @@ export default function TailorSuggestionsStep({ review, selectedIds, onToggle, o
         <p className="text-[12px] text-slate-500">سيرتك متوافقة مع هذا الإعلان، ولا توصيات تخصيص الآن.</p>
       ) : (
         <>
-          <p className="text-[11px] text-slate-400">اختر ما تريد تخصيصه — لن يُطبَّق شيء الآن.</p>
+          <p className="text-[11px] text-slate-400">اختر ما تريد تخصيصه. بعد الإرسال تبقى القائمة مفتوحة ويمكنك مراجعة ما أُرسل بعلامة ✓ وسحب النافذة إلى أي مكان.</p>
           <ul className="space-y-2 max-h-[46vh] overflow-y-auto">
             {recs.map((rec) => (
               <TailorRecommendationRow
                 key={rec.id}
                 rec={rec}
                 selected={selectedIds.includes(rec.id)}
+                sent={sentIds.includes(rec.id)}
                 onToggle={onToggle}
               />
             ))}
@@ -32,11 +33,11 @@ export default function TailorSuggestionsStep({ review, selectedIds, onToggle, o
           <button
             type="button"
             onClick={() => onSend(selectedIds)}
-            disabled={selectedIds.length === 0}
+            disabled={selectedIds.filter((id) => !sentIds.includes(id)).length === 0}
             className="w-full inline-flex items-center justify-center gap-2 text-[13px] px-4 py-2.5 rounded-xl bg-[#000066] text-white hover:bg-[#00003d] transition-colors disabled:opacity-40"
           >
             <Send className="w-4 h-4" />
-            <span>إرسال المحدد إلى مساعد السيرة{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}</span>
+            <span>إرسال المحدد إلى مساعد السيرة{selectedIds.filter((id) => !sentIds.includes(id)).length > 0 ? ` (${selectedIds.filter((id) => !sentIds.includes(id)).length})` : ""}</span>
           </button>
           <p className="text-[10.5px] text-slate-400">مساعد السيرة هو الذي ينفّذ ما اخترته فقط.</p>
         </>
