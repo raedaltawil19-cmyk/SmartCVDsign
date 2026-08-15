@@ -149,7 +149,14 @@ export default function useCVReview(state) {
     // تغيّرت نسخة السيرة (أو الطلب) عن الدورة السابقة ⇒ مراجعة كاملة جديدة على الحالة الحالية.
     // دورة جارية على النسخة نفسها لا تُقطع أبداً، ولا تُقطع دورة جارية إلا بطلب صريح من المستخدم.
     const sameCycle = cacheKeyRef.current === key;
-    if (startedRef.current && !sameCycle && (settledRef.current || reveal)) {
+    // التشغيل المسبق لا يحق له إسقاط مراجعة مكشوفة أو قائمة توصيات يراجعها المستخدم.
+    // بعد تنفيذ توصية يتغيّر data، فيتغيّر مفتاح النسخة؛ تجاهل prewarm الجديد هنا
+    // حتى تبقى بقية التوصيات ظاهرة. إعادة المراجعة على النسخة الجديدة لا تحدث إلا
+    // بطلب صريح من المستخدم عبر run()/«تحسين السيرة».
+    if (startedRef.current && !sameCycle && !reveal) {
+      return;
+    }
+    if (startedRef.current && !sameCycle && reveal) {
       cleanup();
       seenRef.current = new Map();
       doneRef.current = new Set();
