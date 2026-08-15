@@ -15,7 +15,7 @@ function Profil({ d, editable, actions }) {
   return (
     <section>
       <SectionHead>Profil</SectionHead>
-      <EditText as="textarea" value={d.profil} editable={editable} onChange={(v) => actions.setField("profil", v)} className="text-[13px] leading-relaxed text-slate-700" placeholder="Kort personlig presentation" />
+      <EditText as="textarea" value={d.profil} editable={editable} onChange={(v) => actions.setField("profil", v)} className="text-[13px] leading-relaxed text-slate-700 text-justify" placeholder="Kort personlig presentation" />
     </section>
   );
 }
@@ -32,7 +32,7 @@ function Erfarenhet({ d, editable, actions }) {
               <span className="text-[11.5px] text-slate-400 whitespace-nowrap"><EditText value={e.period} editable={editable} onChange={(v) => actions.setExp(i, "period", v)} placeholder="Period" /></span>
             </div>
             <div className="text-[12.5px] text-slate-500 mb-1"><EditText value={e.foretag} editable={editable} onChange={(v) => actions.setExp(i, "foretag", v)} placeholder="Företag" /></div>
-            <EditText as="textarea" value={e.beskrivning} editable={editable} onChange={(v) => actions.setExp(i, "beskrivning", v)} className="text-[12.5px] leading-relaxed text-slate-600" placeholder="Beskrivning av ansvarsområden och resultat" />
+            <EditText as="textarea" value={e.beskrivning} editable={editable} onChange={(v) => actions.setExp(i, "beskrivning", v)} className="text-[12.5px] leading-relaxed text-slate-600 text-justify" placeholder="Beskrivning av ansvarsområden och resultat" />
             {editable && <button onClick={() => actions.removeExp(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
           </div>
         ))}
@@ -54,7 +54,7 @@ function Utbildning({ d, editable, actions }) {
               <span className="text-[11.5px] text-slate-400 whitespace-nowrap"><EditText value={u.period} editable={editable} onChange={(v) => actions.setEdu(i, "period", v)} placeholder="Period" /></span>
             </div>
             <div className="text-[12.5px] text-slate-500 mb-1"><EditText value={u.skola} editable={editable} onChange={(v) => actions.setEdu(i, "skola", v)} placeholder="Skola" /></div>
-            <EditText as="textarea" value={u.beskrivning} editable={editable} onChange={(v) => actions.setEdu(i, "beskrivning", v)} className="text-[12.5px] leading-relaxed text-slate-600" placeholder="Beskrivning" rows={2} />
+            <EditText as="textarea" value={u.beskrivning} editable={editable} onChange={(v) => actions.setEdu(i, "beskrivning", v)} className="text-[12.5px] leading-relaxed text-slate-600 text-justify" placeholder="Beskrivning" rows={2} />
             {editable && <button onClick={() => actions.removeEdu(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
           </div>
         ))}
@@ -125,7 +125,7 @@ export default function NordicMinimalTemplate({ data: d, editable, actions, layo
           containerClassName="mt-4"
         />
       </header>
-      <main className="px-14 pb-16 max-w-[640px] mx-auto space-y-1">
+      <main className="px-10 pb-16 max-w-none mx-0 space-y-1">
         {lay.main.map(render)}
       </main>
     </div>
