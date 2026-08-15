@@ -101,7 +101,13 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
     })}\nCV_CONTEXT>>>`;
     // الحمولة تُرسل كما هي بالكامل إلى الوكيل — الوسم للعرض فقط
     if (internal) internalDeliveredRef.current.add(content.trim());
-    await base44.agents.addMessage(conversation, { role: "user", content });
+    try {
+      await base44.agents.addMessage(conversation, { role: "user", content });
+    } finally {
+      // sending تعني أن الطلب قيد الإرسال فقط، وليست حالة انتظار استجابة الوكيل.
+      // لا نترك زر الإدخال عالقاً إذا تأخر بث استجابة الوكيل أو لم يصل حدث الاشتراك.
+      setSending(false);
+    }
   };
 
   // توصيات المراجعة التي وافق عليها المستخدم — تُسلَّم كـIntent منظّم، كل واحدة رسالة مستقلة ومرة واحدة.
