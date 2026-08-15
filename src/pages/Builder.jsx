@@ -22,6 +22,7 @@ import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkfl
 import { logAction } from "@/lib/actionLog";
 import { buildSelectedIntents, formatIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -203,24 +204,17 @@ export default function Builder() {
       if (isAuthenticated) {
         try {
           const titel = data.titel || "Min CV";
-          if (currentCvId) {
-            await cvRepository.update(currentCvId, { titel, ...draft });
+          const target = resolveSaveTarget(currentCvId);
+          if (target.mode === "update") {
+            await cvRepository.update(target.id, { titel, ...draft });
           } else if (!creatingRef.current) {
             creatingRef.current = true;
             try {
-              // نسخة واحدة فقط: نتبنّى أحدث سجل موجود ونحذف الباقي، ولا ننشئ سجلاً جديداً إلا إذا لا يوجد أي سجل
-              const existing = await cvRepository.list("-updated_date");
-              let id;
-              if (existing && existing.length > 0) {
-                id = existing[0].id;
-                await cvRepository.update(id, { titel, ...draft, ...templateOriginRef.current });
-                for (const rec of existing.slice(1)) await cvRepository.remove(rec.id);
-              } else {
-                const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current });
-                id = rec.id;
-              }
-              setCurrentCvId(id);
-              navigate(`/builder/${id}`, { replace: true });
+              // سيرة جديدة = سجل جديد مستقل. لا قراءة لقائمة السجلات، ولا تبنّي لأحدثها،
+              // ولا حذف لأي سجل آخر — تعدّد الـMasters والنسخ المخصّصة مصون.
+              const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current });
+              setCurrentCvId(rec.id);
+              navigate(`/builder/${rec.id}`, { replace: true });
             } finally {
               creatingRef.current = false;
             }
