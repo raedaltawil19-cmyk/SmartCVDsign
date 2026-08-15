@@ -83,11 +83,13 @@ export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSen
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] p-4 pointer-events-none" dir="rtl">
+    <div className="fixed inset-0 z-[2147483647] p-4 pointer-events-none" dir="rtl">
       <div
         ref={dialogRef}
-        className={`${showFullDialog ? "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 w-full max-w-lg" : "absolute bottom-4 right-4 w-auto"} bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border border-slate-200`}
-        style={showFullDialog ? { transform: `translate(${position.x}px, ${position.y}px) translateX(50%) translateY(-50%)` } : undefined}
+        className={`${showFullDialog ? "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 w-full max-w-lg" : "w-auto"} bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border border-slate-200`}
+        style={showFullDialog
+          ? { transform: `translate(${position.x}px, ${position.y}px) translateX(50%) translateY(-50%)` }
+          : { position: "fixed", right: 20, bottom: 20, zIndex: 2147483647 }}
       >
         {showFullDialog ? (
           <>
