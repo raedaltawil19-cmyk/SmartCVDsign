@@ -17,6 +17,8 @@ import useTemplateDecision from "@/lib/agent/useTemplateDecision";
 import useCVReview from "@/lib/agent/useCVReview";
 import CVReviewCard from "@/components/review/CVReviewCard";
 import TemplateReviewCard from "@/components/template/TemplateReviewCard";
+import WorkflowChoiceCard from "@/components/workflow/WorkflowChoiceCard";
+import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkflowActions } from "@/lib/workflowRoutes";
 import { logAction } from "@/lib/actionLog";
 import { buildSelectedIntents, formatIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
@@ -419,6 +421,22 @@ export default function Builder() {
     logAction("ai_command", { command: `إرسال ${intents.length} توصية مراجعة إلى مساعد السيرة` });
   };
 
+  // ── نقطة اختيار المسار: تحسين عام (Review Coach) أو تخصيص لوظيفة — مسار واحد فقط لكل قرار ──
+  const [choiceOpen, setChoiceOpen] = useState(true);
+  const choiceReady = isWorkflowChoiceReady({ cvId: currentCvId, templateId, templateReviewStatus, processing });
+
+  const chooseWorkflow = (choice) => {
+    const { runGeneralReview, startJobTailoring } = resolveWorkflowActions(choice);
+    setChoiceOpen(false);
+    if (runGeneralReview) {
+      cvReview.reset();
+      startReviewRef.current();
+      logAction("ai_command", { command: "تحسين السيرة بشكل عام" });
+      return;
+    }
+    if (startJobTailoring) navigate(`/tailor/${currentCvId}`);
+  };
+
   const acceptSuggestedTemplate = async () => {
     // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
     setTemplateId(review.templateId);
@@ -446,6 +464,11 @@ export default function Builder() {
                 <Check className="w-3 h-3" />
                 تم الحفظ
               </span>
+            )}
+            {choiceReady && !choiceOpen && (
+              <button onClick={() => setChoiceOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                <span>ماذا تريد أن تفعل؟</span>
+              </button>
             )}
             <button onClick={() => setShowSmart((v) => !v)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Sparkles className="w-4 h-4" />
@@ -492,6 +515,16 @@ export default function Builder() {
             onAccept={acceptSuggestedTemplate}
             onReject={closeReview}
             onContinue={closeReview}
+          />
+        </div>
+      )}
+
+      {choiceReady && choiceOpen && !cvReview.ready && (
+        <div className="no-print shrink-0 px-4 pt-3 bg-slate-200/60">
+          <WorkflowChoiceCard
+            onGeneral={() => chooseWorkflow(WORKFLOW_GENERAL)}
+            onTailor={() => chooseWorkflow(WORKFLOW_TAILOR)}
+            onClose={() => setChoiceOpen(false)}
           />
         </div>
       )}
