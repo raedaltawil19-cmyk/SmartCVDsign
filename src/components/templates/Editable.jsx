@@ -47,7 +47,7 @@ export function EditText({ value, editable, onChange, className, as = "input", p
     if (as === "textarea") {
       return (
         <span
-          className={cn(className, "cursor-text")}
+          className={cn(className, "cursor-text block w-full")}
           onClick={activate}
           dangerouslySetInnerHTML={{ __html: value ? toHtml(value) : "" }}
         />
