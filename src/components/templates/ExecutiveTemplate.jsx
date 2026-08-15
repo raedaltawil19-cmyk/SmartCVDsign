@@ -121,7 +121,7 @@ export default function ExecutiveTemplate({ data: d, editable, actions, layout }
         />
       </div>
 
-      <main className="px-10 py-8 space-y-8 max-w-none mx-0">
+      <main className="py-8 pl-7 pr-9 space-y-8 max-w-none mx-0">
         {lay.main.map(render)}
       </main>
     </div>
