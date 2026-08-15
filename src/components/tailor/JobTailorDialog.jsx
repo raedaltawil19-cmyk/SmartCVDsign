@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { X, Target, GripVertical } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X, Target, GripVertical, Minus, Maximize2 } from "lucide-react";
 import JobAdInputStep from "@/components/tailor/JobAdInputStep";
 import TailorSuggestionsStep from "@/components/tailor/TailorSuggestionsStep";
 import useJobTailorPopup from "@/lib/agent/useJobTailorPopup";
@@ -21,10 +21,20 @@ export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSen
   const [sendError, setSendError] = useState("");
   const [sentIds, setSentIds] = useState([]);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [minimized, setMinimized] = useState(false);
+  const dialogRef = useRef(null);
   const dragRef = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
 
   const cvRecord = useMemo(() => (cvId ? { id: cvId, templateId, data } : null), [cvId, templateId, data]);
   const tailor = useJobTailorPopup({ cvRecord });
+
+  useEffect(() => {
+    const handleOutsidePointerDown = (event) => {
+      if (!dialogRef.current?.contains(event.target)) setMinimized(true);
+    };
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, []);
 
   const send = (ids) => {
     const result = onSend(ids.filter((id) => !sentIds.includes(id)), tailor.review);
@@ -65,32 +75,43 @@ export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSen
   };
 
   const showSuggestions = tailor.ready;
+  const showFullDialog = !minimized;
+
+  const restore = () => {
+    setMinimized(false);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" dir="rtl">
+    <div className="fixed inset-0 z-50 p-4 pointer-events-none" dir="rtl">
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden"
-        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+        ref={dialogRef}
+        className={`${showFullDialog ? "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 w-full max-w-lg" : "absolute bottom-4 right-4 w-auto"} bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border border-slate-200`}
+        style={showFullDialog ? { transform: `translate(${position.x}px, ${position.y}px) translateX(50%) translateY(-50%)` } : undefined}
       >
-        <div
-          className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 cursor-move select-none touch-none"
-          onPointerDown={startDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          title="اسحب النافذة إلى أي مكان"
-        >
-          <GripVertical className="w-3.5 h-3.5 text-slate-300" />
-          <Target className="w-4 h-4 text-[#000066]" />
-          <h3 className="text-[13px] font-semibold text-slate-800">
-            {showSuggestions ? "اقتراحات التخصيص لهذه الوظيفة" : "تخصيص CV لوظيفة معينة"}
-          </h3>
-          <button onClick={onClose} className="mr-auto text-slate-400 hover:text-slate-700 transition-colors" aria-label="إغلاق">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        {showFullDialog ? (
+          <>
+            <div
+              className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 cursor-move select-none touch-none"
+              onPointerDown={startDrag}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              title="اسحب النافذة إلى أي مكان"
+            >
+              <GripVertical className="w-3.5 h-3.5 text-slate-300" />
+              <Target className="w-4 h-4 text-[#000066]" />
+              <h3 className="text-[13px] font-semibold text-slate-800">
+                {showSuggestions ? "اقتراحات التخصيص لهذه الوظيفة" : "تخصيص CV لوظيفة معينة"}
+              </h3>
+              <button type="button" onClick={() => setMinimized(true)} className="mr-auto text-slate-400 hover:text-slate-700 transition-colors" aria-label="تصغير التوصيات" title="تصغير">
+                <Minus className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={onClose} className="text-slate-400 hover:text-red-600 transition-colors" aria-label="إغلاق" title="إغلاق">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-        <div className="px-4 py-3 max-h-[70vh] overflow-y-auto">
+            <div className="px-4 py-3 max-h-[70vh] overflow-y-auto">
           {showSuggestions ? (
             <TailorSuggestionsStep
               review={tailor.review}
@@ -112,7 +133,21 @@ export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSen
               onAnalyze={() => tailor.analyze({ adText, adUrl })}
             />
           )}
-        </div>
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={restore}
+            className="flex items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-slate-800 hover:bg-slate-50"
+            title="إظهار التوصيات"
+          >
+            <Maximize2 className="w-4 h-4 text-[#000066]" />
+            <Target className="w-4 h-4 text-[#000066]" />
+            <span>توصيات الوظيفة</span>
+            <span className="text-[10px] text-slate-400">{sentIds.length} تم إرسالها</span>
+          </button>
+        )}
       </div>
     </div>
   );
