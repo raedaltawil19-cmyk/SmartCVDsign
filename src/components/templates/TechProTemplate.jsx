@@ -10,7 +10,7 @@ function Profil({ d, editable, actions }) {
   return (
     <section>
       <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-2 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>Profil</h2>
-      <EditText as="textarea" value={d.profil} editable={editable} onChange={(v) => actions.setField("profil", v)} className="text-[12.5px] leading-relaxed text-slate-600" placeholder="Kort personlig presentation" />
+      <EditText as="textarea" value={d.profil} editable={editable} onChange={(v) => actions.setField("profil", v)} className="text-[12.5px] leading-relaxed text-slate-600 text-justify" placeholder="Kort personlig presentation" />
     </section>
   );
 }
@@ -27,7 +27,7 @@ function Erfarenhet({ d, editable, actions }) {
               <span className="text-[11px] px-2 py-0.5 rounded text-white font-medium whitespace-nowrap" style={{ background: BLUE }}><EditText value={e.period} editable={editable} onChange={(v) => actions.setExp(i, "period", v)} placeholder="Period" /></span>
             </div>
             <div className="text-[12px] font-medium mb-1" style={{ color: BLUE }}><EditText value={e.foretag} editable={editable} onChange={(v) => actions.setExp(i, "foretag", v)} placeholder="Företag" /></div>
-            <EditText as="textarea" value={e.beskrivning} editable={editable} onChange={(v) => actions.setExp(i, "beskrivning", v)} className="text-[12px] leading-relaxed text-slate-600" placeholder="Beskrivning" />
+            <EditText as="textarea" value={e.beskrivning} editable={editable} onChange={(v) => actions.setExp(i, "beskrivning", v)} className="text-[12px] leading-relaxed text-slate-600 text-justify" placeholder="Beskrivning" />
             {editable && <button onClick={() => actions.removeExp(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
           </div>
         ))}
@@ -49,7 +49,7 @@ function Utbildning({ d, editable, actions }) {
               <span className="text-[11px] text-slate-400 whitespace-nowrap"><EditText value={u.period} editable={editable} onChange={(v) => actions.setEdu(i, "period", v)} placeholder="Period" /></span>
             </div>
             <div className="text-[12px] font-medium" style={{ color: BLUE }}><EditText value={u.skola} editable={editable} onChange={(v) => actions.setEdu(i, "skola", v)} placeholder="Skola" /></div>
-            <EditText as="textarea" value={u.beskrivning} editable={editable} onChange={(v) => actions.setEdu(i, "beskrivning", v)} className="text-[11.5px] leading-relaxed text-slate-600" placeholder="Beskrivning" rows={2} />
+            <EditText as="textarea" value={u.beskrivning} editable={editable} onChange={(v) => actions.setEdu(i, "beskrivning", v)} className="text-[11.5px] leading-relaxed text-slate-600 text-justify" placeholder="Beskrivning" rows={2} />
             {editable && <button onClick={() => actions.removeEdu(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
           </div>
         ))}
@@ -127,11 +127,11 @@ export default function TechProTemplate({ data: d, editable, actions, layout }) 
       </header>
 
       <main className="flex">
-        <div className="flex-1 p-9 space-y-7">
+        <div className="flex-1 py-9 pl-7 pr-9 space-y-7">
           {lay.main.map(render)}
         </div>
         {lay.sidebar.length > 0 && (
-          <aside className="w-[35%] p-7 space-y-6" style={{ background: "#f8fafc" }}>
+          <aside className="w-[32%] p-7 space-y-6" style={{ background: "#f8fafc" }}>
             {lay.sidebar.map(render)}
           </aside>
         )}
