@@ -10,6 +10,7 @@ import { createTailoredCV, buildTailoredPayload } from "@/lib/cvProfiles";
 import { findExistingTailored } from "@/lib/tailoredLookup";
 import TailoringStartCard from "@/components/workflow/TailoringStartCard";
 import CVReviewCard from "@/components/review/CVReviewCard";
+import TailorReviewNotice from "@/components/review/TailorReviewNotice";
 import useTailorRecommendations from "@/lib/agent/useTailorRecommendations";
 import { buildSelectedIntents, formatIntentMessage, intentDeliveryKey, describeRejection } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
@@ -356,6 +357,7 @@ export default function ApplicationTailor() {
                 onCancel={() => { setInput(pendingStart.text); setPendingStart(null); }}
               />
             )}
+            {!jobReview.ready && <TailorReviewNotice error={jobReview.error} />}
             {jobReview.ready && (
               <div className="max-w-3xl mx-auto space-y-2">
                 <CVReviewCard
