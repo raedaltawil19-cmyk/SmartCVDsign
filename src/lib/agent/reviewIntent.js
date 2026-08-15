@@ -44,7 +44,10 @@ export function collectItemIds(indexSummary) {
  * @param {*} p.indexSummary فهرس الحالة **الحالية** للسيرة (summarizeIndex)
  * @returns {{ok:true, intent:object}|{ok:false, error:string}}
  */
-export function buildReviewIntent({ rec, selectedIds = [], cvId = null, templateId, indexSummary }) {
+export const INTENT_SOURCES = ["cv_review_coach", "application_tailor"];
+
+export function buildReviewIntent({ rec, selectedIds = [], cvId = null, templateId, indexSummary, source = "cv_review_coach" }) {
+  if (!INTENT_SOURCES.includes(source)) return { ok: false, error: "SOURCE_INVALID" };
   if (!isPlainObject(rec)) return { ok: false, error: "RECOMMENDATION_INVALID" };
   if (!isFilledString(rec.id)) return { ok: false, error: "RECOMMENDATION_ID_INVALID" };
 
@@ -81,7 +84,7 @@ export function buildReviewIntent({ rec, selectedIds = [], cvId = null, template
   return {
     ok: true,
     intent: {
-      source: "cv_review_coach",
+      source,
       recommendationId: rec.id,
       type: rec.type,
       severity: rec.severity,
@@ -103,14 +106,14 @@ export function buildReviewIntent({ rec, selectedIds = [], cvId = null, template
  * يبني Intents للتوصيات المختارة فقط — كل واحدة وحدة مستقلة (7)+(K).
  * @returns {{intents:object[], rejected:{id:string, error:string}[]}}
  */
-export function buildSelectedIntents({ review, selectedIds = [], cvId = null, templateId, indexSummary }) {
+export function buildSelectedIntents({ review, selectedIds = [], cvId = null, templateId, indexSummary, source = "cv_review_coach" }) {
   const list = Array.isArray(review?.recommendations) ? review.recommendations : [];
   const selected = Array.isArray(selectedIds) ? selectedIds : [];
   const intents = [];
   const rejected = [];
   for (const rec of list) {
     if (!isPlainObject(rec) || !selected.includes(rec.id)) continue; // غير مختارة ⇒ تُهمل بصمت
-    const res = buildReviewIntent({ rec, selectedIds: selected, cvId, templateId, indexSummary });
+    const res = buildReviewIntent({ rec, selectedIds: selected, cvId, templateId, indexSummary, source });
     if (res.ok) intents.push(res.intent);
     else rejected.push({ id: rec.id, error: res.error });
   }
@@ -145,8 +148,11 @@ export function describeRejection(error) {
  * الوكيل هو من يقرأ الحالة الحالية ويقرّر الإجراء، والتنفيذ يبقى عبر مساره الحالي.
  */
 export function formatIntentMessage(intent) {
+  const fromTailor = intent?.source === "application_tailor";
   return [
-    "توصية مراجعة وافقتُ عليها. اقرأ الحالة الحالية للسيرة من CV_CONTEXT، ثم قرّر الإجراء المناسب ونفّذه بأدواتك المعتمدة.",
+    fromTailor
+      ? "توصية صادرة عن مخصّص الطلبات (تحليل وظيفة) وافقتُ عليها. الهدف هو النسخة المخصّصة المفتوحة أمامك الآن في CV_CONTEXT — لا تلمس أي سيرة أخرى. اقرأ حالتها الحالية، ثم قرّر الإجراء المناسب ونفّذه بأدواتك المعتمدة."
+      : "توصية مراجعة وافقتُ عليها. اقرأ الحالة الحالية للسيرة من CV_CONTEXT، ثم قرّر الإجراء المناسب ونفّذه بأدواتك المعتمدة.",
     "إن كان الهدف غير موجود في الحالة الحالية، أو كانت التوصية تحتاج معلومات ليست في سيرتي: لا تخترع محتوى ولا تخمّن — اسألني أو ارفض التنفيذ.",
     "نفّذ هذه التوصية وحدها، ولا تلمس شيئاً آخر.",
     `${INTENT_OPEN}\n${JSON.stringify(intent)}\n${INTENT_CLOSE}`

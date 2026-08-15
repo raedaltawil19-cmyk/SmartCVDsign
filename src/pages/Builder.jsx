@@ -47,7 +47,9 @@ export default function Builder() {
   const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
   const [showLog, setShowLog] = useState(false);
-  const [showSmart, setShowSmart] = useState(false);
+  // توصيات واردة من مخصّص الطلبات (جسر Job Tailor → مساعد السيرة) — تُفتح اللوحة فوراً لتُسلَّم كـIntents
+  const incomingIntents = Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [];
+  const [showSmart, setShowSmart] = useState(incomingIntents.length > 0);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -395,7 +397,7 @@ export default function Builder() {
   }, [processing]);
 
   // ── M6: توصيات المراجعة المختارة → Intent منظّم → Smart CV Assistant (نقطة التنفيذ الوحيدة) ──
-  const [pendingIntents, setPendingIntents] = useState([]);
+  const [pendingIntents, setPendingIntents] = useState(incomingIntents);
   const sendCycleRef = useRef(0); // كل ضغطة إرسال = دورة جديدة، فلا يُقيَّد التكرار بهوية التوصية للأبد
 
   const sendReviewToAssistant = (selectedIds) => {
@@ -420,7 +422,7 @@ export default function Builder() {
   };
 
   // ── نقطة اختيار المسار: تحسين عام (Review Coach) أو تخصيص لوظيفة — مسار واحد فقط لكل قرار ──
-  const [choiceOpen, setChoiceOpen] = useState(true);
+  const [choiceOpen, setChoiceOpen] = useState(incomingIntents.length === 0);
   const choiceReady = isWorkflowChoiceReady({ cvId: currentCvId, templateId, templateReviewStatus, processing });
 
   const chooseWorkflow = (choice) => {

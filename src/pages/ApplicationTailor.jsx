@@ -9,6 +9,11 @@ import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
 import { createTailoredCV, buildTailoredPayload } from "@/lib/cvProfiles";
 import { findExistingTailored } from "@/lib/tailoredLookup";
 import TailoringStartCard from "@/components/workflow/TailoringStartCard";
+import CVReviewCard from "@/components/review/CVReviewCard";
+import useTailorRecommendations from "@/lib/agent/useTailorRecommendations";
+import { buildSelectedIntents, formatIntentMessage, intentDeliveryKey, describeRejection } from "@/lib/agent/reviewIntent";
+import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { stripCVReview } from "@/lib/agent/cvReviewParser";
 
 const AGENT_NAME = "application_tailor";
 
@@ -37,6 +42,10 @@ export default function ApplicationTailor() {
   // تأكيد بدء التخصيص — لا تُنشأ أي نسخة قبل قرار المستخدم هنا
   const [pendingStart, setPendingStart] = useState(null);
   const [starting, setStarting] = useState(false);
+  // السيرة المستهدفة (النسخة المخصّصة) — تُقرأ فقط هنا؛ الكتابة عليها تتم في مساعد السيرة وحده
+  const [targetCv, setTargetCv] = useState(null);
+  const [sendError, setSendError] = useState("");
+  const jobReview = useTailorRecommendations({ messages, targetCv });
 
   useEffect(() => {
     if (!cvId) { setCvLoading(false); return; }
@@ -146,15 +155,19 @@ export default function ApplicationTailor() {
   };
 
   /** إرسال أول رسالة بعد تثبيت هدف التخصيص. لا كتابة على أي سيرة من هذه الصفحة. */
-  const postFirst = async (text, note) => {
+  const postFirst = async (text, note, record) => {
     let conv = conversations.find((c) => c.id === activeId);
     if (!conv) {
       await newConversation();
       conv = { id: activeId };
     }
     contextSentRef.current = true;
+    // فهرس المعرّفات المستقرّة للسيرة المستهدفة — ليبني الوكيل توصياته على عناصر حقيقية لا على تخمين
+    const ctx = record
+      ? `\n\n<<<CV_CONTEXT\n${JSON.stringify({ cvId: record.id, templateId: record.templateId, CV_INDEX: summarizeIndex(buildCVIndex(record.data)) })}\nCV_CONTEXT>>>`
+      : "";
     try {
-      await base44.agents.addMessage(conv, { role: "user", content: `السياق: ${note} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}` });
+      await base44.agents.addMessage(conv, { role: "user", content: `السياق: ${note} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}${ctx}` });
     } catch (e) {
       // ignore
     }
@@ -166,15 +179,17 @@ export default function ApplicationTailor() {
     const { text, ad, base, existing, cautious } = pendingStart;
     try {
       if (mode === "existing" && existing) {
-        await postFirst(text, `أعمل على النسخة المخصّصة الموجودة (معرف: ${existing.id}) المشتقّة من سيرتي الأساسية (معرف: ${base.id}). عدّل هذه النسخة فقط ولا تلمس الأساسية.`);
+        setTargetCv(existing);
+        await postFirst(text, `أعمل على النسخة المخصّصة الموجودة (معرف: ${existing.id}) المشتقّة من سيرتي الأساسية (معرف: ${base.id}). حلّلها وأعطني توصيات لهذه النسخة فقط.`, existing);
       } else if (mode === "new" && base) {
         const { created, error } = await createTailoredCV(cvRepository, { base, ad });
         if (error || !created) {
           await postFirst(text, "تعذّر تجهيز نسخة مخصّصة. لا تعدّل أي سيرة، وساعدني بالتحليل فقط.");
         } else {
-          let note = `أعمل على نسخة مخصّصة مستقلة (معرف: ${created.id}) مشتقّة من سيرتي الأساسية (معرف: ${base.id}). عدّل النسخة المخصّصة فقط، ولا تعدّل النسخة الأساسية إطلاقاً.`;
+          setTargetCv(created);
+          let note = `أعمل على نسخة مخصّصة مستقلة (معرف: ${created.id}) مشتقّة من سيرتي الأساسية (معرف: ${base.id}). حلّل هذه النسخة المخصّصة فقط، ولا تحلّل ولا تقترح تعديلاً على النسخة الأساسية.`;
           if (cautious) note += " ملاحظة: اختيار السيرة الأساسية غير حاسم، فأكّد معي أنها الأساس الصحيح قبل أي تخصيص جوهري.";
-          await postFirst(text, note);
+          await postFirst(text, note, created);
         }
       } else {
         await postFirst(text, "لم تُحدَّد سيرة أساسية بعد، فلا تُنشئ ولا تعدّل أي سيرة. ساعدني بتحليل الإعلان فقط واسألني عن الأساس.");
@@ -183,6 +198,43 @@ export default function ApplicationTailor() {
       setStarting(false);
       setPendingStart(null);
     }
+  };
+
+  /**
+   * جسر Job Tailor → Smart CV Assistant.
+   * لا كتابة هنا: يُبنى Intent منظّم لكل توصية مختارة فقط، ويُسلَّم إلى لوحة مساعد السيرة
+   * داخل صفحة بناء النسخة المخصّصة، حيث يبقى executeAssistantAction نقطة التنفيذ الوحيدة.
+   */
+  const sendToAssistant = async (selectedIds) => {
+    if (!targetCv) return;
+    setSendError("");
+    let fresh = targetCv;
+    try {
+      const rec = await cvRepository.get(targetCv.id);
+      if (rec) fresh = rec;
+    } catch (e) {
+      // القراءة فشلت → نتحقّق مقابل اللقطة المعروفة، وأي هدف غير موجود يُرفض في reviewIntent
+    }
+    const { intents, rejected } = buildSelectedIntents({
+      review: jobReview.review,
+      selectedIds,
+      cvId: fresh.id,
+      templateId: fresh.templateId,
+      indexSummary: summarizeIndex(buildCVIndex(fresh.data)),
+      source: "application_tailor"
+    });
+    if (rejected.length) setSendError(describeRejection(rejected[0].error));
+    if (intents.length === 0) return;
+    const cycle = `tailor-${Date.now()}`;
+    navigate(`/builder/${fresh.id}`, {
+      state: {
+        cvId: fresh.id,
+        assistantIntents: intents.map((intent) => ({
+          key: intentDeliveryKey(cycle, intent.recommendationId),
+          message: formatIntentMessage(intent)
+        }))
+      }
+    });
   };
 
   const onKey = (e) => {
@@ -287,7 +339,7 @@ export default function ApplicationTailor() {
               </div>
             )}
             {!loading && messages.map((m, i) => (
-              <MessageBubble key={i} message={m} />
+              <MessageBubble key={i} message={{ ...m, content: stripCVReview(m.content) }} />
             ))}
             {pendingStart && (
               <TailoringStartCard
@@ -303,6 +355,20 @@ export default function ApplicationTailor() {
                 onSkip={() => startTailoring("skip")}
                 onCancel={() => { setInput(pendingStart.text); setPendingStart(null); }}
               />
+            )}
+            {jobReview.ready && (
+              <div className="max-w-3xl mx-auto space-y-2">
+                <CVReviewCard
+                  review={jobReview.review}
+                  selectedIds={jobReview.selectedIds}
+                  onToggle={jobReview.toggleRecommendation}
+                  onSendToAssistant={sendToAssistant}
+                  onClose={jobReview.dismiss}
+                />
+                {sendError && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{sendError}</p>
+                )}
+              </div>
             )}
           </div>
 
