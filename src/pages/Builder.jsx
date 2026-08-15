@@ -18,7 +18,7 @@ import useCVReview from "@/lib/agent/useCVReview";
 import CVReviewCard from "@/components/review/CVReviewCard";
 import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import { logAction } from "@/lib/actionLog";
-import { buildSelectedIntents, formatIntentMessage, describeRejection } from "@/lib/agent/reviewIntent";
+import { buildSelectedIntents, formatIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 
 const A4_W = 794;
@@ -396,6 +396,7 @@ export default function Builder() {
 
   // ── M6: توصيات المراجعة المختارة → Intent منظّم → Smart CV Assistant (نقطة التنفيذ الوحيدة) ──
   const [pendingIntents, setPendingIntents] = useState([]);
+  const sendCycleRef = useRef(0); // كل ضغطة إرسال = دورة جديدة، فلا يُقيَّد التكرار بهوية التوصية للأبد
 
   const sendReviewToAssistant = (selectedIds) => {
     const { intents, rejected } = buildSelectedIntents({
@@ -410,9 +411,10 @@ export default function Builder() {
     }
     if (intents.length === 0) return;
     setShowSmart(true);
+    const cycle = ++sendCycleRef.current;
     setPendingIntents((prev) => [
       ...prev,
-      ...intents.map((intent) => ({ key: `${currentCvId || "draft"}:${intent.recommendationId}`, message: formatIntentMessage(intent) }))
+      ...intents.map((intent) => ({ key: intentDeliveryKey(cycle, intent.recommendationId), message: formatIntentMessage(intent) }))
     ]);
     logAction("ai_command", { command: `إرسال ${intents.length} توصية مراجعة إلى مساعد السيرة` });
   };

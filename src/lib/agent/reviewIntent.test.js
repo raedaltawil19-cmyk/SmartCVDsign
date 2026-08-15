@@ -3,7 +3,7 @@
  * نقية بالكامل: بلا وكيل ولا واجهة ولا قاعدة بيانات.
  * لا تعمل تلقائياً — استدعِ runReviewIntentTests() في Console أو صفحة تشخيص.
  */
-import { buildReviewIntent, buildSelectedIntents, formatIntentMessage, INTENT_OPEN, INTENT_CLOSE } from "./reviewIntent";
+import { buildReviewIntent, buildSelectedIntents, formatIntentMessage, intentDeliveryKey, INTENT_OPEN, INTENT_CLOSE } from "./reviewIntent";
 import * as reviewParser from "./cvReviewParser";
 import useCVReviewModule from "./useCVReview";
 import * as reviewSession from "./cvReviewSession";
@@ -112,6 +112,22 @@ export function runReviewIntentTests() {
       reviewParser.RECOMMENDATION_FIELDS.join(",") === "id,type,severity,title,problem,why,recommendation,target,dependsOn" &&
       reviewParser.MAX_RECOMMENDATIONS === 7 &&
       typeof reviewParser.parseCVReview === "function", reviewParser.RECOMMENDATION_FIELDS);
+  }
+
+  // N) التوصية نفسها تُرسَل مجدداً في دورة إرسال جديدة، ولا تُرسَل مرتين داخل الدورة نفسها
+  {
+    const sent = new Set();
+    const deliver = (cycle, ids) => ids.filter((id) => {
+      const k = intentDeliveryKey(cycle, id);
+      if (sent.has(k)) return false;
+      sent.add(k);
+      return true;
+    });
+    const first = deliver(1, ["r1", "r1"]); // نفس الدورة: مرة واحدة فقط
+    const again = deliver(2, ["r1"]);       // دورة جديدة: يُسمح بالإرسال من جديد
+    add("N. التكرار محدود بدورة الإرسال لا بهوية التوصية",
+      first.length === 1 && again.length === 1 && intentDeliveryKey(1, "r1") !== intentDeliveryKey(2, "r1"),
+      [first, again]);
   }
 
   const passed = results.filter((r) => r.pass).length;

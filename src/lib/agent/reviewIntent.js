@@ -117,6 +117,15 @@ export function buildSelectedIntents({ review, selectedIds = [], cvId = null, te
   return { intents, rejected };
 }
 
+/**
+ * مفتاح تسليم الرسالة — يمنع الإرسال المزدوج **داخل دورة الإرسال نفسها** فقط.
+ * عمداً لا يُبنى على (cvId + recommendationId) وحدهما: لو فعل، لَما استطاع المستخدم
+ * إرسال التوصية نفسها مرة أخرى في دورة مراجعة جديدة على السيرة نفسها.
+ */
+export function intentDeliveryKey(cycleId, recommendationId) {
+  return `cycle${cycleId}:${recommendationId}`;
+}
+
 /** رسائل بشرية لأسباب الرفض — للعرض فقط */
 export const INTENT_REJECT_MESSAGES = {
   TARGET_STALE: "تغيّرت السيرة بعد إنشاء هذه التوصية، فلم تُرسَل. أعد المراجعة لتُبنى على الحالة الحالية.",
