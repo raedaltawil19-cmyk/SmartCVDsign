@@ -129,7 +129,7 @@ export default function CreativeEdgeTemplate({ data: d, editable, actions, layou
         />
       </header>
       <div className="flex">
-        <main className="flex-1 py-10 pl-[45px] pr-[47px] space-y-7 bg-white">
+        <main className="flex-1 py-10 pl-[76px] pr-[76px] space-y-7 bg-white">
           {lay.main.map(render)}
         </main>
         {lay.sidebar.length > 0 && (
