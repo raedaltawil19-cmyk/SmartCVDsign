@@ -21,7 +21,7 @@ import WorkflowChoiceCard from "@/components/workflow/WorkflowChoiceCard";
 import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkflowActions } from "@/lib/workflowRoutes";
 import { logAction } from "@/lib/actionLog";
 import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
-import { needsEvidence, buildEvidenceRequest, describeEvidenceError } from "@/lib/agent/reviewEvidence";
+import { needsEvidence, buildEvidenceRequest, verifyEvidenceStillValid, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 import EvidenceDialog from "@/components/review/EvidenceDialog";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
@@ -454,7 +454,14 @@ export default function Builder() {
   const confirmEvidence = (evidence) => {
     const head = evidenceQueue[0];
     popEvidence();
-    if (head) deliverToAssistant([{ intent: head.intent, evidence }]);
+    if (!head) return;
+    // إعادة تحقّق قبل التسليم: تغيّرت السيرة بعد المراجعة ⇒ الحزمة قديمة ولا يُرسَل شيء
+    const check = verifyEvidenceStillValid({ intent: head.intent, data, request: head.request });
+    if (!check.ok) {
+      toast({ title: "لم تُرسَل التوصية", description: describeEvidenceError(check.error), variant: "destructive" });
+      return;
+    }
+    deliverToAssistant([{ intent: head.intent, evidence }]);
   };
 
   // ── نقطة اختيار المسار: تحسين عام (Review Coach) أو تخصيص لوظيفة — مسار واحد فقط لكل قرار ──

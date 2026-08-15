@@ -9,7 +9,7 @@
  * - لا يقرأ قاعدة بيانات ولا يعدّل شيئاً، ولا يحوّل التوصيات إلى CV_ACTION.
  * - مصدر الأقسام: ALL_SECTION_KEYS في cvIndex.js (بلا قائمة ثانية موازية).
  */
-import { ALL_SECTION_KEYS } from "@/lib/agent/cvIndex";
+import { ALL_SECTION_KEYS, FIELD_ROLES } from "@/lib/agent/cvIndex";
 
 export const REVIEW_OPEN = "<<<CV_REVIEW";
 export const REVIEW_CLOSE = "CV_REVIEW>>>";
@@ -20,7 +20,19 @@ export const RECOMMENDATION_TYPES = ["content", "structure", "layout", "ats", "p
 export const SEVERITIES = ["necessary", "valuable", "cosmetic"];
 /** أقسام السيرة الفعلية + "layout" كهدف بنيوي منصوص عليه في العقد */
 export const TARGET_SECTIONS = [...ALL_SECTION_KEYS, "layout"];
-export const RECOMMENDATION_FIELDS = ["id", "type", "severity", "title", "problem", "why", "recommendation", "target", "dependsOn", "evidencePack"];
+export const RECOMMENDATION_FIELDS = ["id", "type", "severity", "title", "problem", "why", "recommendation", "target", "dependsOn"];
+/** حقول اختيارية معرَّفة في العقد — وجودها لا يُسقط المراجعة، وغيابها لا يُسقطها */
+export const OPTIONAL_RECOMMENDATION_FIELDS = ["evidencePack"];
+/** مفاتيح الهدف المسموحة — field يجعل الهدف دقيقاً على مستوى الحقل */
+export const TARGET_KEYS = ["section", "itemRef", "field"];
+/** عقد حزمة الأدلّة المجهَّزة مسبقاً في مرحلة المراجعة (تشخيص فقط) */
+export const EVIDENCE_STATUSES = ["ready", "needs_user", "not_needed"];
+export const EVIDENCE_CONFIDENCES = ["high", "medium", "low"];
+export const EVIDENCE_FIELDS = ["status", "assessment", "existing", "relevant", "missing", "draft", "userConfirmationRequired"];
+export const EVIDENCE_LIST_FIELDS = ["existing", "relevant", "missing", "userConfirmationRequired"];
+export const ASSESSMENT_FIELDS = ["isValidRecommendation", "reason", "confidence"];
+/** الأقسام التي تُلزم توصيات المحتوى فيها بحزمة أدلّة */
+export const EVIDENCE_REQUIRED_SECTIONS = ["profil", "erfarenhet", "utbildning"];
 export const REVIEW_FIELDS = ["reviewStatus", "summary", "recommendations"];
 export const MAX_RECOMMENDATIONS = 7;
 
@@ -71,6 +83,51 @@ function collectIndexItemIds(cvIndex) {
   return ids;
 }
 
+/**
+ * تحقّق حزمة الأدلّة — fail-closed: أي نقص أو حقل غريب أو نوع خاطئ ⇒ خطأ.
+ * لا إصلاح تلقائي، ولا قبول جزئي، ولا استنتاج للحالة.
+ */
+function validateEvidencePack(pack, at) {
+  if (!isPlainObject(pack)) return `${at}.evidencePack: NOT_AN_OBJECT`;
+  const keys = Object.keys(pack);
+  const missing = EVIDENCE_FIELDS.filter((f) => !keys.includes(f));
+  if (missing.length) return `${at}.evidencePack: MISSING_FIELDS(${missing.join(",")})`;
+  const extra = keys.filter((k) => !EVIDENCE_FIELDS.includes(k));
+  if (extra.length) return `${at}.evidencePack: UNKNOWN_FIELDS(${extra.join(",")})`;
+
+  if (!EVIDENCE_STATUSES.includes(pack.status)) return `${at}.evidencePack: STATUS_INVALID`;
+
+  const a = pack.assessment;
+  if (!isPlainObject(a)) return `${at}.evidencePack.assessment: NOT_AN_OBJECT`;
+  const aKeys = Object.keys(a);
+  const aMissing = ASSESSMENT_FIELDS.filter((f) => !aKeys.includes(f));
+  if (aMissing.length) return `${at}.evidencePack.assessment: MISSING_FIELDS(${aMissing.join(",")})`;
+  const aExtra = aKeys.filter((k) => !ASSESSMENT_FIELDS.includes(k));
+  if (aExtra.length) return `${at}.evidencePack.assessment: UNKNOWN_FIELDS(${aExtra.join(",")})`;
+  // توصية غير صالحة لا تُعرض إطلاقاً — لا حالة عرض لها
+  if (a.isValidRecommendation !== true) return `${at}.evidencePack.assessment: NOT_A_VALID_RECOMMENDATION`;
+  if (!isFilledString(a.reason)) return `${at}.evidencePack.assessment: REASON_INVALID`;
+  if (!EVIDENCE_CONFIDENCES.includes(a.confidence)) return `${at}.evidencePack.assessment: CONFIDENCE_INVALID`;
+
+  for (const f of EVIDENCE_LIST_FIELDS) {
+    if (!Array.isArray(pack[f])) return `${at}.evidencePack.${f}: NOT_ARRAY`;
+    if (pack[f].some((v) => !isFilledString(v))) return `${at}.evidencePack.${f}: ITEM_INVALID`;
+  }
+  if (pack.draft !== null && !isFilledString(pack.draft)) return `${at}.evidencePack: DRAFT_INVALID`;
+
+  // اتساق الحالة مع محتواها — لا تُقبل حالة تدّعي شيئاً لا يسنده المحتوى
+  if (pack.status === "ready" && !isFilledString(pack.draft) && pack.userConfirmationRequired.length === 0) {
+    return `${at}.evidencePack: READY_WITHOUT_DRAFT`;
+  }
+  if (pack.status === "needs_user" && pack.missing.length === 0 && pack.userConfirmationRequired.length === 0) {
+    return `${at}.evidencePack: NEEDS_USER_WITHOUT_REQUEST`;
+  }
+  if (pack.status === "not_needed" && (pack.missing.length > 0 || pack.userConfirmationRequired.length > 0)) {
+    return `${at}.evidencePack: NOT_NEEDED_WITH_REQUEST`;
+  }
+  return null;
+}
+
 /** تحقّق توصية واحدة — يعيد رسالة الخطأ أو null */
 function validateRecommendation(rec, i, indexIds) {
   const at = `recommendations[${i}]`;
@@ -79,7 +136,7 @@ function validateRecommendation(rec, i, indexIds) {
   const keys = Object.keys(rec);
   const missing = RECOMMENDATION_FIELDS.filter((f) => !keys.includes(f));
   if (missing.length) return `${at}: MISSING_FIELDS(${missing.join(",")})`;
-  const extra = keys.filter((k) => !RECOMMENDATION_FIELDS.includes(k));
+  const extra = keys.filter((k) => !RECOMMENDATION_FIELDS.includes(k) && !OPTIONAL_RECOMMENDATION_FIELDS.includes(k));
   if (extra.length) return `${at}: UNKNOWN_FIELDS(${extra.join(",")})`;
 
   if (!isFilledString(rec.id)) return `${at}: ID_INVALID`;
@@ -91,9 +148,16 @@ function validateRecommendation(rec, i, indexIds) {
 
   if (!isPlainObject(rec.target)) return `${at}: TARGET_NOT_AN_OBJECT`;
   const targetKeys = Object.keys(rec.target);
-  const unknownTargetKeys = targetKeys.filter((k) => k !== "section" && k !== "itemRef");
+  const unknownTargetKeys = targetKeys.filter((k) => !TARGET_KEYS.includes(k));
   if (unknownTargetKeys.length) return `${at}: TARGET_UNKNOWN_FIELDS(${unknownTargetKeys.join(",")})`;
   if (!TARGET_SECTIONS.includes(rec.target.section)) return `${at}: TARGET_SECTION_INVALID`;
+
+  // field: اسم حقل حقيقي في هذا القسم فقط — لا تخمين ولا حقل من قسم آخر
+  if (targetKeys.includes("field")) {
+    const roles = FIELD_ROLES[rec.target.section];
+    if (!roles || !isFilledString(rec.target.field)) return `${at}: TARGET_FIELD_INVALID`;
+    if (!Object.keys(roles).includes(rec.target.field)) return `${at}: TARGET_FIELD_NOT_IN_SECTION`;
+  }
 
   if (targetKeys.includes("itemRef")) {
     if (!isFilledString(rec.target.itemRef)) return `${at}: ITEM_REF_INVALID`;
@@ -105,6 +169,15 @@ function validateRecommendation(rec, i, indexIds) {
   if (!Array.isArray(rec.dependsOn)) return `${at}: DEPENDS_ON_NOT_ARRAY`;
   if (rec.dependsOn.some((d) => !isFilledString(d))) return `${at}: DEPENDS_ON_ITEM_INVALID`;
   if (rec.dependsOn.includes(rec.id)) return `${at}: SELF_DEPENDENCY`;
+
+  // حزمة الأدلّة: إلزامية لتوصيات المحتوى في الأقسام النصّية، ومُتحقَّق منها كلما وُجدت
+  const needsPack = rec.type === "content" && EVIDENCE_REQUIRED_SECTIONS.includes(rec.target.section);
+  if (keys.includes("evidencePack")) {
+    const err = validateEvidencePack(rec.evidencePack, at);
+    if (err) return err;
+  } else if (needsPack) {
+    return `${at}: EVIDENCE_PACK_MISSING`;
+  }
 
   return null;
 }

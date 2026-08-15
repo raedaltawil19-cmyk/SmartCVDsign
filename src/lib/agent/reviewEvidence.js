@@ -1,96 +1,110 @@
 /**
  * reviewEvidence — طبقة الأدلّة/التأكيد (Recommendation Evidence Layer).
  *
- * قواعد معمارية (بالتصميم لا بالتعليق):
+ * دورها **تحقّق وعرض فقط**، لا اكتشاف: حزمة الأدلّة (evidencePack) تُجهَّز أثناء
+ * مرحلة المراجعة داخل cv_review_coach، وهذه الطبقة:
+ *   1) تتحقّق أن الهدف (قسم/عنصر/حقل) ما زال موجوداً في الحالة الحالية للسيرة،
+ *   2) تقرأ القيمة الحالية من السيرة نفسها (لا من كلام الوكيل)،
+ *   3) تُعيد الحزمة كما جاءت لتُعرض فوراً بلا أي تحليل جديد،
+ *   4) تعيد التحقّق قبل التسليم (stale ⇒ لا إرسال).
+ *
+ * قواعد معمارية:
  * - منطق نقيّ: لا React، لا base44، لا SavedCV، لا cvRepository، لا شبكة، لا بحث خارجي.
- * - لا تكتب شيئاً ولا تنفّذ شيئاً: مخرجها وصف لما يجب سؤال المستخدم عنه، ثم نصّ مؤكَّد.
- *   نقطة التنفيذ الوحيدة تبقى executeAssistantAction عبر Smart CV Assistant.
- * - fail-closed: أي هدف غير موجود في الحالة الحالية ⇒ لا طلب دليل ولا إرسال.
- * - الاقتراحات مرشَّحة فقط (candidate information) ومصدرها **بيانات السيرة نفسها**.
- *   لا يوجد في المشروع مصدر بحث آمن عن المصطلحات (SearchJobs/FetchJobAd تخصّ إعلانات
- *   الوظائف)، فلا نخترع نتائج بحث ولا ننسب للمستخدم دورة أو مهارة لم يؤكّدها.
+ * - لا تكتب شيئاً ولا تنفّذ شيئاً. نقطة التنفيذ الوحيدة تبقى executeAssistantAction.
+ * - fail-closed: لا حزمة صالحة أو هدف غير قابل للتحقّق ⇒ لا تأكيد ولا إرسال.
+ * - لا تولّد مرشَّحات من عناصر أخرى في السيرة (كان هذا سبب ظهور أدلّة غير مرتبطة).
  */
-import { FIELD_ROLES, SECTION_META, buildCVIndex, getByRef, normalizeText } from "@/lib/agent/cvIndex";
+import { FIELD_ROLES, SECTION_META, buildCVIndex, getByRef } from "@/lib/agent/cvIndex";
 import { sanitizeIntentText } from "@/lib/agent/reviewIntent";
 
-/** أقسام يمكن أن يكون وصفها ناقصاً ويحتاج معلومات من المستخدم */
-export const EVIDENCE_SECTIONS = ["profil", "erfarenhet", "utbildning"];
-const MAX_CANDIDATES = 8;
+/** الحالات التي تستدعي عرض بطاقة تأكيد قبل الإرسال */
+const INTERACTIVE_STATUSES = ["ready", "needs_user"];
 
 const descriptionField = (section) => {
   const roles = FIELD_ROLES[section] || {};
   return Object.keys(roles).find((f) => roles[f] === "description") || null;
 };
 
+/** الحقل المستهدف: ما حدّده الوكيل، وإلا حقل الوصف في القسم */
+const fieldOf = (intent) => {
+  const section = intent?.target?.section;
+  const roles = FIELD_ROLES[section] || {};
+  const f = intent?.target?.field;
+  return f && Object.keys(roles).includes(f) ? f : descriptionField(section);
+};
+
 const refOf = (intent) =>
   intent?.target?.itemRef || (intent?.target?.section === "profil" ? "profile_main" : null);
 
-/** هل تحتاج هذه التوصية تأكيد معلومات قبل الإرسال؟ (قرار بنيوي لا تخميني) */
+/** هل تمرّ هذه التوصية بطبقة التأكيد؟ قرار مبنيّ على الحزمة المجهَّزة لا على تخمين */
 export function needsEvidence(intent) {
-  const section = intent?.target?.section;
-  if (intent?.type !== "content") return false;
-  if (!EVIDENCE_SECTIONS.includes(section)) return false;
-  if (!descriptionField(section)) return false;
-  return !!refOf(intent);
+  const pack = intent?.evidencePack;
+  if (!pack || !INTERACTIVE_STATUSES.includes(pack.status)) return false;
+  return !!fieldOf(intent) && !!refOf(intent);
 }
 
-/** مرشَّحات من محتوى السيرة الحالي فقط، وما ورد في الوصف الحالي يُستثنى */
-function buildCandidates(index, section, itemRef, currentValue) {
-  const current = normalizeText(currentValue);
-  const out = [];
-  const push = (label, from) => {
-    const clean = String(label || "").trim();
-    if (!clean) return;
-    const norm = normalizeText(clean);
-    if (!norm || (current && current.includes(norm))) return;
-    if (out.some((c) => normalizeText(c.label) === norm)) return;
-    out.push({ id: `cand-${out.length}-${norm.slice(0, 12)}`, label: clean, from });
-  };
-  for (const sec of index.sections) {
-    if (sec.section === "fardigheter") sec.items.forEach((i) => push(i.label, "المهارات المسجّلة في سيرتك"));
-    if (sec.section === "sprak") sec.items.forEach((i) => push(i.label, "اللغات المسجّلة في سيرتك"));
-    if (sec.section === section && sec.kind === "list") {
-      sec.items.forEach((i) => { if (i.id !== itemRef) push(i.label, "عناصر أخرى في نفس القسم"); });
-    }
-  }
-  return out.slice(0, MAX_CANDIDATES);
+/** يقرأ الحقل المستهدف من الحالة الحالية — الحقيقة الوحيدة للقيمة الحالية */
+export function readTargetValue({ intent, data }) {
+  const field = fieldOf(intent);
+  const itemRef = refOf(intent);
+  if (!field) return { ok: false, error: "NO_TARGET_FIELD" };
+  if (!itemRef) return { ok: false, error: "ITEM_REF_MISSING" };
+  const found = getByRef(buildCVIndex(data), `${itemRef}.${field}`);
+  if (!found || found.type !== "field") return { ok: false, error: "TARGET_STALE" };
+  return { ok: true, field, itemRef, value: String(found.field.value ?? ""), itemLabel: found.item.label || "" };
 }
 
 /**
- * يبني طلب تأكيد لتوصية واحدة، بناءً على الحالة الحالية للسيرة.
- * @returns {{ok:true, request:object}|{ok:false, error:string}}
+ * يبني طلب التأكيد المعروض: الحزمة الجاهزة + القيمة الحالية المقروءة من السيرة.
+ * لا تحليل ولا اكتشاف هنا.
  */
 export function buildEvidenceRequest({ intent, data }) {
-  const section = intent?.target?.section;
-  const field = descriptionField(section);
-  if (!field) return { ok: false, error: "NO_DESCRIPTION_FIELD" };
-  const itemRef = refOf(intent);
-  if (!itemRef) return { ok: false, error: "ITEM_REF_MISSING" };
+  const pack = intent?.evidencePack;
+  if (!pack || !INTERACTIVE_STATUSES.includes(pack?.status)) return { ok: false, error: "NO_EVIDENCE_PACK" };
+  const target = readTargetValue({ intent, data });
+  if (!target.ok) return { ok: false, error: target.error };
 
-  const index = buildCVIndex(data);
-  const found = getByRef(index, `${itemRef}.${field}`);
-  if (!found || found.type !== "field") return { ok: false, error: "TARGET_STALE" };
+  const section = intent.target.section;
+  const clean = (list) => (Array.isArray(list) ? list.map((v) => sanitizeIntentText(v)).filter(Boolean) : []);
 
-  const currentValue = String(found.field.value ?? "");
   return {
     ok: true,
     request: {
       recommendationId: intent.recommendationId,
+      status: pack.status,
       section,
-      itemRef,
-      field,
-      title: sanitizeIntentText(intent.title),
-      question: sanitizeIntentText(intent.recommendation),
-      problem: sanitizeIntentText(intent.problem),
-      itemLabel: found.item.label || SECTION_META[section]?.labelAr || section,
+      itemRef: target.itemRef,
+      field: target.field,
       sectionLabel: SECTION_META[section]?.labelAr || section,
-      currentValue,
-      candidates: buildCandidates(index, section, itemRef, currentValue)
+      itemLabel: target.itemLabel || SECTION_META[section]?.labelAr || section,
+      currentValue: target.value,
+      title: sanitizeIntentText(intent.title),
+      problem: sanitizeIntentText(intent.problem),
+      why: sanitizeIntentText(intent.why),
+      question: sanitizeIntentText(intent.recommendation),
+      reason: sanitizeIntentText(pack.assessment?.reason),
+      confidence: pack.assessment?.confidence || "",
+      existing: clean(pack.existing),
+      relevant: clean(pack.relevant),
+      missing: clean(pack.missing),
+      confirmationRequired: clean(pack.userConfirmationRequired),
+      draft: pack.draft ? sanitizeIntentText(pack.draft) : ""
     }
   };
 }
 
-/** صياغة مبدئية من القيمة الحالية + ما أكّده المستخدم فقط — لا اختراع وقائع */
+/**
+ * إعادة تحقّق قبل التسليم: تغيّرت السيرة بعد المراجعة ⇒ الحزمة قديمة ولا تُرسَل.
+ */
+export function verifyEvidenceStillValid({ intent, data, request }) {
+  const target = readTargetValue({ intent, data });
+  if (!target.ok) return { ok: false, error: target.error };
+  if (target.field !== request.field || target.itemRef !== request.itemRef) return { ok: false, error: "TARGET_STALE" };
+  if (target.value !== request.currentValue) return { ok: false, error: "VALUE_CHANGED" };
+  return { ok: true };
+}
+
+/** صياغة مبدئية من القيمة الحالية + ما أكّده المستخدم فقط — تُستخدم فقط إن لم يوجد draft */
 export function composeDraft({ currentValue, confirmed = [], userText = "" }) {
   const base = String(currentValue || "").trim().replace(/[.،,]\s*$/, "");
   const items = confirmed.map((c) => String(c).trim()).filter(Boolean);
@@ -125,9 +139,11 @@ export function buildConfirmedEvidence({ request, confirmed = [], userText = "",
 }
 
 export const EVIDENCE_ERROR_MESSAGES = {
-  TARGET_STALE: "تغيّرت السيرة بعد إنشاء هذه التوصية، فلم يُفتح تأكيد المعلومات. أعد المراجعة.",
+  TARGET_STALE: "تغيّرت السيرة بعد إنشاء هذه التوصية، فلم تُرسَل. أعد المراجعة لتُبنى على الحالة الحالية.",
+  VALUE_CHANGED: "تغيّر نصّ هذا العنصر بعد المراجعة، فلم تُرسَل التوصية. أعد المراجعة أولاً.",
   ITEM_REF_MISSING: "التوصية لا تشير إلى عنصر محدّد في السيرة، فلا يمكن تأكيد معلوماتها.",
-  NO_DESCRIPTION_FIELD: "هذا القسم لا يحتوي وصفاً يمكن إكماله.",
+  NO_TARGET_FIELD: "التوصية لا تحدّد حقلاً قابلاً للتعديل في هذا القسم.",
+  NO_EVIDENCE_PACK: "لم تُجهَّز أدلّة لهذه التوصية في المراجعة.",
   EMPTY_VALUE: "النصّ فارغ — اكتب الصياغة النهائية قبل التأكيد."
 };
 

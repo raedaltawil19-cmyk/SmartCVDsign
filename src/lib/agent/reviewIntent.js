@@ -92,9 +92,13 @@ export function buildReviewIntent({ rec, selectedIds = [], cvId = null, template
       problem: rec.problem,
       why: rec.why,
       recommendation: rec.recommendation,
-      target: hasRef
-        ? { section: rec.target.section, itemRef: rec.target.itemRef }
-        : { section: rec.target.section },
+      target: {
+        section: rec.target.section,
+        ...(hasRef ? { itemRef: rec.target.itemRef } : {}),
+        ...(isFilledString(rec.target.field) ? { field: rec.target.field } : {})
+      },
+      // حزمة الأدلّة المجهَّزة في مرحلة المراجعة — تشخيص يُعرض للمستخدم، لا تعليمات ولا تنفيذ
+      evidencePack: isPlainObject(rec.evidencePack) ? rec.evidencePack : null,
       dependsOn,
       cvId,
       context: { templateId, verifiedAgainst: "current_cv_state", itemRefVerified: hasRef }

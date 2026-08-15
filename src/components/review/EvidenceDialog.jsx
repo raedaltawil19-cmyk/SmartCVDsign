@@ -21,12 +21,20 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
     setPicked((p) => (p.includes(label) ? p.filter((x) => x !== label) : [...p, label]));
 
   const toDraft = () => {
-    if (picked.length === 0 && !userText.trim()) {
+    const nothingAdded = picked.length === 0 && !userText.trim();
+    // الصياغة الجاهزة (draft) تكفي وحدها؛ أما ما يحتاج معلومة من المستخدم فلا يمضي بلا إضافة
+    if (nothingAdded && !request.draft) {
       setError("أكّد معلومة واحدة على الأقل أو اكتب معلوماتك الخاصة.");
       return;
     }
     setError("");
-    setText(composeDraft({ currentValue: request.currentValue, confirmed: picked, userText }));
+    setText(
+      nothingAdded
+        ? request.draft
+        : request.draft && !picked.length
+          ? [request.draft, userText.trim()].filter(Boolean).join(" ")
+          : composeDraft({ currentValue: request.currentValue, confirmed: picked, userText })
+    );
     setStep("draft");
   };
 
