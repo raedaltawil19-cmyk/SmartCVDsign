@@ -555,7 +555,11 @@ export default function Builder() {
       logAction("ai_command", { command: "تحسين السيرة بشكل عام" });
       return;
     }
-    if (startJobTailoring) navigate(`/tailor/${currentCvId}`);
+    if (startJobTailoring) {
+      // كلا مدخلي «تخصيص CV لوظيفة معينة» يجب أن يفتحا نفس الـPopup داخل Builder.
+      // لا تنقّل إلى /tailor ولا تفتح صفحة محادثة منفصلة.
+      setTailorOpen(true);
+    }
   };
 
   const acceptSuggestedTemplate = async () => {
