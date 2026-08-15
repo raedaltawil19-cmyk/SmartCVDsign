@@ -20,7 +20,7 @@ export const RECOMMENDATION_TYPES = ["content", "structure", "layout", "ats", "p
 export const SEVERITIES = ["necessary", "valuable", "cosmetic"];
 /** أقسام السيرة الفعلية + "layout" كهدف بنيوي منصوص عليه في العقد */
 export const TARGET_SECTIONS = [...ALL_SECTION_KEYS, "layout"];
-export const RECOMMENDATION_FIELDS = ["id", "type", "severity", "title", "problem", "why", "recommendation", "target", "dependsOn"];
+export const RECOMMENDATION_FIELDS = ["id", "type", "severity", "title", "problem", "why", "recommendation", "target", "dependsOn", "evidencePack"];
 export const REVIEW_FIELDS = ["reviewStatus", "summary", "recommendations"];
 export const MAX_RECOMMENDATIONS = 7;
 
