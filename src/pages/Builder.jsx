@@ -23,6 +23,7 @@ import { logAction } from "@/lib/actionLog";
 import { buildSelectedIntents, formatIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
+import CVRelationBar from "@/components/cv/CVRelationBar";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -61,6 +62,8 @@ export default function Builder() {
   const zoomReset = () => setUserZoom(1);
   const zoomFit = () => setUserZoom(null);
   const [currentCvId, setCurrentCvId] = useState(incoming?.cvId || paramCvId || null);
+  // بيانات علاقة السيرة (نوعها وأصلها) — للعرض والتنقّل فقط، لا تُكتب من هنا
+  const [cvMeta, setCvMeta] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(false);
@@ -139,6 +142,7 @@ export default function Builder() {
           if (rec.layout) setLayout(rec.layout);
           if (rec.templateSource) setTemplateSource(rec.templateSource);
           if (rec.templateReviewStatus) setTemplateReviewStatus(rec.templateReviewStatus);
+          setCvMeta({ cvType: rec.cvType, parentCvId: rec.parentCvId, jobApplicationId: rec.jobApplicationId, titel: rec.titel });
           setCurrentCvId(rec.id);
         }
       } catch (e) {
@@ -495,6 +499,8 @@ export default function Builder() {
           </div>
         </div>
       </header>
+
+      {!processing && <CVRelationBar cvId={currentCvId} meta={cvMeta} />}
 
       {review.ready && !reviewDismissed && !processing && (
         <div className="no-print shrink-0 px-4 pt-3 bg-slate-200/60">

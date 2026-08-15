@@ -5,7 +5,10 @@ import { useLanguage } from "@/lib/i18n";
 import { ArrowRight, Send, Loader2, MessageSquarePlus, Target, FileText } from "lucide-react";
 import MessageBubble from "@/components/agent/MessageBubble";
 import { useServices } from "@/hooks/useServices";
-import { startTailoringSession, adFromUserText } from "@/lib/tailoringSession";
+import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
+import { createTailoredCV, buildTailoredPayload } from "@/lib/cvProfiles";
+import { findExistingTailored } from "@/lib/tailoredLookup";
+import TailoringStartCard from "@/components/workflow/TailoringStartCard";
 
 const AGENT_NAME = "application_tailor";
 
@@ -31,6 +34,9 @@ export default function ApplicationTailor() {
   const [cvLoading, setCvLoading] = useState(!!cvId);
   const contextSentRef = useRef(false);
   const scrollRef = useRef(null);
+  // تأكيد بدء التخصيص — لا تُنشأ أي نسخة قبل قرار المستخدم هنا
+  const [pendingStart, setPendingStart] = useState(null);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     if (!cvId) { setCvLoading(false); return; }
@@ -112,40 +118,70 @@ export default function ApplicationTailor() {
     setSending(true);
     setInput("");
 
-    let finalText = text;
     if (!contextSentRef.current) {
-      // بداية جلسة تخصيص: اختيار الأساس (اختيار صريح أو Fast Matching) ثم إنشاء نسخة tailored مستقلة.
-      let targetId = cvId;
-      let note = "";
+      // لا إنشاء صامت: نحدّد الأساس ونعرضه، والنسخة تُنشأ بعد تأكيد المستخدم فقط.
+      const ad = adFromUserText(text);
       try {
         const list = await cvRepository.list("-updated_date");
-        const ses = await startTailoringSession({
-          repository: cvRepository,
-          list,
-          preferredId: cvId,
-          ad: adFromUserText(text),
-        });
-        if (ses.tailored) {
-          targetId = ses.tailored.id;
-          note = `أعمل على نسخة مخصّصة مستقلة (معرف: ${targetId}) مشتقّة من سيرتي الأساسية (معرف: ${ses.base.id}). عدّل النسخة المخصّصة فقط، ولا تعدّل النسخة الأساسية إطلاقاً.`;
-          if (ses.cautious) note += " ملاحظة: اختيار السيرة الأساسية غير حاسم، فأكّد معي أنها الأساس الصحيح قبل أي تخصيص جوهري.";
-        } else if (!cvId) {
-          note = "لم أستطع تحديد سيرة أساسية مناسبة لهذا الطلب. اسألني عن السيرة التي أريد الانطلاق منها بدل الاختيار عني.";
-        }
+        const resolved = resolveBaseCV({ list, preferredId: cvId, ad });
+        const expected = resolved.base ? buildTailoredPayload({ base: resolved.base, ad })?.payload?.titel : "";
+        const dup = resolved.base
+          ? findExistingTailored({ list, baseId: resolved.base.id, expectedTitel: expected })
+          : { existing: null, identity: "none" };
+        setPendingStart({ text, ad, base: resolved.base, confidence: resolved.confidence, cautious: resolved.cautious, error: resolved.error, existing: dup.existing, identity: dup.identity });
       } catch (e) {
-        // تعذّر تجهيز النسخة المخصّصة — نُكمل على السيرة المحددة بلا أي تعديل عليها
+        setPendingStart({ text, ad, base: null, error: "NO_CONFIDENT_BASE", existing: null, identity: "none" });
       }
-      const base = note || (targetId ? `سأعمل على سيرتي الذاتية المحفوظة (معرف: ${targetId}${cvTitle ? `، العنوان: ${cvTitle}` : ""}).` : "");
-      if (base) finalText = `السياق: ${base} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}`;
-      contextSentRef.current = true;
+      setSending(false);
+      return;
     }
 
     try {
-      await base44.agents.addMessage(conv, { role: "user", content: finalText });
+      await base44.agents.addMessage(conv, { role: "user", content: text });
     } catch (e) {
       // ignore
     } finally {
       setSending(false);
+    }
+  };
+
+  /** إرسال أول رسالة بعد تثبيت هدف التخصيص. لا كتابة على أي سيرة من هذه الصفحة. */
+  const postFirst = async (text, note) => {
+    let conv = conversations.find((c) => c.id === activeId);
+    if (!conv) {
+      await newConversation();
+      conv = { id: activeId };
+    }
+    contextSentRef.current = true;
+    try {
+      await base44.agents.addMessage(conv, { role: "user", content: `السياق: ${note} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}` });
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const startTailoring = async (mode) => {
+    if (!pendingStart || starting) return;
+    setStarting(true);
+    const { text, ad, base, existing, cautious } = pendingStart;
+    try {
+      if (mode === "existing" && existing) {
+        await postFirst(text, `أعمل على النسخة المخصّصة الموجودة (معرف: ${existing.id}) المشتقّة من سيرتي الأساسية (معرف: ${base.id}). عدّل هذه النسخة فقط ولا تلمس الأساسية.`);
+      } else if (mode === "new" && base) {
+        const { created, error } = await createTailoredCV(cvRepository, { base, ad });
+        if (error || !created) {
+          await postFirst(text, "تعذّر تجهيز نسخة مخصّصة. لا تعدّل أي سيرة، وساعدني بالتحليل فقط.");
+        } else {
+          let note = `أعمل على نسخة مخصّصة مستقلة (معرف: ${created.id}) مشتقّة من سيرتي الأساسية (معرف: ${base.id}). عدّل النسخة المخصّصة فقط، ولا تعدّل النسخة الأساسية إطلاقاً.`;
+          if (cautious) note += " ملاحظة: اختيار السيرة الأساسية غير حاسم، فأكّد معي أنها الأساس الصحيح قبل أي تخصيص جوهري.";
+          await postFirst(text, note);
+        }
+      } else {
+        await postFirst(text, "لم تُحدَّد سيرة أساسية بعد، فلا تُنشئ ولا تعدّل أي سيرة. ساعدني بتحليل الإعلان فقط واسألني عن الأساس.");
+      }
+    } finally {
+      setStarting(false);
+      setPendingStart(null);
     }
   };
 
@@ -253,6 +289,21 @@ export default function ApplicationTailor() {
             {!loading && messages.map((m, i) => (
               <MessageBubble key={i} message={m} />
             ))}
+            {pendingStart && (
+              <TailoringStartCard
+                base={pendingStart.base}
+                confidence={pendingStart.confidence}
+                cautious={pendingStart.cautious}
+                existing={pendingStart.existing}
+                identity={pendingStart.identity}
+                error={pendingStart.error}
+                busy={starting}
+                onStart={() => startTailoring("new")}
+                onOpenExisting={() => startTailoring("existing")}
+                onSkip={() => startTailoring("skip")}
+                onCancel={() => { setInput(pendingStart.text); setPendingStart(null); }}
+              />
+            )}
           </div>
 
           <div className="shrink-0 border-t border-slate-200 bg-white p-4">
