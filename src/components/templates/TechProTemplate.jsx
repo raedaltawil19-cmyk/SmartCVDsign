@@ -127,7 +127,7 @@ export default function TechProTemplate({ data: d, editable, actions, layout }) 
       </header>
 
       <main className="flex">
-        <div className="flex-1 py-9 pl-7 pr-9 space-y-7">
+        <div className="flex-1 py-9 pl-[45px] pr-[47px] space-y-7">
           {lay.main.map(render)}
         </div>
         {lay.sidebar.length > 0 && (
