@@ -16,6 +16,7 @@
  */
 import { FIELD_ROLES, SECTION_META, buildCVIndex, getByRef } from "@/lib/agent/cvIndex";
 import { sanitizeIntentText } from "@/lib/agent/reviewIntent";
+import { checkValueLanguage } from "@/lib/agent/cvLanguageGuard";
 
 /** الحالات التي تستدعي عرض بطاقة تأكيد قبل الإرسال */
 const INTERACTIVE_STATUSES = ["ready", "needs_user"];
@@ -75,6 +76,8 @@ export function buildEvidenceRequest({ intent, data }) {
       section,
       itemRef: target.itemRef,
       field: target.field,
+      // لغة السيرة تُحمَل مع الطلب لأن الحاجز اللغوي يعمل على القيمة قبل التسليم
+      cvLanguage: intent?.context?.cvLanguage || null,
       sectionLabel: SECTION_META[section]?.labelAr || section,
       itemLabel: target.itemLabel || SECTION_META[section]?.labelAr || section,
       currentValue: target.value,
@@ -105,26 +108,27 @@ export function verifyEvidenceStillValid({ intent, data, request }) {
 }
 
 /**
- * صياغة مبدئية من القيمة الحالية + ما أكّده المستخدم فقط — تُستخدم فقط إن لم يوجد draft.
- * محيَّدة لغوياً بالتصميم: لا كلمات وصل بأي لغة (لا سويدية ولا عربية ولا إنجليزية)،
- * فقط ترقيم، حتى لا تُدخل هذه الدالة لغة لا تطابق لغة السيرة. الصياغة اللغوية النهائية
- * مسؤولية المستخدم (تحرير النصّ) أو مسار التنفيذ بلغة السيرة المعلنة.
+ * القيمة المرشَّحة = **إجابة المستخدم الصريحة وحدها**، بلا أي إضافة من النظام.
+ *
+ * لا يدخلها: السؤال (recommendation)، ولا بنود التأكيد (userConfirmationRequired)،
+ * ولا السياق (relevant)، ولا نتائج البحث الخارجي، ولا نصّ تعليمات. والقيمة الحالية
+ * تبقى معروضة للمستخدم في خطوة الصياغة ليدمجها بنفسه إن أراد — لا تُدمج تلقائياً.
  */
-export function composeDraft({ currentValue, confirmed = [], userText = "" }) {
-  const base = String(currentValue || "").trim().replace(/[.،,]\s*$/, "");
-  const items = confirmed.map((c) => String(c).trim()).filter(Boolean);
-  const extra = String(userText || "").trim();
-  const parts = [];
-  if (base) parts.push(base);
-  if (items.length) parts.push(items.join(", "));
-  if (extra) parts.push(extra);
-  return parts.join(". ").replace(/\.\.+/g, ".").trim();
+export function composeDraft({ userText = "" }) {
+  return String(userText || "").trim();
 }
 
-/** ما يُسلَّم مع الـIntent — كله مؤكَّد من المستخدم صراحةً */
+/**
+ * ما يُسلَّم مع الـIntent.
+ * - confirmedValue = النصّ النهائي الذي وافق عليه المستخدم صراحةً (إجابته، أو صياغة اعتمدها بنفسه).
+ * - confirmedFacts = نقاط التأكيد التي أقرّها — سياق للوكيل لا قيمة تُكتب.
+ * - حاجز لغوي fail-closed: قيمة بلغة تخالف لغة السيرة ⇒ لا تسليم إطلاقاً.
+ */
 export function buildConfirmedEvidence({ request, confirmed = [], userText = "", finalText }) {
   const value = String(finalText || "").trim();
   if (!value) return { ok: false, error: "EMPTY_VALUE" };
+  const lang = checkValueLanguage({ value, cvLanguage: request?.cvLanguage });
+  if (!lang.ok) return { ok: false, error: lang.error };
   return {
     ok: true,
     evidence: {
@@ -146,7 +150,9 @@ export const EVIDENCE_ERROR_MESSAGES = {
   ITEM_REF_MISSING: "التوصية لا تشير إلى عنصر محدّد في السيرة، فلا يمكن تأكيد معلوماتها.",
   NO_TARGET_FIELD: "التوصية لا تحدّد حقلاً قابلاً للتعديل في هذا القسم.",
   NO_EVIDENCE_PACK: "لم تُجهَّز أدلّة لهذه التوصية في المراجعة.",
-  EMPTY_VALUE: "النصّ فارغ — اكتب الصياغة النهائية قبل التأكيد."
+  EMPTY_VALUE: "النصّ فارغ — اكتب الصياغة النهائية قبل التأكيد.",
+  VALUE_LANGUAGE_MISMATCH: "النصّ المعتمد ليس بلغة سيرتك، فلم يُرسَل. اكتب القيمة بلغة السيرة نفسها.",
+  CV_LANGUAGE_UNKNOWN: "لغة سيرتك غير محدَّدة، فلم يُرسَل نصّ بلغة أخرى. حدِّد لغة السيرة أولاً."
 };
 
 export function describeEvidenceError(error) {

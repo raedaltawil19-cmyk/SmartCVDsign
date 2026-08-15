@@ -142,11 +142,13 @@ export function runCVLanguageTests() {
       res.evidence?.confirmedValue);
   }
 
-  // 5) composeDraft بلا كلمات وصل مثبَّتة بأي لغة
+  // 5) composeDraft محيَّدة لغوياً ولا تبني قيمة إلا من إجابة المستخدم
   {
-    const out = composeDraft({ currentValue: "Systemutvecklare", confirmed: ["Java", "SQL"], userText: "" });
-    add("5. composeDraft محيَّدة لغوياً",
-      !/\b(och|inom|and|within|و)\b/i.test(out) && out.includes("Java") && out.includes("SQL"), out);
+    const out = composeDraft({ userText: "Java, SQL" });
+    const ignored = composeDraft({ currentValue: "Systemutvecklare", confirmed: ["تأكيد الجهة"], userText: "" });
+    add("5. composeDraft محيَّدة لغوياً وتعتمد إجابة المستخدم وحدها",
+      !/\b(och|inom|and|within|و)\b/i.test(out) && out === "Java, SQL" && ignored === "",
+      `${out} | ${ignored}`);
   }
 
   // 6) عقد CV_REVIEW لم يتغيّر: لا حقول لغة أُضيفت إلى التوصية أو evidencePack

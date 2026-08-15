@@ -3,6 +3,7 @@ import { X, ShieldCheck } from "lucide-react";
 import EvidenceCollectStep from "@/components/review/EvidenceCollectStep";
 import ResearchSourcesView from "@/components/review/ResearchSourcesView";
 import EvidenceDraftStep from "@/components/review/EvidenceDraftStep";
+import DraftApprovalOption from "@/components/review/DraftApprovalOption";
 import { composeDraft, buildConfirmedEvidence, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 
 /**
@@ -13,6 +14,7 @@ import { composeDraft, buildConfirmedEvidence, describeEvidenceError } from "@/l
 export default function EvidenceDialog({ request, index = 1, total = 1, onConfirm, onSkip, onCancel }) {
   const [step, setStep] = useState("collect");
   const [picked, setPicked] = useState([]);
+  const [useDraft, setUseDraft] = useState(false);
   const [userText, setUserText] = useState("");
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
@@ -21,20 +23,22 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
   const togglePick = (label) =>
     setPicked((p) => (p.includes(label) ? p.filter((x) => x !== label) : [...p, label]));
 
+  /**
+   * القيمة المرشَّحة تُبنى من **إجابة المستخدم** وحدها، أو من صياغة مقترحة اعتمدها صراحةً.
+   * نقاط التأكيد (picked) لا تدخل النصّ إطلاقاً — إقرار لا قيمة.
+   */
   const toDraft = () => {
-    const nothingAdded = picked.length === 0 && !userText.trim();
-    // الصياغة الجاهزة (draft) تكفي وحدها؛ أما ما يحتاج معلومة من المستخدم فلا يمضي بلا إضافة
-    if (nothingAdded && !request.draft) {
-      setError("أكّد معلومة واحدة على الأقل أو اكتب معلوماتك الخاصة.");
+    const answer = userText.trim();
+    const approvedDraft = useDraft && request.draft ? request.draft : "";
+    if (!answer && !approvedDraft) {
+      setError("اكتب إجابتك، أو اعتمد الصياغة المقترحة صراحةً.");
       return;
     }
     setError("");
     setText(
-      nothingAdded
-        ? request.draft
-        : request.draft && !picked.length
-          ? [request.draft, userText.trim()].filter(Boolean).join(" ")
-          : composeDraft({ currentValue: request.currentValue, confirmed: picked, userText })
+      approvedDraft
+        ? [approvedDraft, answer].filter(Boolean).join(" ")
+        : composeDraft({ userText: answer })
     );
     setStep("draft");
   };
@@ -59,11 +63,17 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
 
         <div className="px-4 py-3 max-h-[60vh] overflow-y-auto">
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
-            لم يتم تطبيق أي شيء بعد. لا تدخل أي معلومة إلى سيرتك إلا بعد تأكيدك، والتنفيذ يتم في مساعد السيرة بعد الضغط على زر التأكيد.
+            لم يتم تطبيق أي شيء بعد. ما يُكتب في سيرتك هو إجابتك أنت فقط — لا السؤال ولا نصوص السياق ولا نتائج المصادر.
           </p>
 
           {/* بحث خارجي مجهَّز مسبقاً — عرض فقط، ولا يبدأ بحثاً جديداً ولا يصبح معلومة مؤكَّدة عن المستخدم */}
           {step === "collect" && request.research && <ResearchSourcesView research={request.research} />}
+
+          {step === "collect" && (
+            <div className="mb-3">
+              <DraftApprovalOption draft={request.draft} checked={useDraft} onToggle={() => setUseDraft((v) => !v)} />
+            </div>
+          )}
 
           {step === "collect" ? (
             <EvidenceCollectStep
@@ -109,7 +119,7 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
                 العودة إلى التوصيات
               </button>
               <button type="button" onClick={toDraft} className="mr-auto text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
-                تأكيد المعلومات وإعداد التعديل
+                اعتماد إجابتي وإعداد التعديل
               </button>
             </>
           )}

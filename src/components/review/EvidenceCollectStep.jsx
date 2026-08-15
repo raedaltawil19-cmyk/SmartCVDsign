@@ -2,11 +2,15 @@ import { Check } from "lucide-react";
 import EvidencePackView from "@/components/review/EvidencePackView";
 
 /**
- * الخطوة 1: عرض حزمة الأدلّة الجاهزة + تأكيد ما يحتاج تأكيداً + نصّ حرّ.
- * لا اكتشاف أدلّة هنا، ولا كتابة إلى السيرة، ولا إرسال إلى أي وكيل.
+ * الخطوة 1: عرض حزمة الأدلّة + نقاط التأكيد + **إجابة المستخدم**.
+ *
+ * فصل قاطع:
+ * - نقاط التأكيد (confirmationRequired) أسئلة/شروط يقرّها المستخدم — لا تُكتب في السيرة أبداً.
+ * - السياق (relevant) والبحث الخارجي للعرض فقط، وغير قابل للاختيار كقيمة.
+ * - القيمة المرشَّحة للسيرة = ما يكتبه المستخدم في حقل الإجابة وحده.
  */
 export default function EvidenceCollectStep({ request, picked, onPick, userText, onUserText }) {
-  const confirmables = [...request.confirmationRequired, ...request.relevant.filter((r) => !request.confirmationRequired.includes(r))];
+  const confirmables = request.confirmationRequired;
 
   return (
     <div className="space-y-3">
@@ -14,7 +18,7 @@ export default function EvidenceCollectStep({ request, picked, onPick, userText,
 
       {request.question && (
         <div>
-          <p className="text-[11px] text-slate-400 mb-1">المطلوب منك</p>
+          <p className="text-[11px] text-slate-400 mb-1">السؤال</p>
           <p className="text-[12px] leading-relaxed text-slate-700">{request.question}</p>
         </div>
       )}
@@ -22,7 +26,7 @@ export default function EvidenceCollectStep({ request, picked, onPick, userText,
       {confirmables.length > 0 && (
         <div>
           <p className="text-[11px] text-slate-400 mb-1.5">
-            تحتاج تأكيدك — لن تُدخل إلى سيرتك إلا إذا أكّدتها أنت
+            نقاط تحتاج إقرارك — إقرارها لا يكتب نصّها في سيرتك
           </p>
           <ul className="space-y-1.5">
             {confirmables.map((label) => {
@@ -47,12 +51,12 @@ export default function EvidenceCollectStep({ request, picked, onPick, userText,
       )}
 
       <div>
-        <p className="text-[11px] text-slate-400 mb-1">معلوماتي الخاصة</p>
+        <p className="text-[11px] text-slate-400 mb-1">إجابتي — هذه وحدها ما قد يُكتب في السيرة</p>
         <textarea
           value={userText}
           onChange={(e) => onUserText(e.target.value)}
           rows={3}
-          placeholder="أضف ما ينقص بكلماتك…"
+          placeholder="اكتب إجابتك بلغة سيرتك…"
           className="w-full resize-none border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#000066] focus:ring-2 focus:ring-[#000066]/10 transition-all"
         />
       </div>
