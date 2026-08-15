@@ -125,7 +125,7 @@ export default function NordicMinimalTemplate({ data: d, editable, actions, layo
           containerClassName="mt-4"
         />
       </header>
-      <main className="pl-7 pr-9 pb-16 max-w-none mx-0 space-y-1">
+      <main className="pl-[45px] pr-[47px] pb-16 max-w-none mx-0 space-y-1">
         {lay.main.map(render)}
       </main>
     </div>
