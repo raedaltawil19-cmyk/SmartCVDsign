@@ -4,7 +4,10 @@ import EvidenceCollectStep from "@/components/review/EvidenceCollectStep";
 import ResearchSourcesView from "@/components/review/ResearchSourcesView";
 import EvidenceDraftStep from "@/components/review/EvidenceDraftStep";
 import DraftApprovalOption from "@/components/review/DraftApprovalOption";
+import AuthoritySelectStep from "@/components/review/AuthoritySelectStep";
+import AuthorityConfirmStep from "@/components/review/AuthorityConfirmStep";
 import { composeDraft, buildConfirmedEvidence, describeEvidenceError } from "@/lib/agent/reviewEvidence";
+import { isAuthorityCase, authorityOptions, buildAuthorityValue, AUTHORITY_ERROR_MESSAGES } from "@/lib/agent/authoritySelection";
 
 /**
  * Recommendation Evidence / Confirmation — مرحلة وسيطة قبل مساعد السيرة.
@@ -19,6 +22,12 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+  // مسار الجهة المصغّر — حالة مستقلّة تماماً عن مسار الأدلّة العام
+  const authorityMode = isAuthorityCase(request);
+  const options = authorityMode ? authorityOptions(request.research) : [];
+  const [authority, setAuthority] = useState("");
+  const [otherName, setOtherName] = useState("");
+  const [authorityValue, setAuthorityValue] = useState("");
 
   const togglePick = (label) =>
     setPicked((p) => (p.includes(label) ? p.filter((x) => x !== label) : [...p, label]));
@@ -41,6 +50,22 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
         : composeDraft({ userText: answer })
     );
     setStep("draft");
+  };
+
+  /** مسار الجهة: الاختيار وحده يبني القيمة السويدية، ثم تُعرض للتأكيد قبل الإرسال */
+  const toAuthorityDraft = () => {
+    const res = buildAuthorityValue({ request, selected: authority, otherName });
+    if (!res.ok) { setError(AUTHORITY_ERROR_MESSAGES[res.error] || describeEvidenceError(res.error)); return; }
+    setError("");
+    setAuthorityValue(res.value);
+    setAuthority(res.authorityName);
+    setStep("draft");
+  };
+
+  const confirmAuthority = () => {
+    const res = buildConfirmedEvidence({ request, confirmed: [authority], userText: "", finalText: authorityValue });
+    if (!res.ok) { setError(describeEvidenceError(res.error)); return; }
+    onConfirm(res.evidence);
   };
 
   const confirm = () => {
@@ -67,15 +92,27 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
           </p>
 
           {/* بحث خارجي مجهَّز مسبقاً — عرض فقط، ولا يبدأ بحثاً جديداً ولا يصبح معلومة مؤكَّدة عن المستخدم */}
-          {step === "collect" && request.research && <ResearchSourcesView research={request.research} />}
+          {!authorityMode && step === "collect" && request.research && <ResearchSourcesView research={request.research} />}
 
-          {step === "collect" && (
+          {!authorityMode && step === "collect" && (
             <div className="mb-3">
               <DraftApprovalOption draft={request.draft} checked={useDraft} onToggle={() => setUseDraft((v) => !v)} />
             </div>
           )}
 
-          {step === "collect" ? (
+          {authorityMode ? (
+            step === "collect" ? (
+              <AuthoritySelectStep
+                options={options}
+                selected={authority}
+                onSelect={setAuthority}
+                otherName={otherName}
+                onOtherName={setOtherName}
+              />
+            ) : (
+              <AuthorityConfirmStep authorityName={authority} currentValue={request.currentValue} value={authorityValue} />
+            )
+          ) : step === "collect" ? (
             <EvidenceCollectStep
               request={request}
               picked={picked}
@@ -106,7 +143,7 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
               <button type="button" onClick={onSkip} className="text-[12px] px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
                 رفض التوصية
               </button>
-              <button type="button" onClick={confirm} className="mr-auto text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
+              <button type="button" onClick={authorityMode ? confirmAuthority : confirm} className="mr-auto text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
                 استخدام الاقتراح وإرساله للتنفيذ
               </button>
             </>
@@ -118,8 +155,8 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
               <button type="button" onClick={onCancel} className="text-[12px] px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
                 العودة إلى التوصيات
               </button>
-              <button type="button" onClick={toDraft} className="mr-auto text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
-                اعتماد إجابتي وإعداد التعديل
+              <button type="button" onClick={authorityMode ? toAuthorityDraft : toDraft} className="mr-auto text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
+                {authorityMode ? "اعتماد الجهة وإعداد التعديل" : "اعتماد إجابتي وإعداد التعديل"}
               </button>
             </>
           )}
