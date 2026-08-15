@@ -6,6 +6,10 @@
  */
 import { runCvMoveSection, TOOL_NAME as MOVE_TOOL, CV_MOVE_SECTION_INPUT_SCHEMA } from "@/lib/agent/tools/cvMoveSectionTool";
 import { runCvEditContent, TOOL_NAME as EDIT_TOOL, CV_EDIT_CONTENT_INPUT_SCHEMA } from "@/lib/agent/tools/cvEditContentTool";
+import { describeEdit, describeFailedEdit } from "@/lib/agent/changeSummary";
+
+/** حدّ الـBatch — صلاحية محدودة لا مفتوحة */
+export const MAX_BATCH = 6;
 
 export const ACTION_OPEN = "<<<CV_ACTION";
 export const ACTION_CLOSE = "CV_ACTION>>>";
@@ -75,9 +79,47 @@ const EDIT_ERROR_MESSAGES = {
  * ينفّذ إجراء الوكيل بشكل ذرّي — إمّا layout وإمّا content، وليس الاثنين.
  * @returns {{status:"none"|"invalid"|"failed"|"applied", kind?:"layout"|"content", message?:string, newLayout?:object, newData?:object}}
  */
+/**
+ * Batch محدود من تعديلات المحتوى داخل كتلة CV_ACTION واحدة، بشكل ذرّي:
+ * كل تعديل يمرّ بنفس الأداة ونفس الحواجز، وأي فشل ⇒ لا يُطبَّق أي تعديل.
+ */
+function executeEditBatch(list, data) {
+  if (!Array.isArray(list) || list.length === 0) return { status: "invalid", message: "قائمة التعديلات فارغة." };
+  if (list.length > MAX_BATCH) return { status: "invalid", message: `لا يمكن تنفيذ أكثر من ${MAX_BATCH} تعديلات في طلب واحد.` };
+
+  let working = data;
+  const results = [];
+  for (const entry of list) {
+    const item = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    // نقبل شكلين: { action, arguments } أو arguments مباشرة — والتحقق واحد في الحالتين
+    const args = item.arguments && typeof item.arguments === "object" ? item.arguments : item;
+    const one = { action: EDIT_TOOL, arguments: args };
+    const shape = validateAction(one, null);
+    if (!shape.ok) {
+      results.push({ ok: false, label: describeFailedEdit(args, shape.message) });
+      return { status: "failed", kind: "content", atomic: true, results, message: "لم يُنفَّذ أي تعديل — أحد التعديلات المطلوبة غير صالح." };
+    }
+    const res = runCvEditContent(args, working);
+    if (!res || res.success !== true || !res.newData || typeof res.newData !== "object") {
+      const msg = EDIT_ERROR_MESSAGES[res?.errorCode] || res?.message || "تعذّر تنفيذ التعديل.";
+      results.push({ ok: false, label: describeFailedEdit(args, msg) });
+      return { status: "failed", kind: "content", atomic: true, results, message: "لم يُنفَّذ أي تعديل — العملية ذرّية والعنصر التالي فشل." };
+    }
+    working = res.newData;
+    results.push({ ok: true, label: describeEdit(res, working) });
+  }
+  return { status: "applied", kind: "content", results, message: "تم تحديث السيرة:", newData: working };
+}
+
 export function executeAssistantAction({ content, templateId, layout, data }) {
   const action = extractAction(content);
   if (!action) return { status: "none" };
+
+  // Batch: كتلة واحدة تحمل عدة تعديلات محتوى (لا layout — النقل يبقى إجراءً منفرداً)
+  if (Array.isArray(action.actions)) return executeEditBatch(action.actions, data);
+  if (action.action === EDIT_TOOL && Array.isArray(action.arguments?.edits)) {
+    return executeEditBatch(action.arguments.edits, data);
+  }
 
   const shape = validateAction(action, templateId);
   if (!shape.ok) return { status: "invalid", message: shape.message };
@@ -93,7 +135,13 @@ export function executeAssistantAction({ content, templateId, layout, data }) {
   const result = runCvEditContent(action.arguments, data);
   if (!result || result.success !== true || !result.newData || typeof result.newData !== "object") {
     const msg = EDIT_ERROR_MESSAGES[result?.errorCode] || result?.message || "تعذّر تنفيذ التعديل.";
-    return { status: "failed", kind: "content", message: msg };
+    return { status: "failed", kind: "content", message: msg, results: [{ ok: false, label: describeFailedEdit(action.arguments, msg) }] };
   }
-  return { status: "applied", kind: "content", message: result.summary, newData: result.newData };
+  return {
+    status: "applied",
+    kind: "content",
+    message: "تم تحديث السيرة:",
+    results: [{ ok: true, label: describeEdit(result, result.newData) }],
+    newData: result.newData
+  };
 }

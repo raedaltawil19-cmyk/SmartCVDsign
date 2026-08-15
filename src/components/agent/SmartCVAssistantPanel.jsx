@@ -4,6 +4,8 @@ import MessageBubble from "@/components/agent/MessageBubble";
 import { Send, Loader2, X, Sparkles } from "lucide-react";
 import { executeAssistantAction, stripAction } from "@/lib/agent/smartAssistantAction";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { summaryText } from "@/lib/agent/changeSummary";
+import ChangeSummaryNote from "@/components/agent/ChangeSummaryNote";
 
 const MARK = "<<<CV_CONTEXT";
 const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split(MARK)[0]).trim() });
@@ -63,11 +65,12 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       if (res.status === "none") continue;
       doneRef.current.add(key);
       if (res.status === "applied") {
-        if (res.kind === "content" && applyData) applyData(res.newData);
+        // الملخّص مبنيّ على نتيجة الأداة (res.results) لا على كلام الوكيل
+        if (res.kind === "content" && applyData) applyData(res.newData, summaryText(res.results));
         else if (res.kind === "layout" && applyLayout) applyLayout(res.newLayout);
-        setNotes((n) => [...n, { key, ok: true, text: res.message }]);
+        setNotes((n) => [...n, { key, ok: true, text: res.message, results: res.results }]);
       } else {
-        setNotes((n) => [...n, { key, ok: false, text: res.message }]);
+        setNotes((n) => [...n, { key, ok: false, text: res.message, results: res.results }]);
       }
     }
   }, [messages]);
@@ -123,11 +126,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
           </p>
         )}
         {messages.map((m, i) => <MessageBubble key={i} message={strip(m)} />)}
-        {notes.map((n) => (
-          <div key={n.key} className={`text-[11px] leading-relaxed rounded-xl px-3 py-2 border ${n.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
-            {n.text}
-          </div>
-        ))}
+        {notes.map((n) => <ChangeSummaryNote key={n.key} note={n} />)}
         {sending && (
           <div className="flex justify-start">
             <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3">
