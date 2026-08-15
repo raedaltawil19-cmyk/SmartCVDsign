@@ -13,8 +13,21 @@ const INDEX = [
 ];
 const CTX = { templateId: "stockholm", cvIndex: INDEX };
 
+/** حزمة أدلّة مطابقة للعقد الحالي — إلزامية لتوصيات content على profil/erfarenhet/utbildning */
+const PACK = (over = {}) => ({
+  status: "needs_user",
+  assessment: { isValidRecommendation: true, reason: "الوصف يسرد مسؤوليات بلا نتيجة قابلة للقياس.", confidence: "high" },
+  existing: ["وصف المسؤوليات الحالي"],
+  relevant: [],
+  missing: ["نتيجة قابلة للقياس لهذه المهمة"],
+  draft: null,
+  userConfirmationRequired: ["تأكيد النتيجة قبل كتابتها"],
+  ...over
+});
+
 const REC = (over = {}) => ({
   id: "r1",
+  evidencePack: PACK(),
   type: "content",
   severity: "necessary",
   title: "تحويل الوصف إلى إنجازات",

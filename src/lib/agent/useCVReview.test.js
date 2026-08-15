@@ -10,8 +10,20 @@ const BLOCK = (o) => `${REVIEW_OPEN}\n${JSON.stringify(o)}\n${REVIEW_CLOSE}`;
 const INDEX = [{ section: "erfarenhet", items: [{ id: "experience_8f31a", fields: [] }] }];
 const CTX = { templateId: "stockholm", cvIndex: INDEX };
 
+/** حزمة أدلّة مطابقة للعقد الحالي — إلزامية لتوصيات content على erfarenhet */
+const PACK = () => ({
+  status: "needs_user",
+  assessment: { isValidRecommendation: true, reason: "الوصف مسؤوليات بلا نتيجة قابلة للقياس.", confidence: "high" },
+  existing: ["الوصف الحالي"],
+  relevant: [],
+  missing: ["نتيجة قابلة للقياس"],
+  draft: null,
+  userConfirmationRequired: ["تأكيد النتيجة قبل كتابتها"]
+});
+
 const REC = (over = {}) => ({
   id: "r1",
+  evidencePack: PACK(),
   type: "content",
   severity: "necessary",
   title: "إضافة إنجازات قابلة للقياس",
