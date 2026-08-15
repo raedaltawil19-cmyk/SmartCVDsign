@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { useLanguage } from "@/lib/i18n";
 import { ArrowRight, Send, Loader2, MessageSquarePlus, Target, FileText } from "lucide-react";
 import MessageBubble from "@/components/agent/MessageBubble";
+import { useServices } from "@/hooks/useServices";
+import { startTailoringSession, adFromUserText } from "@/lib/tailoringSession";
 
 const AGENT_NAME = "application_tailor";
 
@@ -18,6 +20,7 @@ export default function ApplicationTailor() {
   const navigate = useNavigate();
   const { cvId } = useParams();
   const { dir, t } = useLanguage();
+  const { cvRepository } = useServices();
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -110,8 +113,30 @@ export default function ApplicationTailor() {
     setInput("");
 
     let finalText = text;
-    if (!contextSentRef.current && cvId) {
-      finalText = `السياق: سأعمل على سيرتي الذاتية المحفوظة (معرف: ${cvId}${cvTitle ? `، العنوان: ${cvTitle}` : ""}). اقرأها من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}`;
+    if (!contextSentRef.current) {
+      // بداية جلسة تخصيص: اختيار الأساس (اختيار صريح أو Fast Matching) ثم إنشاء نسخة tailored مستقلة.
+      let targetId = cvId;
+      let note = "";
+      try {
+        const list = await cvRepository.list("-updated_date");
+        const ses = await startTailoringSession({
+          repository: cvRepository,
+          list,
+          preferredId: cvId,
+          ad: adFromUserText(text),
+        });
+        if (ses.tailored) {
+          targetId = ses.tailored.id;
+          note = `أعمل على نسخة مخصّصة مستقلة (معرف: ${targetId}) مشتقّة من سيرتي الأساسية (معرف: ${ses.base.id}). عدّل النسخة المخصّصة فقط، ولا تعدّل النسخة الأساسية إطلاقاً.`;
+          if (ses.cautious) note += " ملاحظة: اختيار السيرة الأساسية غير حاسم، فأكّد معي أنها الأساس الصحيح قبل أي تخصيص جوهري.";
+        } else if (!cvId) {
+          note = "لم أستطع تحديد سيرة أساسية مناسبة لهذا الطلب. اسألني عن السيرة التي أريد الانطلاق منها بدل الاختيار عني.";
+        }
+      } catch (e) {
+        // تعذّر تجهيز النسخة المخصّصة — نُكمل على السيرة المحددة بلا أي تعديل عليها
+      }
+      const base = note || (targetId ? `سأعمل على سيرتي الذاتية المحفوظة (معرف: ${targetId}${cvTitle ? `، العنوان: ${cvTitle}` : ""}).` : "");
+      if (base) finalText = `السياق: ${base} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}`;
       contextSentRef.current = true;
     }
 
