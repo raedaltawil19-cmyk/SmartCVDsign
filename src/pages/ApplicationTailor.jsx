@@ -15,6 +15,7 @@ import TailorReviewNotice from "@/components/review/TailorReviewNotice";
 import useTailorRecommendations from "@/lib/agent/useTailorRecommendations";
 import { buildSelectedIntents, formatIntentMessage, intentDeliveryKey, describeRejection } from "@/lib/agent/reviewIntent";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
+import { cvContextBlock, activeTailorCv } from "@/lib/agent/tailorContext";
 import { stripCVReview } from "@/lib/agent/cvReviewParser";
 
 const AGENT_NAME = "application_tailor";
@@ -39,6 +40,8 @@ export default function ApplicationTailor() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [cvTitle, setCvTitle] = useState("");
+  // سجل السيرة المحدّدة كما هو (قراءة فقط) — لبناء CV_CONTEXT مع كل رسالة
+  const [selectedCv, setSelectedCv] = useState(null);
   const [cvLoading, setCvLoading] = useState(!!cvId);
   const contextSentRef = useRef(false);
   const scrollRef = useRef(null);
@@ -54,6 +57,7 @@ export default function ApplicationTailor() {
     if (!cvId) { setCvLoading(false); return; }
     base44.entities.SavedCV.get(cvId).then((rec) => {
       setCvTitle(rec?.titel || "سيرة بدون عنوان");
+      setSelectedCv(rec || null);
       setCvLoading(false);
     }).catch(() => {
       setCvTitle("تعذّر تحميل السيرة");
@@ -148,8 +152,11 @@ export default function ApplicationTailor() {
       return;
     }
 
+    // السيرة المحدّدة تُرفَق مع **كل** رسالة، لا مع الأولى فقط — فلا يفقد الوكيل معرّفها
+    // في محادثة قائمة أو عند لصق إعلان الوظيفة في رسالة لاحقة.
+    const ctx = cvContextBlock(activeTailorCv(targetCv, selectedCv));
     try {
-      await base44.agents.addMessage(conv, { role: "user", content: text });
+      await base44.agents.addMessage(conv, { role: "user", content: `${text}${ctx}` });
     } catch (e) {
       // ignore
     } finally {
@@ -166,9 +173,7 @@ export default function ApplicationTailor() {
     }
     contextSentRef.current = true;
     // فهرس المعرّفات المستقرّة للسيرة المستهدفة — ليبني الوكيل توصياته على عناصر حقيقية لا على تخمين
-    const ctx = record
-      ? `\n\n<<<CV_CONTEXT\n${JSON.stringify({ cvId: record.id, templateId: record.templateId, CV_INDEX: summarizeIndex(buildCVIndex(record.data)) })}\nCV_CONTEXT>>>`
-      : "";
+    const ctx = cvContextBlock(activeTailorCv(record, selectedCv));
     try {
       await base44.agents.addMessage(conv, { role: "user", content: `السياق: ${note} اقرأ السيرة من SavedCV أولاً قبل مساعدتي.\n\nطلبي: ${text}${ctx}` });
     } catch (e) {
