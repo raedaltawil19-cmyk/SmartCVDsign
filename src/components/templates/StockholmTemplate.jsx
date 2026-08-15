@@ -104,7 +104,7 @@ export default function StockholmTemplate({ data: d, editable, actions, layout }
   };
   return (
     <div dir="ltr" className="w-full h-full bg-white text-slate-800 flex" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
-      <aside className="w-[34%] bg-slate-50 py-8 pl-12 pr-6 space-y-8 border-r border-slate-200">
+      <aside className="w-[32%] bg-slate-50 py-8 pl-12 pr-6 space-y-8 border-r border-slate-200">
         <div>
           <h2 className="text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold mb-3">Kontakt</h2>
           <div className="space-y-1.5 text-[12.5px] text-slate-700">
@@ -115,7 +115,7 @@ export default function StockholmTemplate({ data: d, editable, actions, layout }
         </div>
         {lay.sidebar.map(render)}
       </aside>
-      <main className="flex-1 py-10 pl-7 pr-9 space-y-7 bg-white">
+      <main className="flex-1 py-10 pl-7 pr-10 space-y-7 bg-white">
         <header className="pb-5 border-b border-slate-200">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900"><EditText value={d.namn} editable={editable} onChange={(v) => actions.setField("namn", v)} placeholder="Ditt namn" /></h1>
           <p className="text-base text-slate-500 mt-1"><EditText value={d.titel} editable={editable} onChange={(v) => actions.setField("titel", v)} placeholder="Titel" /></p>
