@@ -185,4 +185,17 @@ export function formatIntentMessage(intent) {
   ].join("\n\n");
 }
 
+/**
+ * رسالة تسليم لتوصية مرّت بطبقة التأكيد (Evidence Layer): كل المعلومات فيها أكّدها
+ * المستخدم صراحةً. لا تنفّذ شيئاً هنا — الوكيل هو من يبني كتلة الإجراء بأدواته المعتمدة.
+ */
+export function formatConfirmedIntentMessage(intent, evidence) {
+  return [
+    formatIntentMessage(intent),
+    "أكّدتُ المعلومات التالية بنفسي قبل الإرسال، وهي البيانات المعتمدة الوحيدة لهذا التعديل:",
+    `${INTENT_OPEN}\n${JSON.stringify({ confirmedEvidence: evidence })}\n${INTENT_CLOSE}`,
+    "نفّذ تعديلاً واحداً: cv_edit_content / replace_field على العنصر والحقل المذكورين في confirmedEvidence، والقيمة الجديدة هي confirmedValue حرفياً كما هي. اقرأ expectedValue من CV_CONTEXT الحالي لا من هذه الكتلة. لا تضف أي معلومة أخرى، ولا توسّع النصّ، ولا تستنتج مهارات أو دورات لم تُذكر في confirmedFacts أو confirmedValue."
+  ].join("\n\n");
+}
+
 export default buildReviewIntent;

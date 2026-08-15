@@ -20,7 +20,9 @@ import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import WorkflowChoiceCard from "@/components/workflow/WorkflowChoiceCard";
 import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkflowActions } from "@/lib/workflowRoutes";
 import { logAction } from "@/lib/actionLog";
-import { buildSelectedIntents, formatIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
+import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
+import { needsEvidence, buildEvidenceRequest, describeEvidenceError } from "@/lib/agent/reviewEvidence";
+import EvidenceDialog from "@/components/review/EvidenceDialog";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
@@ -400,6 +402,24 @@ export default function Builder() {
   const [pendingIntents, setPendingIntents] = useState(incomingIntents);
   const sendCycleRef = useRef(0); // كل ضغطة إرسال = دورة جديدة، فلا يُقيَّد التكرار بهوية التوصية للأبد
 
+  // طابور تأكيد المعلومات — لا يفتح مساعد السيرة ولا يمسّ السيرة؛ مجرّد أسئلة معروضة للمستخدم
+  const [evidenceQueue, setEvidenceQueue] = useState([]);
+
+  /** نقطة التسليم الوحيدة إلى مساعد السيرة — بعد التأكيد فقط */
+  const deliverToAssistant = (items) => {
+    if (items.length === 0) return;
+    setShowSmart(true);
+    const cycle = ++sendCycleRef.current;
+    setPendingIntents((prev) => [
+      ...prev,
+      ...items.map(({ intent, evidence }) => ({
+        key: intentDeliveryKey(cycle, intent.recommendationId),
+        message: evidence ? formatConfirmedIntentMessage(intent, evidence) : formatIntentMessage(intent)
+      }))
+    ]);
+    logAction("ai_command", { command: `إرسال ${items.length} توصية مراجعة إلى مساعد السيرة` });
+  };
+
   const sendReviewToAssistant = (selectedIds) => {
     const { intents, rejected } = buildSelectedIntents({
       review: cvReview.review,
@@ -412,13 +432,29 @@ export default function Builder() {
       toast({ title: "لم تُرسَل بعض التوصيات", description: describeRejection(rejected[0].error), variant: "destructive" });
     }
     if (intents.length === 0) return;
-    setShowSmart(true);
-    const cycle = ++sendCycleRef.current;
-    setPendingIntents((prev) => [
-      ...prev,
-      ...intents.map((intent) => ({ key: intentDeliveryKey(cycle, intent.recommendationId), message: formatIntentMessage(intent) }))
-    ]);
-    logAction("ai_command", { command: `إرسال ${intents.length} توصية مراجعة إلى مساعد السيرة` });
+
+    // ما يحتاج معلومات من المستخدم يمرّ بطبقة التأكيد أولاً؛ الباقي يُسلَّم كما في السابق
+    const direct = [];
+    const queue = [];
+    for (const intent of intents) {
+      if (!needsEvidence(intent)) { direct.push({ intent }); continue; }
+      const res = buildEvidenceRequest({ intent, data });
+      if (!res.ok) {
+        toast({ title: "لم تُرسَل توصية", description: describeEvidenceError(res.error), variant: "destructive" });
+        continue;
+      }
+      queue.push({ intent, request: res.request });
+    }
+    if (queue.length) setEvidenceQueue((q) => [...q, ...queue]);
+    deliverToAssistant(direct);
+  };
+
+  const popEvidence = () => setEvidenceQueue((q) => q.slice(1));
+
+  const confirmEvidence = (evidence) => {
+    const head = evidenceQueue[0];
+    popEvidence();
+    if (head) deliverToAssistant([{ intent: head.intent, evidence }]);
   };
 
   // ── نقطة اختيار المسار: تحسين عام (Review Coach) أو تخصيص لوظيفة — مسار واحد فقط لكل قرار ──
@@ -621,6 +657,18 @@ export default function Builder() {
             onClose={() => setShowSmart(false)}
           />
         </div>
+      )}
+
+      {evidenceQueue.length > 0 && (
+        <EvidenceDialog
+          key={evidenceQueue[0].request.recommendationId}
+          request={evidenceQueue[0].request}
+          index={1}
+          total={evidenceQueue.length}
+          onConfirm={confirmEvidence}
+          onSkip={popEvidence}
+          onCancel={popEvidence}
+        />
       )}
 
       <ActionLogPanel open={showLog} onClose={() => setShowLog(false)} />
