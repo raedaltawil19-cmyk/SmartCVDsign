@@ -54,7 +54,7 @@ export function EditText({ value, editable, onChange, className, as = "input", p
       );
     }
     return (
-      <span className={cn(className, "cursor-text")} onClick={activate}>
+      <span className={cn(className, "cursor-text block w-full")} onClick={activate}>
         {value ? value : ""}
       </span>
     );
