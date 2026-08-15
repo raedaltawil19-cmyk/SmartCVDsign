@@ -1,4 +1,4 @@
-import { X, ClipboardCheck } from "lucide-react";
+import { X, ClipboardCheck, Sparkles } from "lucide-react";
 import CVRecommendationItem from "@/components/review/CVRecommendationItem";
 
 const SEVERITY_ORDER = { necessary: 0, valuable: 1, cosmetic: 2 };
@@ -8,7 +8,7 @@ const SEVERITY_ORDER = { necessary: 0, valuable: 1, cosmetic: 2 };
  * لا زر تطبيق، ولا تعديل سيرة، ولا حفظ، ولا CV_ACTION.
  * القيم الداخلية (severity/type/id) تُعرض مترجَمةً دون تغييرها.
  */
-export default function CVReviewCard({ review, selectedIds = [], onToggle, onClose }) {
+export default function CVReviewCard({ review, selectedIds = [], onToggle, onClose, onSendToAssistant }) {
   if (!review) return null;
   const noImprovement = review.reviewStatus === "no_improvement";
   const list = [...review.recommendations].sort(
@@ -53,6 +53,23 @@ export default function CVReviewCard({ review, selectedIds = [], onToggle, onClo
           </>
         )}
       </div>
+
+      {!noImprovement && onSendToAssistant && (
+        <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100 bg-slate-50">
+          <p className="text-[11px] text-slate-500">
+            {selectedIds.length > 0 ? "سيتولّى مساعد السيرة تنفيذ ما اخترته فقط." : "اختر توصية واحدة أو أكثر لتنفيذها."}
+          </p>
+          <button
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={() => onSendToAssistant(selectedIds)}
+            className="mr-auto inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg bg-[#000066] text-white disabled:opacity-40 hover:bg-[#00003d] transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>أرسل المحدد إلى مساعد السيرة</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

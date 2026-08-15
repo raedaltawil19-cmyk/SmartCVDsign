@@ -13,7 +13,7 @@ const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split
  * ترسل السيرة الحالية (cvModel + template + layout) كسياق مع كل رسالة،
  * فتكون إجابات الوكيل مبنية على السيرة المعروضة فعلاً لا على شكلها البصري.
  */
-export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, onLayoutChange, onDataChange, onClose }) {
+export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, pendingIntents, onLayoutChange, onDataChange, onClose }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -72,17 +72,37 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
     }
   }, [messages]);
 
-  const send = async (e) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || !conversation || sending) return;
+  // إرسال أي رسالة مصحوبةً بالحالة الحالية للسيرة — نقطة الإرسال الوحيدة للوحة
+  const postRef = useRef(null);
+  postRef.current = async (text) => {
+    if (!conversation) return;
     const { data: d, layout: l, templateId: t, cvId: id } = ctxRef.current;
-    setInput("");
     setSending(true);
     await base44.agents.addMessage(conversation, {
       role: "user",
       content: `${text}\n\n${MARK}\n${JSON.stringify({ cvId: id, templateId: t, layout: l, CV_DATA: d, CV_INDEX: summarizeIndex(buildCVIndex(d)) })}\nCV_CONTEXT>>>`
     });
+  };
+
+  // توصيات المراجعة التي وافق عليها المستخدم — تُسلَّم كـIntent منظّم، كل واحدة رسالة مستقلة ومرة واحدة.
+  const sentIntentsRef = useRef(new Set());
+  useEffect(() => {
+    if (!conversation?.id || !Array.isArray(pendingIntents) || pendingIntents.length === 0) return;
+    (async () => {
+      for (const it of pendingIntents) {
+        if (!it?.key || sentIntentsRef.current.has(it.key)) continue;
+        sentIntentsRef.current.add(it.key);
+        await postRef.current(it.message);
+      }
+    })();
+  }, [pendingIntents, conversation?.id]);
+
+  const send = async (e) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || !conversation || sending) return;
+    setInput("");
+    await postRef.current(text);
   };
 
   return (

@@ -18,6 +18,8 @@ import useCVReview from "@/lib/agent/useCVReview";
 import CVReviewCard from "@/components/review/CVReviewCard";
 import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import { logAction } from "@/lib/actionLog";
+import { buildSelectedIntents, formatIntentMessage, describeRejection } from "@/lib/agent/reviewIntent";
+import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -392,6 +394,29 @@ export default function Builder() {
     return () => { delete window.__cvcraftStartReview; };
   }, [processing]);
 
+  // ── M6: توصيات المراجعة المختارة → Intent منظّم → Smart CV Assistant (نقطة التنفيذ الوحيدة) ──
+  const [pendingIntents, setPendingIntents] = useState([]);
+
+  const sendReviewToAssistant = (selectedIds) => {
+    const { intents, rejected } = buildSelectedIntents({
+      review: cvReview.review,
+      selectedIds,
+      cvId: currentCvId,
+      templateId,
+      indexSummary: summarizeIndex(buildCVIndex(data)) // الحالة الحالية لا لقطة المراجعة
+    });
+    if (rejected.length) {
+      toast({ title: "لم تُرسَل بعض التوصيات", description: describeRejection(rejected[0].error), variant: "destructive" });
+    }
+    if (intents.length === 0) return;
+    setShowSmart(true);
+    setPendingIntents((prev) => [
+      ...prev,
+      ...intents.map((intent) => ({ key: `${currentCvId || "draft"}:${intent.recommendationId}`, message: formatIntentMessage(intent) }))
+    ]);
+    logAction("ai_command", { command: `إرسال ${intents.length} توصية مراجعة إلى مساعد السيرة` });
+  };
+
   const acceptSuggestedTemplate = async () => {
     // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
     setTemplateId(review.templateId);
@@ -475,6 +500,7 @@ export default function Builder() {
             review={cvReview.review}
             selectedIds={cvReview.selectedIds}
             onToggle={cvReview.toggleRecommendation}
+            onSendToAssistant={sendReviewToAssistant}
             onClose={cvReview.dismiss}
           />
         </div>
@@ -552,6 +578,7 @@ export default function Builder() {
             layout={layout}
             templateId={templateId}
             cvId={currentCvId}
+            pendingIntents={pendingIntents}
             onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
             onDataChange={(d) => { setData(d); logAction("ai_command", { command: "تعديل محتوى عبر مساعد السيرة" }); }}
             onClose={() => setShowSmart(false)}
