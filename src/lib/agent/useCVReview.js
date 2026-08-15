@@ -13,6 +13,7 @@ import { createReviewConversation, sendReviewRequest, isReviewContextReady } fro
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { parseCVReview, stripCVReview } from "@/lib/agent/cvReviewParser";
 import { extractResearch, stripResearch } from "@/lib/agent/reviewResearch";
+import { reviewVersionKey, getCachedReview, setCachedReview } from "@/lib/agent/reviewCache";
 import { base44 } from "@/api/base44Client";
 
 /**
@@ -62,6 +63,9 @@ export default function useCVReview(state) {
   const [error, setError] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [dismissed, setDismissed] = useState(false);
+  // الكشف للمستخدم منفصل عن اكتمال المراجعة: التشغيل المسبق يجهّز النتيجة ولا يعرضها،
+  // والعرض يحدث فقط عندما يطلب المستخدم «تحسين CV» صراحةً.
+  const [revealed, setRevealed] = useState(false);
   // نتائج البحث الخارجي المجهَّزة مسبقاً — حالة **منفصلة تماماً** عن كائن المراجعة،
   // مفتاحها recommendationId. لا تُدمج في review ولا تُعرض في بطاقة التوصية.
   const [researchByRecommendation, setResearchByRecommendation] = useState({});
@@ -74,6 +78,8 @@ export default function useCVReview(state) {
   const pollTimersRef = useRef([]);
   const contextRef = useRef(null); // لقطة { templateId, cvIndex } لحظة بدء المراجعة
   const conversationRef = useRef(null);
+  const requestRef = useRef(""); // نصّ الطلب الذي بدأت به الدورة الحالية
+  const cacheKeyRef = useRef(null); // مفتاح نسخة السيرة لهذه الدورة
 
   // حالة Builder الحالية — تُقرأ لحظة الإرسال فقط، ولا تُشغّل مراجعة جديدة عند تغيّرها
   const stateRef = useRef(state);
@@ -100,6 +106,9 @@ export default function useCVReview(state) {
     setLoading(false);
     setError(null);
     setDismissed(false);
+    setRevealed(false);
+    requestRef.current = "";
+    cacheKeyRef.current = null;
   }, [cleanup]);
 
   // تغيّر السيرة ⇒ إسقاط نتيجة المراجعة القديمة نهائياً (لا تُعرض على سيرة أخرى)
@@ -110,11 +119,57 @@ export default function useCVReview(state) {
 
   useEffect(() => cleanup, [cleanup]);
 
-  const run = useCallback(async (userRequest) => {
-    if (startedRef.current) return; // دورة واحدة لكل مراجعة
+  /**
+   * تشغيل المراجعة. `reveal` يحدّد العرض فقط، ولا يمسّ محتوى الطلب ولا التحليل:
+   * التشغيل المسبق (reveal=false) يرسل نفس الرسالة ونفس السياق إلى نفس الوكيل بنفس
+   * مهاراته وبحثه، ويخزّن النتيجة المكتملة كما هي؛ الضغط على «تحسين CV» يكشفها.
+   */
+  const start = useCallback(async (userRequest, reveal) => {
     const ctxState = stateRef.current;
     if (!isReviewContextReady(ctxState || {})) return;
+    const request = String(userRequest || "").trim();
+    const key = reviewVersionKey({ cvId: ctxState.cvId, templateId: ctxState.templateId, data: ctxState.data, userRequest: request });
+
+    // نتيجة مكتملة لنفس نسخة السيرة ونفس الطلب: تُعرض كما هي بلا إعادة تحليل ولا نقص
+    const cached = getCachedReview(key);
+    if (cached) {
+      settledRef.current = true;
+      startedRef.current = true;
+      requestRef.current = request;
+      cacheKeyRef.current = key;
+      setReview(cached.review);
+      setMessage(cached.message);
+      setResearchByRecommendation(cached.research || {});
+      setLoading(false);
+      setError(null);
+      if (reveal) setRevealed(true);
+      return;
+    }
+
+    // تغيّرت نسخة السيرة (أو الطلب) عن الدورة السابقة ⇒ مراجعة كاملة جديدة على الحالة الحالية.
+    // دورة جارية على النسخة نفسها لا تُقطع أبداً، ولا تُقطع دورة جارية إلا بطلب صريح من المستخدم.
+    const sameCycle = cacheKeyRef.current === key;
+    if (startedRef.current && !sameCycle && (settledRef.current || reveal)) {
+      cleanup();
+      seenRef.current = new Map();
+      doneRef.current = new Set();
+      settledRef.current = false;
+      startedRef.current = false;
+      setReview(null);
+      setMessage("");
+      setResearchByRecommendation({});
+      setSelectedIds([]);
+      setError(null);
+    }
+    if (startedRef.current) {
+      // دورة جارية ⇒ ننتظرها ونكشفها عند اكتمالها
+      if (reveal) setRevealed(true);
+      return;
+    }
     startedRef.current = true;
+    requestRef.current = request;
+    cacheKeyRef.current = key;
+    if (reveal) setRevealed(true);
     setLoading(true);
     setError(null);
     // لقطة سياق التحقّق: نفس البيانات التي أُرسلت للوكيل، فلا يتغيّر معيار itemRef أثناء المراجعة
@@ -139,7 +194,8 @@ export default function useCVReview(state) {
       setReview(hit.review);
       setMessage(hit.text);
       setResearchByRecommendation(hit.research || {}); // غياب البحث أو خلله ⇒ خريطة فارغة، والمراجعة كما هي
-
+      // تخزين النتيجة المكتملة كما هي — بلا فلترة ولا تعديل ولا اختصار
+      setCachedReview(cacheKeyRef.current, { review: hit.review, message: hit.text, research: hit.research || {} });
     };
 
     try {
@@ -155,6 +211,7 @@ export default function useCVReview(state) {
       unsubRef.current = base44.agents.subscribeToConversation(conversation.id, (payload) => handle(payload?.messages));
 
       const sent = await sendReviewRequest(conversation, ctxState, userRequest);
+
       if (sent.error) {
         setError("REVIEW_START_FAILED");
         setLoading(false);
@@ -172,14 +229,22 @@ export default function useCVReview(state) {
           // القراءة فشلت → يبقى الاشتراك هو المصدر
         }
       };
-      // المدى ممدود (بلا لانهاية) لأن مراجعة مدعومة ببحث خارجي قد تستغرق 30–45 ثانية إضافية
-      pollTimersRef.current = [1000, 4000, 10000, 20000, 35000, 50000, 65000, 80000].map((ms) => setTimeout(poll, ms));
+      // المدى ممدود (بلا لانهاية) لأن مراجعة مدعومة ببحث خارجي قد تستغرق 30–45 ثانية إضافية.
+      // الفجوات مكثَّفة حتى لا تُضيف القراءة الاحتياطية انتظاراً بعد اكتمال الردّ فعلاً.
+      pollTimersRef.current = [1000, 3000, 6000, 9000, 12000, 16000, 20000, 25000, 30000, 36000, 42000, 50000, 58000, 66000, 74000, 82000, 90000]
+        .map((ms) => setTimeout(poll, ms));
     } catch {
       setError("REVIEW_START_FAILED");
       setLoading(false);
       cleanup();
     }
   }, [cleanup]);
+
+  /** طلب المستخدم الصريح — يعرض النتيجة (الجاهزة أو عند اكتمالها) */
+  const run = useCallback((userRequest) => start(userRequest, true), [start]);
+
+  /** تشغيل مسبق في الخلفية — نفس المراجعة تماماً، بلا عرض */
+  const prewarm = useCallback(() => start(undefined, false), [start]);
 
   /** اختيار محلي بحت — لا استدعاء شبكة ولا تعديل سيرة */
   const toggleRecommendation = useCallback((id) => {
@@ -191,7 +256,8 @@ export default function useCVReview(state) {
 
   return {
     review,
-    ready: !!review && !dismissed,
+    ready: !!review && revealed && !dismissed,
+    pending: revealed && loading,
     message,
     researchByRecommendation,
     loading,
@@ -200,6 +266,7 @@ export default function useCVReview(state) {
     toggleRecommendation,
     dismiss,
     reset,
-    run
+    run,
+    prewarm
   };
 }
