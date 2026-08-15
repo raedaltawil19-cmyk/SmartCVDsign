@@ -9,7 +9,7 @@
  * لذلك لا يستورد سوى React + جسر السياق (cvReviewSession) + الـparser النقيّ.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { startCVReview, isReviewContextReady } from "@/lib/agent/cvReviewSession";
+import { createReviewConversation, sendReviewRequest, isReviewContextReady } from "@/lib/agent/cvReviewSession";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { parseCVReview, stripCVReview } from "@/lib/agent/cvReviewParser";
 import { base44 } from "@/api/base44Client";
@@ -65,6 +65,7 @@ export default function useCVReview(state) {
   const settledRef = useRef(false);
   const startedRef = useRef(false);
   const unsubRef = useRef(null);
+  const pollTimersRef = useRef([]);
   const contextRef = useRef(null); // لقطة { templateId, cvIndex } لحظة بدء المراجعة
   const conversationRef = useRef(null);
 
@@ -74,6 +75,8 @@ export default function useCVReview(state) {
 
   const cleanup = useCallback(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
+    pollTimersRef.current.forEach(clearTimeout);
+    pollTimersRef.current = [];
   }, []);
 
   const reset = useCallback(() => {
@@ -112,30 +115,55 @@ export default function useCVReview(state) {
       templateId: ctxState.templateId,
       cvIndex: summarizeIndex(buildCVIndex(ctxState.data))
     };
+    // معالج واحد لكل مصدر رسائل (اشتراك أو قراءة مباشرة) — النتيجة تُثبَّت مرة واحدة
+    const handle = (messages) => {
+      if (settledRef.current) return;
+      const hit = scanForReview({
+        messages,
+        context: contextRef.current,
+        seen: seenRef.current,
+        done: doneRef.current
+      });
+      if (!hit) return; // بثّ جارٍ → ننتظر
+      settledRef.current = true;
+      setLoading(false);
+      cleanup();
+      if (hit.error) { setError(hit.error); return; }
+      setReview(hit.review);
+      setMessage(hit.text);
+    };
+
     try {
-      const res = await startCVReview(ctxState, userRequest);
-      if (res.error || !res.conversation) {
+      // الترتيب الصحيح: إنشاء المحادثة → بدء الاشتراك → إرسال الطلب،
+      // حتى لا تصل كتلة CV_REVIEW قبل أن يبدأ المستمع بالمراقبة.
+      const conversation = await createReviewConversation();
+      if (!conversation) {
         setError("REVIEW_START_FAILED");
         setLoading(false);
         return;
       }
-      conversationRef.current = res.conversation;
-      unsubRef.current = base44.agents.subscribeToConversation(res.conversation.id, (payload) => {
-        if (settledRef.current) return;
-        const hit = scanForReview({
-          messages: payload?.messages,
-          context: contextRef.current,
-          seen: seenRef.current,
-          done: doneRef.current
-        });
-        if (!hit) return; // بثّ جارٍ → ننتظر
-        settledRef.current = true;
+      conversationRef.current = conversation;
+      unsubRef.current = base44.agents.subscribeToConversation(conversation.id, (payload) => handle(payload?.messages));
+
+      const sent = await sendReviewRequest(conversation, ctxState, userRequest);
+      if (sent.error) {
+        setError("REVIEW_START_FAILED");
         setLoading(false);
         cleanup();
-        if (hit.error) { setError(hit.error); return; }
-        setReview(hit.review);
-        setMessage(hit.text);
-      });
+        return;
+      }
+
+      // حماية إضافية: قراءة الحالة الحالية للمحادثة بدلاً من الاعتماد على الأحداث المستقبلية وحدها
+      const poll = async () => {
+        if (settledRef.current) return;
+        try {
+          const conv = await base44.agents.getConversation(conversation.id);
+          handle(conv?.messages);
+        } catch {
+          // القراءة فشلت → يبقى الاشتراك هو المصدر
+        }
+      };
+      pollTimersRef.current = [1000, 4000, 10000, 20000].map((ms) => setTimeout(poll, ms));
     } catch {
       setError("REVIEW_START_FAILED");
       setLoading(false);

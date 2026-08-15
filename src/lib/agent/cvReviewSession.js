@@ -61,13 +61,26 @@ export function buildReviewMessage(state, userRequest) {
 export async function startCVReview(state, userRequest) {
   const content = buildReviewMessage(state, userRequest);
   if (!content) return { error: "CV_NOT_READY" };
-  const conversation = await base44.agents.createConversation({
+  const conversation = await createReviewConversation();
+  await base44.agents.addMessage(conversation, { role: "user", content });
+  return { conversation };
+}
+
+/** إنشاء محادثة المراجعة فقط — يسمح ببدء الاشتراك قبل إرسال الطلب (منع race condition) */
+export async function createReviewConversation() {
+  return base44.agents.createConversation({
     agent_name: AGENT_NAME,
     // وصفي فقط — تحديد السيرة يحدث عبر cvId داخل CV_CONTEXT حصراً
     metadata: { name: "مراجعة السيرة", description: "مراجعة تشخيصية للسيرة الحالية" }
   });
+}
+
+/** إرسال طلب المراجعة إلى محادثة قائمة (بعد أن يصبح المستمع جاهزاً) */
+export async function sendReviewRequest(conversation, state, userRequest) {
+  const content = buildReviewMessage(state, userRequest);
+  if (!conversation || !content) return { error: "CV_NOT_READY" };
   await base44.agents.addMessage(conversation, { role: "user", content });
-  return { conversation };
+  return { ok: true };
 }
 
 /** رسالة متابعة داخل نفس المراجعة — تُرسل الحالة الحالية عند الحاجة، بلا أي قراءة من SavedCV */
