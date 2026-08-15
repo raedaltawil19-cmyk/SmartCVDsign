@@ -364,6 +364,12 @@ export default function ApplicationTailor() {
                   onToggle={jobReview.toggleRecommendation}
                   onSendToAssistant={sendToAssistant}
                   onClose={jobReview.dismiss}
+                  heading="توصيات التخصيص لهذه الوظيفة"
+                  subnote={`هذه التوصيات مخصّصة لهذه الوظيفة الحالية${targetCv?.titel ? ` وتنطبق على نسختك المخصّصة «${targetCv.titel}»` : ""} فقط، ولا تمسّ سيرتك الأساسية. التنفيذ يتم في مساعد السيرة، لا هنا.`}
+                  hint="اختر ما تريد تخصيصه لهذه الوظيفة — لن يُطبَّق شيء الآن."
+                  sendLabel="أرسل إلى مساعد السيرة للتنفيذ"
+                  sendNote="سيفتح مساعد السيرة على نسختك المخصّصة الحالية، وهو الذي ينفّذ ما اخترته فقط."
+                  emptyNote="اختر توصية واحدة أو أكثر لإرسالها إلى مساعد السيرة."
                 />
                 {sendError && (
                   <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{sendError}</p>
