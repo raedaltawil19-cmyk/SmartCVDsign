@@ -13,6 +13,12 @@
  */
 import { TARGET_SECTIONS, RECOMMENDATION_FIELDS, RECOMMENDATION_TYPES, SEVERITIES } from "@/lib/agent/cvReviewParser";
 
+/**
+ * وسم مصدر عنصر التسليم: حمولة تنفيذ داخلية أنشأها النظام، لا رسالة كتبها المستخدم.
+ * تصنيف بالمصدر لا بفحص نصّ الرسالة — طبقة العرض تعتمد عليه وحده.
+ */
+export const INTERNAL_DELIVERY = "internal_delivery";
+
 export const INTENT_OPEN = "<<<REVIEW_INTENT";
 export const INTENT_CLOSE = "REVIEW_INTENT>>>";
 

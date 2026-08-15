@@ -7,6 +7,7 @@ import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { summaryText } from "@/lib/agent/changeSummary";
 import ChangeSummaryNote from "@/components/agent/ChangeSummaryNote";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
+import { INTERNAL_DELIVERY } from "@/lib/agent/reviewIntent";
 import { useLanguage } from "@/lib/i18n";
 
 const MARK = "<<<CV_CONTEXT";
@@ -79,24 +80,28 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   }, [messages]);
 
   // إرسال أي رسالة مصحوبةً بالحالة الحالية للسيرة — نقطة الإرسال الوحيدة للوحة
+  // حمولات التنفيذ الداخلية التي أرسلها النظام — تُسجَّل لحظة الإرسال ليُستبعَد عرضها لاحقاً.
+  // التصنيف بالمصدر: ما في هذه المجموعة هو ما أرسلناه نحن، ولا يُفحَص نصّ أي رسالة لتصنيفها.
+  const internalDeliveredRef = useRef(new Set());
+
   const postRef = useRef(null);
-  postRef.current = async (text) => {
+  postRef.current = async (text, { internal = false } = {}) => {
     if (!conversation) return;
     const { data: d, layout: l, templateId: tid, cvId: id, uiLang } = ctxRef.current;
     setSending(true);
-    await base44.agents.addMessage(conversation, {
-      role: "user",
-      content: `${text}\n\n${MARK}\n${JSON.stringify({
-        cvId: id,
-        templateId: tid,
-        layout: l,
-        CV_DATA: d,
-        CV_INDEX: summarizeIndex(buildCVIndex(d)),
-        // لغتان منفصلتان: cvLanguage تحكم كل نصّ يدخل السيرة، uiLanguage تحكم لغة التواصل فقط
-        cvLanguage: cvLanguageTag(d),
-        uiLanguage: uiLang
-      })}\nCV_CONTEXT>>>`
-    });
+    const content = `${text}\n\n${MARK}\n${JSON.stringify({
+      cvId: id,
+      templateId: tid,
+      layout: l,
+      CV_DATA: d,
+      CV_INDEX: summarizeIndex(buildCVIndex(d)),
+      // لغتان منفصلتان: cvLanguage تحكم كل نصّ يدخل السيرة، uiLanguage تحكم لغة التواصل فقط
+      cvLanguage: cvLanguageTag(d),
+      uiLanguage: uiLang
+    })}\nCV_CONTEXT>>>`;
+    // الحمولة تُرسل كما هي بالكامل إلى الوكيل — الوسم للعرض فقط
+    if (internal) internalDeliveredRef.current.add(content.trim());
+    await base44.agents.addMessage(conversation, { role: "user", content });
   };
 
   // توصيات المراجعة التي وافق عليها المستخدم — تُسلَّم كـIntent منظّم، كل واحدة رسالة مستقلة ومرة واحدة.
@@ -107,7 +112,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
       for (const it of pendingIntents) {
         if (!it?.key || sentIntentsRef.current.has(it.key)) continue;
         sentIntentsRef.current.add(it.key);
-        await postRef.current(it.message);
+        await postRef.current(it.message, { internal: it.kind === INTERNAL_DELIVERY });
       }
     })();
   }, [pendingIntents, conversation?.id]);
@@ -137,7 +142,9 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
             {t("assistant.empty")}<br />{t("assistant.emptyExample")}
           </p>
         )}
-        {messages.map((m, i) => <MessageBubble key={i} message={strip(m)} />)}
+        {messages
+          .filter((m) => !(m.role === "user" && internalDeliveredRef.current.has(String(m.content || "").trim())))
+          .map((m, i) => <MessageBubble key={i} message={strip(m)} />)}
         {notes.map((n) => <ChangeSummaryNote key={n.key} note={n} />)}
         {sending && (
           <div className="flex justify-start">

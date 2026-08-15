@@ -20,7 +20,7 @@ import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import WorkflowChoiceCard from "@/components/workflow/WorkflowChoiceCard";
 import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkflowActions } from "@/lib/workflowRoutes";
 import { logAction } from "@/lib/actionLog";
-import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey } from "@/lib/agent/reviewIntent";
+import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey, INTERNAL_DELIVERY } from "@/lib/agent/reviewIntent";
 import { needsEvidence, buildEvidenceRequest, verifyEvidenceStillValid, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 import EvidenceDialog from "@/components/review/EvidenceDialog";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
@@ -51,7 +51,9 @@ export default function Builder() {
   const [showLayout, setShowLayout] = useState(false);
   const [showLog, setShowLog] = useState(false);
   // توصيات واردة من مخصّص الطلبات (جسر Job Tailor → مساعد السيرة) — تُفتح اللوحة فوراً لتُسلَّم كـIntents
-  const incomingIntents = Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [];
+  // كل عنصر تسليم يُوسَم بمصدره: حمولة تنفيذ داخلية لا رسالة كتبها المستخدم
+  const incomingIntents = (Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [])
+    .map((it) => ({ ...it, kind: INTERNAL_DELIVERY, label: it.label || it.title || null }));
   const [showSmart, setShowSmart] = useState(incomingIntents.length > 0);
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
@@ -415,6 +417,9 @@ export default function Builder() {
       ...prev,
       ...items.map(({ intent, evidence }) => ({
         key: intentDeliveryKey(cycle, intent.recommendationId),
+        // النوع يُحدَّد بالمصدر هنا (منشئ الحمولة)، فلا يُفحَص نصّ الرسالة لاحقاً لتصنيفها
+        kind: INTERNAL_DELIVERY,
+        label: intent.title || intent.recommendationId,
         message: evidence ? formatConfirmedIntentMessage(intent, evidence) : formatIntentMessage(intent)
       }))
     ]);
