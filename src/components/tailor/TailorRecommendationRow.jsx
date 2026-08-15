@@ -11,14 +11,16 @@ const SEVERITY_STYLE = {
  * توصية تخصيص مختصرة — عنوان + سبب موجز فقط.
  * لا تفاصيل ضخمة، ولا Evidence Pack، ولا معرّفات تقنية، ولا زر تطبيق.
  */
-export default function TailorRecommendationRow({ rec, selected, onToggle }) {
+export default function TailorRecommendationRow({ rec, selected, sent = false, onToggle }) {
   return (
     <li>
       <button
         type="button"
-        onClick={() => onToggle(rec.id)}
+        onClick={() => !sent && onToggle(rec.id)}
         aria-pressed={selected}
-        className={`w-full text-right flex items-start gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${selected ? "border-[#000066] bg-[#000066]/5" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+        aria-disabled={sent}
+        disabled={sent}
+        className={`w-full text-right flex items-start gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${sent ? "border-green-200 bg-green-50/60" : selected ? "border-[#000066] bg-[#000066]/5" : "border-slate-200 bg-white hover:bg-slate-50"}`}
       >
         <span className={`shrink-0 mt-0.5 w-4 h-4 rounded border grid place-items-center ${selected ? "bg-[#000066] border-[#000066] text-white" : "border-slate-300 bg-white"}`}>
           {selected && <Check className="w-3 h-3" />}
