@@ -447,7 +447,7 @@ export default function Builder() {
   return (
     <div dir={dir} className="cv-builder-root h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <header className="no-print shrink-0 border-b border-slate-200 bg-white">
-        <div className="px-5 py-3 flex items-center justify-between gap-3">
+        <div className="px-5 py-3 pr-[104px] flex items-center justify-between gap-3 flex-wrap">
           <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
             <ArrowRight className="w-4 h-4" />
             <span>{t("builder.back")}</span>
