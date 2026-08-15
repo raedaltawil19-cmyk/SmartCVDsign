@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ShieldCheck } from "lucide-react";
 import EvidenceCollectStep from "@/components/review/EvidenceCollectStep";
+import ResearchSourcesView from "@/components/review/ResearchSourcesView";
 import EvidenceDraftStep from "@/components/review/EvidenceDraftStep";
 import { composeDraft, buildConfirmedEvidence, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 
@@ -60,6 +61,9 @@ export default function EvidenceDialog({ request, index = 1, total = 1, onConfir
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
             لم يتم تطبيق أي شيء بعد. لا تدخل أي معلومة إلى سيرتك إلا بعد تأكيدك، والتنفيذ يتم في مساعد السيرة بعد الضغط على زر التأكيد.
           </p>
+
+          {/* بحث خارجي مجهَّز مسبقاً — عرض فقط، ولا يبدأ بحثاً جديداً ولا يصبح معلومة مؤكَّدة عن المستخدم */}
+          {step === "collect" && request.research && <ResearchSourcesView research={request.research} />}
 
           {step === "collect" ? (
             <EvidenceCollectStep

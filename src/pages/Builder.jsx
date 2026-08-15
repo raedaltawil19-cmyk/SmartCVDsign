@@ -20,9 +20,10 @@ import TemplateReviewCard from "@/components/template/TemplateReviewCard";
 import WorkflowChoiceCard from "@/components/workflow/WorkflowChoiceCard";
 import { WORKFLOW_GENERAL, WORKFLOW_TAILOR, isWorkflowChoiceReady, resolveWorkflowActions } from "@/lib/workflowRoutes";
 import { logAction } from "@/lib/actionLog";
-import { buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey, INTERNAL_DELIVERY } from "@/lib/agent/reviewIntent";
+import { buildReviewIntent, buildSelectedIntents, formatIntentMessage, formatConfirmedIntentMessage, describeRejection, intentDeliveryKey, INTERNAL_DELIVERY } from "@/lib/agent/reviewIntent";
 import { needsEvidence, buildEvidenceRequest, verifyEvidenceStillValid, describeEvidenceError } from "@/lib/agent/reviewEvidence";
 import EvidenceDialog from "@/components/review/EvidenceDialog";
+import { researchFor } from "@/lib/agent/reviewResearch";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
@@ -451,13 +452,48 @@ export default function Builder() {
         toast({ title: "لم تُرسَل توصية", description: describeEvidenceError(res.error), variant: "destructive" });
         continue;
       }
-      queue.push({ intent, request: res.request });
+      // البحث المجهَّز مسبقاً يُلحق بحمولة العرض فقط — لا يدخل الـIntent ولا العقد ولا التنفيذ
+      queue.push({ intent, request: { ...res.request, research: researchFor(cvReview.researchByRecommendation, intent.recommendationId) } });
     }
     if (queue.length) setEvidenceQueue((q) => [...q, ...queue]);
     deliverToAssistant(direct);
   };
 
   const popEvidence = () => setEvidenceQueue((q) => q.slice(1));
+
+  /**
+   * الضغط على توصية: اختيار محلي كما كان + فتح نافذة التوصية القائمة إن كان لها بحث
+   * خارجي مجهَّز مسبقاً. **لا يُستدعى ResearchPublicSource هنا إطلاقاً** — تُقرأ النتيجة
+   * المخزّنة لحظة المراجعة فقط. التوصيات بلا بحث تبقى بسلوكها الحالي حرفياً.
+   */
+  const onRecommendationClick = (id) => {
+    cvReview.toggleRecommendation(id);
+    const research = researchFor(cvReview.researchByRecommendation, id);
+    if (!research) return;
+    if (evidenceQueue.some((e) => e.request.recommendationId === id)) return; // مفتوحة/مصطفّة أصلاً
+    const rec = (cvReview.review?.recommendations || []).find((r) => r.id === id);
+    if (!rec) return;
+    const built = buildReviewIntent({
+      rec,
+      selectedIds: [id, ...(Array.isArray(rec.dependsOn) ? rec.dependsOn : [])],
+      cvId: currentCvId,
+      templateId,
+      indexSummary: summarizeIndex(buildCVIndex(data)),
+      cvLanguage: cvLanguageTag(data),
+      uiLanguage: lang
+    });
+    if (!built.ok) {
+      toast({ title: "تعذّر عرض تفاصيل التوصية", description: describeRejection(built.error), variant: "destructive" });
+      return;
+    }
+    if (!needsEvidence(built.intent)) return; // لا بطاقة تأكيد لهذه التوصية ⇒ لا نافذة
+    const res = buildEvidenceRequest({ intent: built.intent, data });
+    if (!res.ok) {
+      toast({ title: "تعذّر عرض تفاصيل التوصية", description: describeEvidenceError(res.error), variant: "destructive" });
+      return;
+    }
+    setEvidenceQueue((q) => [...q, { intent: built.intent, request: { ...res.request, research } }]);
+  };
 
   const confirmEvidence = (evidence) => {
     const head = evidenceQueue[0];
@@ -587,7 +623,7 @@ export default function Builder() {
           <CVReviewCard
             review={cvReview.review}
             selectedIds={cvReview.selectedIds}
-            onToggle={cvReview.toggleRecommendation}
+            onToggle={onRecommendationClick}
             onSendToAssistant={sendReviewToAssistant}
             onClose={cvReview.dismiss}
           />

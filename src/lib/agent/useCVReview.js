@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createReviewConversation, sendReviewRequest, isReviewContextReady } from "@/lib/agent/cvReviewSession";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { parseCVReview, stripCVReview } from "@/lib/agent/cvReviewParser";
+import { extractResearch, stripResearch } from "@/lib/agent/reviewResearch";
 import { base44 } from "@/api/base44Client";
 
 /**
@@ -43,7 +44,9 @@ export function scanForReview({ messages, context, seen, done }) {
       return { error: res.error };
     }
     done.add(key);
-    return { review: res.review, text: stripCVReview(content) };
+    // البحث الخارجي يسافر في كتلة أخوية مستقلة: يُقرأ من قناته، ويُنظَّف من النصّ البشري،
+    // وأي خلل فيه يعيد null فلا يمسّ CV_REVIEW إطلاقاً.
+    return { review: res.review, text: stripResearch(stripCVReview(content)), research: extractResearch(content) };
   }
   return null;
 }
@@ -59,6 +62,9 @@ export default function useCVReview(state) {
   const [error, setError] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [dismissed, setDismissed] = useState(false);
+  // نتائج البحث الخارجي المجهَّزة مسبقاً — حالة **منفصلة تماماً** عن كائن المراجعة،
+  // مفتاحها recommendationId. لا تُدمج في review ولا تُعرض في بطاقة التوصية.
+  const [researchByRecommendation, setResearchByRecommendation] = useState({});
 
   const seenRef = useRef(new Map());
   const doneRef = useRef(new Set());
@@ -89,6 +95,7 @@ export default function useCVReview(state) {
     conversationRef.current = null;
     setReview(null);
     setMessage("");
+    setResearchByRecommendation({});
     setSelectedIds([]);
     setLoading(false);
     setError(null);
@@ -131,6 +138,8 @@ export default function useCVReview(state) {
       if (hit.error) { setError(hit.error); return; }
       setReview(hit.review);
       setMessage(hit.text);
+      setResearchByRecommendation(hit.research || {}); // غياب البحث أو خلله ⇒ خريطة فارغة، والمراجعة كما هي
+
     };
 
     try {
@@ -163,7 +172,8 @@ export default function useCVReview(state) {
           // القراءة فشلت → يبقى الاشتراك هو المصدر
         }
       };
-      pollTimersRef.current = [1000, 4000, 10000, 20000].map((ms) => setTimeout(poll, ms));
+      // المدى ممدود (بلا لانهاية) لأن مراجعة مدعومة ببحث خارجي قد تستغرق 30–45 ثانية إضافية
+      pollTimersRef.current = [1000, 4000, 10000, 20000, 35000, 50000, 65000, 80000].map((ms) => setTimeout(poll, ms));
     } catch {
       setError("REVIEW_START_FAILED");
       setLoading(false);
@@ -183,6 +193,7 @@ export default function useCVReview(state) {
     review,
     ready: !!review && !dismissed,
     message,
+    researchByRecommendation,
     loading,
     error,
     selectedIds,
