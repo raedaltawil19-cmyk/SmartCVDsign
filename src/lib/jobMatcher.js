@@ -1,69 +1,106 @@
 /**
- * Local (non-LLM) keyword scoring between a CV and a Swedish job ad.
- * Used to pre-rank ads before sending only the best matches to the LLM,
- * cutting integration-credit usage dramatically.
+ * Fast Matching — تسجيل محلي (بلا نموذج لغوي) بين سيرة ذاتية وإعلان وظيفة سويدي.
+ *
+ * تصحيح جوهري عن النسخة السابقة القائمة على "نسبة التغطية" (hits / كل كلمات السيرة):
+ *   1) التغطية كانت **تعاقب الغنى** — السيرة الأغنى يكبر مقامها فتخسر أمام سيرة فقيرة.
+ *      البديل: احتساب **الإصابات الموزونة** ثم تطبيع تشبّعي، فلا يُكافأ الفقر ولا يُعاقب الغنى.
+ *   2) المطابقة الحرفية كانت عمياء عن التصريف السويدي
+ *      (arbetskonsulent ≠ arbetsmarknadskonsulent، konsulenter ≠ konsulent).
+ *      البديل: مطابقة على **جذوع** الكلمات مع قصّ اللواحق الشائعة.
+ *
+ * منطق نقيّ: لا استدعاء شبكة، لا SDK، لا نموذج لغوي، لا قراءة قاعدة بيانات.
  */
 
 const STOP = new Set([
-  "och", "eller", "med", "att", "en", "ett", "som", "av", "till", "for",
-  "har", "ar", "var", "vi", "du", "god", "bra", "att", "html", "_css",
-  "eller", "sa", "som", "i", "pa",
+  "och", "eller", "med", "att", "en", "ett", "som", "av", "till", "for", "för",
+  "har", "är", "ar", "var", "vi", "du", "god", "bra", "sa", "så", "i", "pa", "på",
+  "den", "det", "vid", "kan", "ska", "samt", "oss", "dig", "din", "ditt", "hos",
 ]);
 
-function tokenize(text) {
-  return (text || "")
+/** أقسام السيرة وأوزانها في التسجيل — قائمة مغلقة */
+export const FIELD_WEIGHTS = { titel: 3, fardigheter: 2, roller: 2, profil: 1, utbildning: 1 };
+const TITLE_HIT_WEIGHT = 4; // إصابة في عنوان الإعلان أقوى إشارة منفردة
+const SATURATION = 18; // ثابت التشبّع: نقطة الانعطاف في 1-e^(-raw/k)
+
+export function tokenize(text) {
+  return String(text || "")
     .toLowerCase()
     .split(/[^a-zåäö0-9]+/i)
     .filter((t) => t && t.length > 2 && !STOP.has(t));
 }
 
+/** جذع heuristic للسويدية: قصّ اللواحق الشائعة ثم تقييد الطول لاحتواء الكلمات المركّبة */
+export function stem(word) {
+  return String(word || "")
+    .replace(/(erna|arna|orna|ande|ning|erad|are|else|en|ar|er|or|et|t|s)$/, "")
+    .slice(0, 7);
+}
+
+const uniq = (arr) => [...new Set(arr)];
+const stems = (arr) => uniq(arr.map(stem).filter(Boolean));
+
+/** يجمع جذوع السيرة موزّعةً على أقسامها — لا يخلطها في كيس واحد */
+export function cvStemBag(cv) {
+  return {
+    titel: stems(tokenize(cv?.titel)),
+    fardigheter: stems((cv?.fardigheter || []).flatMap((f) => tokenize(f?.namn))),
+    roller: stems((cv?.erfarenhet || []).flatMap((e) => tokenize(e?.roll))),
+    profil: stems(tokenize(cv?.profil)),
+    utbildning: stems((cv?.utbildning || []).flatMap((u) => tokenize(u?.examen))),
+  };
+}
+
+/**
+ * الكلمات المفتاحية الخام (بلا تجذيع) — عقد قائم يعتمد عليه مستهلكون آخرون
+ * (لوحة المسار ومستشار الدورات) للمقارنة الحرفية مع كلمات الإعلانات. لا تُجذَّع هنا.
+ */
 export function cvKeywords(cv) {
   const set = new Set();
-  if (cv?.titel) tokenize(cv.titel).forEach((t) => set.add(t));
-  if (cv?.fardigheter) {
-    cv.fardigheter.forEach((f) => {
-      if (f?.namn) {
-        tokenize(f.namn).forEach((t) => set.add(t));
-        if (f.namn.length > 2) set.add(f.namn.toLowerCase());
-      }
-    });
-  }
-  if (cv?.erfarenhet) {
-    cv.erfarenhet.forEach((e) => {
-      if (e?.roll) tokenize(e.roll).forEach((t) => set.add(t));
-    });
-  }
-  if (cv?.sprak) {
-    cv.sprak.forEach((s) => {
-      if (s?.sprak && s.sprak.length > 2) set.add(s.sprak.toLowerCase());
-    });
-  }
+  tokenize(cv?.titel).forEach((t) => set.add(t));
+  (cv?.fardigheter || []).forEach((f) => {
+    if (!f?.namn) return;
+    tokenize(f.namn).forEach((t) => set.add(t));
+    if (f.namn.length > 2) set.add(String(f.namn).toLowerCase());
+  });
+  (cv?.erfarenhet || []).forEach((e) => tokenize(e?.roll).forEach((t) => set.add(t)));
+  (cv?.sprak || []).forEach((l) => { if (l?.sprak && l.sprak.length > 2) set.add(String(l.sprak).toLowerCase()); });
   return [...set];
 }
 
-export function localMatchScore(cv, ad) {
-  const kws = cvKeywords(cv);
-  if (!kws.length) return 0;
-  const haystack = [
-    ad?.rubrik,
-    ad?.beskrivning,
-    ad?.krav?.map((k) => k?.namn).join(" "),
-  ]
+/** الجذوع المسطّحة — للتسجيل الداخلي فقط */
+export function cvStemKeywords(cv) {
+  return uniq(Object.values(cvStemBag(cv)).flat());
+}
+
+function adStems(ad) {
+  const body = [ad?.rubrik, ad?.beskrivning, (ad?.krav || []).map((k) => k?.namn).join(" ")]
     .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+    .join(" ");
+  return { all: new Set(stems(tokenize(body))), rubrik: new Set(stems(tokenize(ad?.rubrik))) };
+}
 
-  let hits = 0;
-  kws.forEach((k) => {
-    if (haystack.includes(k)) hits++;
-  });
+/**
+ * تفصيل المطابقة — للتشخيص وترتيب المرشّحين.
+ * @returns {{score:number, raw:number, titleHits:number, per:object}}
+ */
+export function matchDetails(cv, ad) {
+  const bag = cvStemBag(cv);
+  const { all, rubrik } = adStems(ad);
+  let raw = 0;
+  const per = {};
+  for (const [field, weight] of Object.entries(FIELD_WEIGHTS)) {
+    const list = bag[field];
+    const hits = list.filter((t) => all.has(t)).length;
+    per[field] = { hits, of: list.length };
+    raw += weight * hits;
+  }
+  const titleHits = bag.titel.filter((t) => rubrik.has(t)).length;
+  raw += titleHits * TITLE_HIT_WEIGHT;
+  const score = raw === 0 ? 0 : Math.round(100 * (1 - Math.exp(-raw / SATURATION)));
+  return { score, raw, titleHits, per };
+}
 
-  const titleKws = cvKeywords({ titel: cv?.titel });
-  const titleHits = titleKws.filter((k) =>
-    (ad?.rubrik || "").toLowerCase().includes(k)
-  );
-
-  const base = Math.round((hits / kws.length) * 80);
-  const titleBonus = titleHits.length ? 20 : 0;
-  return Math.min(100, base + titleBonus);
+/** درجة 0..100. عدد الإصابات هو المحرّك، فلا تخسر السيرة الغنية لغناها. */
+export function localMatchScore(cv, ad) {
+  return matchDetails(cv, ad).score;
 }
