@@ -9,6 +9,7 @@ import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
 import { createTailoredCV, buildTailoredPayload } from "@/lib/cvProfiles";
 import { findExistingTailored } from "@/lib/tailoredLookup";
 import TailoringStartCard from "@/components/workflow/TailoringStartCard";
+import JobSearchOption from "@/components/workflow/JobSearchOption";
 import CVReviewCard from "@/components/review/CVReviewCard";
 import TailorReviewNotice from "@/components/review/TailorReviewNotice";
 import useTailorRecommendations from "@/lib/agent/useTailorRecommendations";
@@ -18,11 +19,12 @@ import { stripCVReview } from "@/lib/agent/cvReviewParser";
 
 const AGENT_NAME = "application_tailor";
 
+/** أمثلة مسار التخصيص فقط — لا مثال يدفع الوكيل إلى البحث التلقائي */
 const EXAMPLES = [
-  "لدي إعلان وظيفة رقم 12345678، كيف أطابق سيرتي معه؟",
-  "صغ لي رسالة تغطية لوظيفة مطور برمجيات في ستوكهولم",
-  "حلل فجواتي المهارية مقابل وظيفة مهندس بيانات",
-  "ابحث عن وظائف مشابهة لخبراتي وقارن متطلباتها بسيرتي",
+  "سألصق نصّ إعلان الوظيفة الآن، طابق سيرتي معه",
+  "لدي رابط إعلان وظيفة، حلّل متطلباته وطابقها بسيرتي",
+  "صغ لي رسالة تغطية لهذا الإعلان",
+  "حلل فجواتي المهارية مقابل متطلبات هذا الإعلان",
 ];
 
 export default function ApplicationTailor() {
@@ -322,8 +324,8 @@ export default function ApplicationTailor() {
                 <div className="w-14 h-14 rounded-2xl bg-[#000066] flex items-center justify-center mx-auto mb-4">
                   <Target className="w-7 h-7 text-[#D9E830]" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-2">مخصّص الطلبات للوظائف</h2>
-                <p className="text-sm text-slate-500 mb-1">سأخصص سيرتك المحددة لتطابق متطلبات وظيفة معينة.</p>
+                <h2 className="text-lg font-semibold text-slate-900 mb-2">تخصيص CV لوظيفة</h2>
+                <p className="text-sm text-slate-500 mb-1">الصق نصّ إعلان الوظيفة أو أرسل رابطه، وسأطابق سيرتك المحددة مع متطلباته.</p>
                 {cvTitle && <p className="text-xs text-[#000066] font-medium mb-6">السيرة الحالية: {cvTitle}</p>}
                 {!cvTitle && <div className="mb-6" />}
                 <div className="space-y-2">
@@ -337,6 +339,7 @@ export default function ApplicationTailor() {
                     </button>
                   ))}
                 </div>
+                <JobSearchOption onPick={(q) => setInput(q)} />
               </div>
             )}
             {!loading && messages.map((m, i) => (
@@ -387,7 +390,7 @@ export default function ApplicationTailor() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKey}
                 rows={1}
-                placeholder="اكتب طلبك هنا… (مثال: خصص سيرتي لوظيفة رقم 12345678)"
+                placeholder="الصق نصّ إعلان الوظيفة هنا، أو أرسل رابطه/رقمه…"
                 className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#000066] focus:ring-2 focus:ring-[#000066]/10 transition-all max-h-32"
               />
               <button
