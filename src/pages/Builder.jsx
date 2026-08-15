@@ -489,9 +489,15 @@ export default function Builder() {
       uiLanguage: lang,
       source: "application_tailor"
     });
-    if (intents.length === 0) return describeRejection(rejected[0]?.error);
+    if (intents.length === 0) {
+      return { ok: false, error: describeRejection(rejected[0]?.error), sentIds: [] };
+    }
     deliverToAssistant(intents.map((intent) => ({ intent })));
-    return "";
+    return {
+      ok: true,
+      error: rejected.length ? describeRejection(rejected[0].error) : "",
+      sentIds: intents.map((intent) => intent.recommendationId)
+    };
   };
 
   /**
