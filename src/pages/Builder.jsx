@@ -28,6 +28,7 @@ import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
+import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -473,6 +474,26 @@ export default function Builder() {
 
   const popEvidence = () => setEvidenceQueue((q) => q.slice(1));
 
+  // ── تخصيص لوظيفة داخل نافذة واحدة: تحليل الإعلان ثم إرسال المحدد إلى مساعد السيرة ──
+  const [tailorOpen, setTailorOpen] = useState(false);
+
+  /** التوصيات المختارة → Intents → مساعد السيرة. لا كتابة على السيرة من هنا. */
+  const sendTailorToAssistant = (selectedIds, review) => {
+    const { intents, rejected } = buildSelectedIntents({
+      review,
+      selectedIds,
+      cvId: currentCvId,
+      templateId,
+      indexSummary: summarizeIndex(buildCVIndex(data)),
+      cvLanguage: cvLanguageTag(data),
+      uiLanguage: lang,
+      source: "application_tailor"
+    });
+    if (intents.length === 0) return describeRejection(rejected[0]?.error);
+    deliverToAssistant(intents.map((intent) => ({ intent })));
+    return "";
+  };
+
   /**
    * الضغط على توصية: اختيار محلي كما كان + فتح نافذة التوصية القائمة إن كان لها بحث
    * خارجي مجهَّز مسبقاً. **لا يُستدعى ResearchPublicSource هنا إطلاقاً** — تُقرأ النتيجة
@@ -583,9 +604,9 @@ export default function Builder() {
               <span>{t("builder.save")}</span>
             </button>
             {currentCvId && (
-              <button onClick={() => navigate(`/tailor/${currentCvId}`)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#D9E830] text-black hover:bg-[#c5d420] transition-colors font-medium">
+              <button onClick={() => setTailorOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#D9E830] text-black hover:bg-[#c5d420] transition-colors font-medium">
                 <Target className="w-4 h-4" />
-                <span className="hidden sm:inline">تخصيص لوظيفة</span>
+                <span className="hidden sm:inline">تخصيص CV لوظيفة معينة</span>
               </button>
             )}
             {currentCvId && (
@@ -732,6 +753,17 @@ export default function Builder() {
           onConfirm={confirmEvidence}
           onSkip={popEvidence}
           onCancel={popEvidence}
+        />
+      )}
+
+      {tailorOpen && currentCvId && (
+        <JobTailorDialog
+          cvId={currentCvId}
+          templateId={templateId}
+          data={data}
+          cvTitle={data.titel || ""}
+          onSend={sendTailorToAssistant}
+          onClose={() => setTailorOpen(false)}
         />
       )}
 
