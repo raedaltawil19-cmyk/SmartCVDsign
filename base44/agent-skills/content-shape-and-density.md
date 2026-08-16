@@ -2,7 +2,7 @@
 description: Shared skill for reviewing CV content shape, readability, density and layout. Use to detect concrete presentation problems and recommend the clearest supported form — including paragraphs, bullets, numbered lists, alignment, spacing, column placement and section organisation — based on the actual current CV layout. Never recommend a visual change merely as a matter of taste.
 ---
 
-# Skill: content_shape_and_layout_review
+# Skill: content_shape_and_density
 
 A shared review skill for **content form, readability, density and layout presentation**. It diagnoses concrete presentation problems and recommends the clearest supported form. It does not edit, save or execute changes.
 
