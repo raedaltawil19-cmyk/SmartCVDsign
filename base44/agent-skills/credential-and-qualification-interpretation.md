@@ -1,5 +1,5 @@
 ---
-description: Use to determine what a piece of CV information actually represents — formal education, academic degree, certificate, course or training, professional experience, or a skill — and therefore where and how it should appear. Also use when a recognition or validation claim about a foreign qualification is unclear.
+description: Use to determine what a piece of CV information actually represents — formal education, academic degree, certificate, course or training, professional experience, or a skill — and therefore where and how it should appear. Also use when a recognition, validation, equivalence or assessment claim about a qualification is unclear. This skill prevents semantic misclassification; it never invents an equivalence or credential.
 ---
 
 # Skill: credential_and_qualification_interpretation
@@ -26,8 +26,10 @@ One real-world episode can legitimately produce facts for two different sections
 ## Interpretation rules
 
 - **Never downgrade or reinterpret a qualification because its description is short.** A completed programme with a stated degree or credential is a completed qualification; a brief description is a wording matter at most, not an incomplete education.
-- **Never treat a recognition, validation or assessment claim as equivalent to a domestic qualification.** A statement that a foreign qualification has been recognised or assessed says something about a process, not about the award of a domestic degree, licence or professional title.
-- **When such a claim is genuinely ambiguous, narrow the recommendation to the ambiguity itself** — which body performed the assessment, and what kind of assessment it was — instead of questioning the qualification.
+- **Never treat a recognition, validation, equivalence or assessment claim as equivalent to a domestic qualification.** A statement that a foreign qualification has been recognised or assessed says something about a process, not automatically about the award of a domestic degree, licence or professional title.
+- **Never infer an exact academic equivalence, credit value, level, professional title or authorisation from a recognition/assessment statement alone.** For example, a statement that a qualification was assessed by an authority does not by itself prove a specific number of credits or a specific Swedish degree.
+- **When a recognition, validation or assessment claim is genuinely ambiguous, narrow the recommendation to the ambiguity itself** — which body performed the assessment, what kind of assessment it was, and what the source actually states — instead of questioning the qualification.
+- **Distinguish candidate-stated facts from interpretations.** If the CV explicitly states an equivalence or credit value, treat that as a candidate-stated fact; do not independently upgrade it into a stronger claim. If the CV does not state it, do not add it merely because it seems likely.
 - **Never infer a professional title, authorisation or level** that the CV does not state.
 - If the nature of a fact cannot be determined from the CV, say so and ask; do not guess a category.
 
