@@ -12,6 +12,9 @@ export const PORT = {
   AUTH: "auth",
   EXPORT: "export",
   APPLICATIONS: "applications",
+  NOTIFICATIONS: "notifications",
+  COURSES: "courses",
+  INBOX: "inbox",
 };
 
 export function defineInterface(name, methods) {
@@ -71,4 +74,26 @@ export const APPLICATIONS_INTERFACE = defineInterface(PORT.APPLICATIONS, [
   "create",
   "update",
   "remove",
+]);
+
+export const NOTIFICATIONS_INTERFACE = defineInterface(PORT.NOTIFICATIONS, [
+  "list",
+  "unreadCount",
+  "create",
+  "markRead",
+  "markAllRead",
+]);
+
+export const COURSES_INTERFACE = defineInterface(PORT.COURSES, [
+  "list",
+  "upsertMany",
+  "markSeen",
+]);
+
+export const INBOX_INTERFACE = defineInterface(PORT.INBOX, [
+  "list",
+  "thread",
+  "unreadCount",
+  "markRead",
+  "create",
 ]);
