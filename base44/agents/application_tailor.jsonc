@@ -30,7 +30,16 @@
   ],
   "context_files": [],
   "app_user_connector_configs": [],
-  "selected_skill_names": [],
+  "selected_skill_names": [
+    "recommendation-validity-gate",
+    "credential-and-qualification-interpretation",
+    "content-shape-and-density",
+    "positioning-and-career-narrative",
+    "job-ad-parsing-and-classification",
+    "job-requirement-matching",
+    "tailoring-evidence-mapping",
+    "tailoring-strategy"
+  ],
   "selected_workspace_skill_ids": [],
   "model": "automatic",
   "whatsapp_greeting": null,
