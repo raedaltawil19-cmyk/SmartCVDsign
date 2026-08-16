@@ -5,6 +5,9 @@ import { createJobsService } from "@/services/jobs/service";
 import { createAuthService } from "@/services/auth/service";
 import { createExportService } from "@/services/export/service";
 import { createApplicationsService } from "@/services/applications/service";
+import { createNotificationsService } from "@/services/notifications/service";
+import { createCoursesService } from "@/services/courses/service";
+import { createInboxService } from "@/services/inbox/service";
 import {
   assertImplements,
   LLM_INTERFACE,
@@ -13,6 +16,9 @@ import {
   AUTH_INTERFACE,
   EXPORT_INTERFACE,
   APPLICATIONS_INTERFACE,
+  NOTIFICATIONS_INTERFACE,
+  COURSES_INTERFACE,
+  INBOX_INTERFACE,
 } from "@/services/interfaces";
 
 /**
@@ -46,7 +52,16 @@ export function ServicesProvider({ children }) {
     const applications = createApplicationsService({ auth });
     assertImplements(applications, APPLICATIONS_INTERFACE);
 
-    return { llm, cvRepository, jobs, auth, export: exporter, applications };
+    const notifications = createNotificationsService();
+    assertImplements(notifications, NOTIFICATIONS_INTERFACE);
+
+    const courses = createCoursesService({ notifications });
+    assertImplements(courses, COURSES_INTERFACE);
+
+    const inbox = createInboxService();
+    assertImplements(inbox, INBOX_INTERFACE);
+
+    return { llm, cvRepository, jobs, auth, export: exporter, applications, notifications, courses, inbox };
   }, []);
 
   return (
