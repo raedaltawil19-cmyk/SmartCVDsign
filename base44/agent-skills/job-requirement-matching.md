@@ -1,8 +1,10 @@
 ---
-description: Use when a real target job is available — an advert link, pasted advert text, or requirements the candidate states — to compare the CV against it and separate explicit requirements, preferred qualifications, keywords, gaps and matching strengths.
+description: Job Tailor skill. Use only when a real target job is available — an advert link, pasted advert text, or requirements the candidate states — to compare the CV against it and separate explicit requirements, preferred qualifications, keywords, gaps and matching strengths. This skill is not part of general CV diagnosis.
 ---
 
 # Skill: job_requirement_matching
+
+Core **Job Tailor** comparison skill. It belongs to the job-specific tailoring workflow and is not a general CV-review skill.
 
 Comparison against a **real** job. Without a real target job this skill does not apply: a professional field alone is not a target job, and no job-alignment recommendation may be produced from one.
 
