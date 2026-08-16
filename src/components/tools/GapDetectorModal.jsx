@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { detectGaps, formatMonths, formatGapDate } from "@/lib/gapDetection";
-import { X, Loader2, CalendarRange, GraduationCap, HeartHandshake, Briefcase, RefreshCw, UserCog, Sparkles, Plus, Check } from "lucide-react";
+import { X, Loader2, CalendarRange, GraduationCap, HeartHandshake, Briefcase, RefreshCw, UserCog, Sparkles, Plus } from "lucide-react";
 
 const CATEGORIES = [
   { key: "studier", label: "دراسات", rollLabel: "Studier", icon: GraduationCap },
