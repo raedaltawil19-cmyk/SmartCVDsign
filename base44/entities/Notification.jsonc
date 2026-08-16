@@ -1,0 +1,54 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "\u0646\u0648\u0639 \u0627\u0644\u0625\u0634\u0639\u0627\u0631\u060c \u0645\u062b\u0644 course_found \u0623\u0648 job_match \u0623\u0648 application_update \u0623\u0648 interview_invitation"
+    },
+    "title": {
+      "type": "string",
+      "description": "\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    },
+    "message": {
+      "type": "string",
+      "description": "\u0646\u0635 \u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    },
+    "isRead": {
+      "type": "boolean",
+      "default": false,
+      "description": "\u0647\u0644 \u0642\u0631\u0623 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    },
+    "targetType": {
+      "type": "string",
+      "description": "\u0646\u0648\u0639 \u0627\u0644\u0635\u0641\u062d\u0629 \u0623\u0648 \u0627\u0644\u0639\u0646\u0635\u0631 \u0627\u0644\u0645\u0631\u062a\u0628\u0637 \u0628\u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    },
+    "targetId": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0639\u0646\u0635\u0631 \u0627\u0644\u0645\u0631\u062a\u0628\u0637 \u0628\u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "\u0628\u064a\u0627\u0646\u0627\u062a \u0625\u0636\u0627\u0641\u064a\u0629 \u0645\u0631\u062a\u0628\u0637\u0629 \u0628\u0627\u0644\u0625\u0634\u0639\u0627\u0631"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  },
+  "required": [
+    "type",
+    "title",
+    "message"
+  ]
+}
