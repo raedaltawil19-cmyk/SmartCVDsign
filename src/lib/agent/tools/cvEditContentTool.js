@@ -15,9 +15,9 @@ import { validateCV } from "@/lib/agent/tools/validation";
 export const TOOL_NAME = "cv_edit_content";
 
 /** الأقسام القابلة لتعديل المحتوى (header/kontakt محتوى سيرة كامل — لكنهما ليسا قابلين للنقل) */
-export const EDITABLE_SECTIONS = ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
+export const EDITABLE_SECTIONS = ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
 /** أقسام القوائم — الوحيدة التي تقبل add_item / remove_item */
-export const LIST_SECTIONS = ["erfarenhet", "utbildning", "fardigheter", "sprak"];
+export const LIST_SECTIONS = ["erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
 /** أقسام العنصر الواحد ومعرّفاتها الثابتة (لا تتغيّر IDs الخاصة بها أبداً) */
 export const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
 export const OPERATIONS = ["replace_field", "add_item", "remove_item"];
@@ -54,7 +54,8 @@ const IDENTITY_FIELDS = {
   erfarenhet: ["roll", "foretag", "period"],
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
-  sprak: ["sprak"]
+  sprak: ["sprak"],
+  references: ["namn"]
 };
 
 /** حقول يجب أن تحتوي محتوى فعلياً (adress / linkedin / beskrivning يجوز أن تكون فارغة) */
@@ -65,7 +66,8 @@ const REQUIRED_CONTENT_FIELDS = {
   erfarenhet: ["roll", "foretag", "period"],
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
-  sprak: ["sprak"]
+  sprak: ["sprak"],
+  references: ["namn"]
 };
 
 /** الحقول الفعلية لكل قسم — مشتقة من FIELD_ROLES وليست مكتوبة يدوياً */
@@ -97,6 +99,7 @@ function checkValueType(section, field, value) {
     if (!SPRAK_LEVELS.includes(value)) return `مستوى اللغة يجب أن يكون أحد: ${SPRAK_LEVELS.join(" / ")}.`;
     return null;
   }
+  if (section === "fardigheter" && field === "niva" && value == null) return null;
   if (typeof value !== "string") return `الحقل «${field}» يجب أن يكون نصاً.`;
   return null;
 }
@@ -287,6 +290,7 @@ export function runCvEditContent(input, cvData) {
         return fail("ITEM_REQUIRED_FIELDS", `حقول مطلوبة ناقصة: ${missing.join(", ")}.`, section, operation);
       }
       for (const f of allowedFields) {
+        if (section === "fardigheter" && f === "niva" && inp.item[f] === undefined) continue;
         const err = checkValueType(section, f, inp.item[f]);
         if (err) return fail("VALUE_TYPE_INVALID", err, section, operation);
       }
@@ -303,7 +307,10 @@ export function runCvEditContent(input, cvData) {
         at = inp.index;
       }
       const newItem = {};
-      for (const f of allowedFields) newItem[f] = inp.item[f];
+      for (const f of allowedFields) {
+        if (section === "fardigheter" && f === "niva" && inp.item[f] === undefined) newItem[f] = null;
+        else newItem[f] = inp.item[f] ?? "";
+      }
       arr.splice(at, 0, newItem);
       draft[section] = arr;
       const mutated = onlyChangedIn(cvData, draft, [section]);
