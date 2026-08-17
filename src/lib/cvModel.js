@@ -6,7 +6,8 @@ export const emptyCV = {
   erfarenhet: [{ roll: "", foretag: "", period: "", beskrivning: "" }],
   utbildning: [{ examen: "", skola: "", period: "", beskrivning: "" }],
   fardigheter: [{ namn: "", niva: 80 }],
-  sprak: [{ sprak: "", niva: "" }]
+  sprak: [{ sprak: "", niva: "" }],
+  references: []
 };
 
 export const CV_SCHEMA = {
@@ -61,6 +62,17 @@ export const CV_SCHEMA = {
         type: "object",
         properties: { sprak: { type: "string" }, niva: { type: "string" } }
       }
+    },
+    references: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          namn: { type: "string" },
+          relation: { type: "string" },
+          kontakt: { type: "string" }
+        }
+      }
     }
   }
 };
@@ -94,15 +106,16 @@ export const SECTIONS = [
   { key: "erfarenhet", label: "Arbetslivserfarenhet" },
   { key: "utbildning", label: "Utbildning" },
   { key: "fardigheter", label: "Färdigheter" },
-  { key: "sprak", label: "Språk" }
+  { key: "sprak", label: "Språk" },
+  { key: "references", label: "Referenser" }
 ];
 
 export const DEFAULT_LAYOUTS = {
-  stockholm: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
-  executive: { main: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], sidebar: [] },
-  techpro: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
-  creative: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
-  nordic: { main: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"], sidebar: [] }
+  stockholm: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
+  executive: { main: ["profil", "erfarenhet", "utbildning", "references", "fardigheter", "sprak"], sidebar: [] },
+  techpro: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
+  creative: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
+  nordic: { main: ["profil", "erfarenhet", "utbildning", "references", "fardigheter", "sprak"], sidebar: [] }
 };
 
 export function normalizeLayout(layout, templateId) {
@@ -142,6 +155,7 @@ export function mergeCV(res, base) {
     erfarenhet: (r.erfarenhet && r.erfarenhet.length) ? r.erfarenhet.map(e => ({ roll: e.roll || "", foretag: e.foretag || "", period: e.period || "", beskrivning: e.beskrivning || "" })) : (b.erfarenhet || emptyCV.erfarenhet),
     utbildning: (r.utbildning && r.utbildning.length) ? r.utbildning.map(u => ({ examen: u.examen || "", skola: u.skola || "", period: u.period || "", beskrivning: u.beskrivning || "" })) : (b.utbildning || emptyCV.utbildning),
     fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : 80 })) : (b.fardigheter || emptyCV.fardigheter),
-    sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : (b.sprak || emptyCV.sprak)
+    sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : (b.sprak || emptyCV.sprak),
+    references: Array.isArray(r.references) ? r.references.map(x => ({ namn: x.namn || "", relation: x.relation || "", kontakt: x.kontakt || "" })) : (b.references || emptyCV.references)
   };
 }
