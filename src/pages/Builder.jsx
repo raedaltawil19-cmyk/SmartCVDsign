@@ -283,11 +283,14 @@ export default function Builder() {
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
 
-  const exportPDF = async () => {
-    setAuthChecking(true);
-    const ok = await guard();
-    setAuthChecking(false);
-    if (ok) exportSvc.print();
+  const exportPDF = () => {
+    // Keep the native print call synchronous with the user's click.
+    // Safari can block window.print() when it is invoked after an async auth check.
+    if (!isAuthenticated) {
+      guard();
+      return;
+    }
+    exportSvc.print();
   };
 
   // Print gate: block native print / Ctrl+P when not authenticated.
