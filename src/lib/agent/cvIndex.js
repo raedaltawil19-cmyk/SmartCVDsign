@@ -30,7 +30,8 @@ export const FIELD_ROLES = {
   erfarenhet: { roll: "job_title", foretag: "company", period: "date", beskrivning: "description" },
   utbildning: { examen: "degree", skola: "school", period: "date", beskrivning: "description" },
   fardigheter: { namn: "skill", niva: "skill_level" },
-  sprak: { sprak: "language", niva: "language_level" }
+  sprak: { sprak: "language", niva: "language_level" },
+  references: { namn: "reference_name", relation: "reference_relation", kontakt: "reference_contact" }
 };
 
 /** مرادفات الأدوار بعدة لغات — metadata للفهم، لا شروط خاصة في المنطق */
@@ -50,7 +51,10 @@ export const ROLE_ALIASES = {
   skill: ["namn", "färdighet", "skill", "kompetens", "المهارة"],
   skill_level: ["niva", "nivå", "level", "المستوى", "الدرجة"],
   language: ["sprak", "språk", "language", "اللغة"],
-  language_level: ["niva", "nivå", "level", "المستوى"]
+  language_level: ["niva", "nivå", "level", "المستوى"],
+  reference_name: ["namn", "name", "referens", "reference", "الاسم", "المرجع"],
+  reference_relation: ["relation", "relationship", "title", "المسمى", "العلاقة", "الصفة"],
+  reference_contact: ["kontakt", "contact", "telefon", "email", "التواصل", "الاتصال"]
 };
 
 export const SECTION_META = {
@@ -113,13 +117,22 @@ export const SECTION_META = {
     titleField: "sprak",
     aliases: ["sprak", "språk", "languages", "language", "اللغات", "اللغة"],
     inLayout: true
+  },
+  references: {
+    kind: "list",
+    label: "Referenser",
+    labelAr: "المراجع",
+    prefix: "reference",
+    titleField: "namn",
+    aliases: ["referenser", "referens", "references", "reference", "المراجع", "المرجع"],
+    inLayout: true
   }
 };
 
 /** الأقسام التي تظهر في هيكل الأعمدة (تستخدمها الأدوات و LayoutEditor) */
 export const SECTION_KEYS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
 /** كل أقسام السيرة التي يراها المستخدم فعليًا */
-export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS];
+export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS, "references"]; 
 
 /** الأقسام ذات العنصر الواحد ومعرّفاتها الثابتة */
 const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
@@ -162,6 +175,7 @@ const itemLabel = (section, item) => {
   if (section === "utbildning") return [item.examen, item.skola].filter(Boolean).join(" – ");
   if (section === "fardigheter") return item.namn || "";
   if (section === "sprak") return item.sprak || "";
+  if (section === "references") return item.namn || "";
   return "";
 };
 
@@ -225,7 +239,7 @@ export function buildCVIndex(data) {
   sections.push(makeSection("kontakt", [singleItem("kontakt", d.kontakt || {})]));
   sections.push(makeSection("profil", [singleItem("profil", { profil: d.profil || "" })]));
 
-  for (const key of ["erfarenhet", "utbildning", "fardigheter", "sprak"]) {
+  for (const key of ["erfarenhet", "utbildning", "fardigheter", "sprak", "references"]) {
     const arr = Array.isArray(d[key]) ? d[key] : [];
     const used = new Map();
     const items = arr.map((item, index) => {
