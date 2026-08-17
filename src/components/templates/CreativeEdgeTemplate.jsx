@@ -2,6 +2,7 @@ import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import ContactBar from "./ContactBar";
+import ReferenceEntries, { referencesTitle, referencesHidden } from "./ReferenceEntries";
 
 const ACCENT = "#0d9488";
 const TINT = "#f0fdfa";
@@ -106,22 +107,22 @@ function Sprak({ d, editable, actions }) {
 }
 
 function Referenser({ d, editable, actions }) {
-  const list = d.references || [];
-  if (!editable && list.length === 0) return null;
+  if (referencesHidden(d)) return null;
+  if (!editable && (d.references || []).length === 0) return null;
   return (
     <section>
-      <Head>Referenser</Head>
-      <div className="space-y-3">
-        {list.map((r, i) => (
-          <div key={i} className="relative cv-keep pl-3.5 border-l-2" style={{ borderColor: ACCENT }}>
-            <h3 className="text-[13.5px] font-semibold text-slate-900"><EditText value={r.namn} editable={editable} onChange={(v) => actions.setRef(i, "namn", v)} placeholder="Namn" /></h3>
-            <div className="text-[12px] font-medium" style={{ color: ACCENT }}><EditText value={r.relation} editable={editable} onChange={(v) => actions.setRef(i, "relation", v)} placeholder="Relation / titel" /></div>
-            <div className="text-[12px] text-slate-600"><EditText value={r.kontakt} editable={editable} onChange={(v) => actions.setRef(i, "kontakt", v)} placeholder="Kontaktuppgifter" /></div>
-            {editable && <button onClick={() => actions.removeRef(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
-          </div>
-        ))}
-        {editable && <button onClick={actions.addRef} className="no-print text-[12px] flex items-center gap-1" style={{ color: ACCENT }}><Plus className="w-3 h-3" />Lägg till referens</button>}
-      </div>
+      <Head>{referencesTitle(d)}</Head>
+      <ReferenceEntries
+        d={d} editable={editable} actions={actions}
+        itemClassName="relative cv-keep pl-3.5 border-l-2"
+        nameClassName="text-[13.5px] font-semibold text-slate-900"
+        metaClassName="text-[12px] font-medium"
+        metaStyle={{ color: ACCENT }}
+        contactClassName="text-[12px] text-slate-600"
+        noteClassName="text-[12px] text-slate-600"
+        addClassName="text-[12px]"
+        addStyle={{ color: ACCENT }}
+      />
     </section>
   );
 }

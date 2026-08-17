@@ -15,12 +15,12 @@ import { validateCV } from "@/lib/agent/tools/validation";
 export const TOOL_NAME = "cv_edit_content";
 
 /** الأقسام القابلة لتعديل المحتوى (header/kontakt محتوى سيرة كامل — لكنهما ليسا قابلين للنقل) */
-export const EDITABLE_SECTIONS = ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
-/** أقسام القوائم — الوحيدة التي تقبل add_item / remove_item */
+export const EDITABLE_SECTIONS = ["header", "kontakt", "profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references", "referensinstallningar"]; 
+/** أقسام القوائم — الوحيدة التي تقبل add_item / remove_item / move_item */
 export const LIST_SECTIONS = ["erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
 /** أقسام العنصر الواحد ومعرّفاتها الثابتة (لا تتغيّر IDs الخاصة بها أبداً) */
-export const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
-export const OPERATIONS = ["replace_field", "add_item", "remove_item"];
+export const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main", referensinstallningar: "references_settings" };
+export const OPERATIONS = ["replace_field", "add_item", "remove_item", "move_item"];
 /** مستويات اللغة المسموحة (مطابقة لتعليمات cvModel) */
 export const SPRAK_LEVELS = ["Modersmål", "Flytande", "Goda kunskaper", "Grundläggande"];
 
@@ -33,8 +33,8 @@ export const CV_EDIT_CONTENT_INPUT_SCHEMA = {
     operation: { type: "string", enum: OPERATIONS },
     itemRef: { type: "string", description: "Stable ID صادر عن cvIndex (header_main / contact_main / profile_main / experience_8f31a ...)" },
     field: { type: "string", description: "اسم الحقل الفعلي أو دوره الدلالي" },
-    value: { type: ["string", "number"] },
-    expectedValue: { type: ["string", "number"], description: "القيمة الحالية كما رآها الطالب — إلزامية في replace_field" },
+    value: { type: ["string", "number", "boolean"] },
+    expectedValue: { type: ["string", "number", "boolean"], description: "القيمة الحالية كما رآها الطالب — إلزامية في replace_field" },
     item: { type: "object", description: "عنصر جديد بحقول القسم المعروفة فقط (add_item)" },
     index: { type: "integer", minimum: 0 }
   }
@@ -46,7 +46,8 @@ const ALLOWED_INPUT_KEYS = Object.keys(CV_EDIT_CONTENT_INPUT_SCHEMA.properties);
 export const OPERATION_KEYS = {
   replace_field: ["section", "operation", "itemRef", "field", "value", "expectedValue"],
   add_item: ["section", "operation", "item", "index"],
-  remove_item: ["section", "operation", "itemRef"]
+  remove_item: ["section", "operation", "itemRef"],
+  move_item: ["section", "operation", "itemRef", "index"]
 };
 
 /** حقول الهوية التي تدخل في Stable ID ويجب ألا تكون فارغة عند إنشاء عنصر */
@@ -55,8 +56,12 @@ const IDENTITY_FIELDS = {
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
   sprak: ["sprak"],
-  references: ["namn"]
+  // المرجع: تكفي قيمة واحدة من هذه لتمييزه — لا حقل إلزامي بعينه
+  references: ["namn", "anteckning", "organisation"]
 };
+
+/** أقسام تكفيها قيمة واحدة غير فارغة من حقول الهوية (بدل اشتراطها كلها) */
+const ANY_IDENTITY_SECTIONS = ["references"];
 
 /** حقول يجب أن تحتوي محتوى فعلياً (adress / linkedin / beskrivning يجوز أن تكون فارغة) */
 const REQUIRED_CONTENT_FIELDS = {
@@ -67,7 +72,9 @@ const REQUIRED_CONTENT_FIELDS = {
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
   sprak: ["sprak"],
-  references: ["namn"]
+  // كل حقول المرجع اختيارية: الاسم والعلاقة والشركة والبريد والهاتف والنص الحر
+  references: [],
+  referensinstallningar: []
 };
 
 /** الحقول الفعلية لكل قسم — مشتقة من FIELD_ROLES وليست مكتوبة يدوياً */
@@ -89,6 +96,10 @@ const fail = (errorCode, message, section, operation) => ({
 
 /** فرض النوع حسب القسم والحقل */
 function checkValueType(section, field, value) {
+  if (section === "referensinstallningar" && field === "referencesDold") {
+    if (typeof value !== "boolean") return "إظهار/إخفاء القسم يجب أن يكون true أو false.";
+    return null;
+  }
   if (section === "fardigheter" && field === "niva") {
     // المستوى اختياري تماماً: null / "" = بلا مستوى
     if (value === null || value === "") return null;
@@ -164,9 +175,10 @@ function singleFieldAccess(section, field) {
       allowedPaths: ["kontakt"]
     };
   }
-  // header (namn / titel) و profil (profil) — حقول في جذر النموذج
+  // header (namn / titel) و profil و إعدادات المراجع — حقول في جذر النموذج
+  const fallback = field === "referencesDold" ? false : "";
   return {
-    get: (d) => d[field] ?? "",
+    get: (d) => d[field] ?? fallback,
     set: (d, v) => { d[field] = v; },
     allowedPaths: [field]
   };
@@ -287,8 +299,8 @@ export function runCvEditContent(input, cvData) {
       }
       const extra = Object.keys(inp.item).filter((k) => !allowedFields.includes(k));
       if (extra.length) return fail("INPUT_UNKNOWN_KEYS", `حقول غير معروفة في العنصر: ${extra.join(", ")}.`, section, operation);
-      // حقول اختياري تركها: مستوى المهارة، وتفاصيل المرجع الثانوية
-      const OPTIONAL_ON_ADD = { fardigheter: ["niva"], references: ["relation", "kontakt"] };
+      // حقول اختياري تركها: مستوى المهارة، وكل حقول المرجع
+      const OPTIONAL_ON_ADD = { fardigheter: ["niva"], references: sectionFields("references") };
       const optional = OPTIONAL_ON_ADD[section] || [];
       const missing = allowedFields.filter((f) => inp.item[f] === undefined && !optional.includes(f));
       if (missing.length) {
@@ -299,9 +311,17 @@ export function runCvEditContent(input, cvData) {
         const err = checkValueType(section, f, inp.item[f]);
         if (err) return fail("VALUE_TYPE_INVALID", err, section, operation);
       }
-      const emptyIdentity = (IDENTITY_FIELDS[section] || []).filter((f) => String(inp.item[f] ?? "").trim() === "");
-      if (emptyIdentity.length) {
-        return fail("ITEM_IDENTITY_REQUIRED", `حقول الهوية لا يجوز أن تكون فارغة: ${emptyIdentity.join(", ")}.`, section, operation);
+      const identity = IDENTITY_FIELDS[section] || [];
+      if (ANY_IDENTITY_SECTIONS.includes(section)) {
+        const anyFilled = identity.some((f) => String(inp.item[f] ?? "").trim() !== "");
+        if (!anyFilled) {
+          return fail("ITEM_IDENTITY_REQUIRED", `أضف على الأقل واحداً من: ${identity.join(", ")}.`, section, operation);
+        }
+      } else {
+        const emptyIdentity = identity.filter((f) => String(inp.item[f] ?? "").trim() === "");
+        if (emptyIdentity.length) {
+          return fail("ITEM_IDENTITY_REQUIRED", `حقول الهوية لا يجوز أن تكون فارغة: ${emptyIdentity.join(", ")}.`, section, operation);
+        }
       }
       const arr = Array.isArray(draft[section]) ? draft[section] : [];
       let at = arr.length;
@@ -356,6 +376,33 @@ export function runCvEditContent(input, cvData) {
         newValue: null,
         newItemRef: null,
         summary: `تم حذف عنصر من ${SECTION_META[section]?.labelAr || section}.`
+      };
+    }
+
+    if (operation === "move_item") {
+      if (!LIST_SECTIONS.includes(section)) return fail("OPERATION_NOT_ALLOWED_FOR_SECTION", `لا يمكن إعادة ترتيب عناصر ${SECTION_META[section]?.labelAr || section}.`, section, operation);
+      if (!inp.itemRef) return fail("ITEM_REF_REQUIRED", "لم يُحدَّد العنصر المطلوب نقله.", section, operation);
+      const loc = locateByRef(draft, section, inp.itemRef);
+      if (loc.error) return fail(loc.error, loc.error === "ITEM_AMBIGUOUS" ? "المرجع يطابق أكثر من عنصر — حدِّد العنصر بدقة." : `لم أجد العنصر (${inp.itemRef}) في القسم.`, section, operation);
+      const arr = draft[section];
+      if (!Number.isInteger(inp.index) || inp.index < 0 || inp.index > arr.length - 1) {
+        return fail("INDEX_INVALID", "الموضع المطلوب خارج النطاق.", section, operation);
+      }
+      const [moved] = arr.splice(loc.index, 1);
+      arr.splice(inp.index, 0, moved);
+      const mutated = onlyChangedIn(cvData, draft, [section]);
+      if (mutated) return fail("UNEXPECTED_MUTATION", `تغيّر غير مقصود في «${mutated}».`, section, operation);
+      if (arr.length !== (cvData[section] || []).length) {
+        return fail("UNEXPECTED_MUTATION", "عدد العناصر بعد النقل غير متوقع.", section, operation);
+      }
+      result = {
+        section,
+        itemRef: inp.itemRef,
+        field: null,
+        previousValue: loc.index,
+        newValue: inp.index,
+        newItemRef: refAtIndex(draft, section, inp.index),
+        summary: `تم نقل عنصر داخل ${SECTION_META[section]?.labelAr || section} إلى الموضع ${inp.index + 1}.`
       };
     }
 

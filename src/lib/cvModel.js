@@ -7,7 +7,31 @@ export const emptyCV = {
   utbildning: [{ examen: "", skola: "", period: "", beskrivning: "" }],
   fardigheter: [{ namn: "", niva: null }],
   sprak: [{ sprak: "", niva: "" }],
-  references: []
+  references: [],
+  // إعدادات قسم المراجع: عنوان القسم (فارغ = العنوان الافتراضي) وإظهاره/إخفاؤه
+  referencesTitel: "",
+  referencesDold: false
+};
+
+/** عنصر مرجع فارغ — كل الحقول اختيارية */
+export const emptyReference = { namn: "", relation: "", organisation: "", epost: "", telefon: "", anteckning: "" };
+
+/** حقول المرجع بترتيب العرض */
+export const REFERENCE_FIELDS = Object.keys(emptyReference);
+
+/** توحيد شكل المرجع مع ترحيل الصيغة القديمة (kontakt نص حر) */
+export const normalizeReference = (r) => {
+  const x = r || {};
+  const legacy = typeof x.kontakt === "string" ? x.kontakt.trim() : "";
+  const legacyIsEmail = legacy.includes("@");
+  return {
+    namn: x.namn || "",
+    relation: x.relation || "",
+    organisation: x.organisation || "",
+    epost: x.epost || (legacyIsEmail ? legacy : ""),
+    telefon: x.telefon || (legacy && !legacyIsEmail ? legacy : ""),
+    anteckning: x.anteckning || ""
+  };
 };
 
 export const CV_SCHEMA = {
@@ -70,10 +94,15 @@ export const CV_SCHEMA = {
         properties: {
           namn: { type: "string" },
           relation: { type: "string" },
-          kontakt: { type: "string" }
+          organisation: { type: "string" },
+          epost: { type: "string" },
+          telefon: { type: "string" },
+          anteckning: { type: "string" }
         }
       }
-    }
+    },
+    referencesTitel: { type: "string" },
+    referencesDold: { type: "boolean" }
   }
 };
 
@@ -157,6 +186,8 @@ export function mergeCV(res, base) {
     // مستوى المهارة اختياري: يُحفظ كما هو، وغيابه يعني «بلا مستوى» ولا يُفرض رقم افتراضي
     fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : null })) : (b.fardigheter || emptyCV.fardigheter),
     sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : (b.sprak || emptyCV.sprak),
-    references: Array.isArray(r.references) ? r.references.map(x => ({ namn: x.namn || "", relation: x.relation || "", kontakt: x.kontakt || "" })) : (b.references || emptyCV.references)
+    references: (Array.isArray(r.references) ? r.references : (b.references || emptyCV.references)).map(normalizeReference),
+    referencesTitel: typeof r.referencesTitel === "string" ? r.referencesTitel : (b.referencesTitel || ""),
+    referencesDold: typeof r.referencesDold === "boolean" ? r.referencesDold : (b.referencesDold || false)
   };
 }

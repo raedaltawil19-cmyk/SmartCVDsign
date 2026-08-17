@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { emptyCV, mergeCV, DEFAULT_LAYOUTS } from "@/lib/cvModel";
+import { emptyCV, mergeCV, DEFAULT_LAYOUTS, emptyReference } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { useLanguage } from "@/lib/i18n";
@@ -192,7 +192,7 @@ export default function Builder() {
   const addSprak = () => { setData((d) => ({ ...d, sprak: [...d.sprak, { sprak: "", niva: "" }] })); logAction("manual_edit", { field: "إضافة لغة" }); };
   const removeSprak = (i) => { setData((d) => ({ ...d, sprak: d.sprak.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف لغة #${i + 1}` }); };
   const setRef = (i, k, v) => { setData((d) => { const a = [...(d.references || [])]; a[i] = { ...a[i], [k]: v }; return { ...d, references: a }; }); logAction("manual_edit", { field: `references[${i}].${k}` }, `ref:${i}:${k}`); };
-  const addRef = () => { setData((d) => ({ ...d, references: [...(d.references || []), { namn: "", relation: "", kontakt: "" }] })); logAction("manual_edit", { field: "إضافة مرجع" }); };
+  const addRef = () => { setData((d) => ({ ...d, references: [...(d.references || []), { ...emptyReference }] })); logAction("manual_edit", { field: "إضافة مرجع" }); };
   const removeRef = (i) => { setData((d) => ({ ...d, references: (d.references || []).filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف مرجع #${i + 1}` }); };
 
   const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak, setRef, addRef, removeRef };

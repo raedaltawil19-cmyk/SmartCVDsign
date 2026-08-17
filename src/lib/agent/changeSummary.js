@@ -8,7 +8,8 @@ const FIELD_LABELS_AR = {
   namn: "الاسم", titel: "المسمى", telefon: "الهاتف", epost: "البريد", adress: "العنوان",
   linkedin: "لينكدإن", profil: "النبذة", roll: "المسمى الوظيفي", foretag: "جهة العمل",
   period: "الفترة", beskrivning: "الوصف", sprak: "اللغة", examen: "الشهادة", skola: "المدرسة",
-  niva: "المستوى"
+  niva: "المستوى", relation: "العلاقة", organisation: "جهة المرجع", anteckning: "نص إضافي",
+  referencesTitel: "عنوان قسم المراجع", referencesDold: "إظهار قسم المراجع"
 };
 
 const fieldLabel = (section, field) => {
@@ -39,6 +40,10 @@ export function describeEdit(res, newData) {
     return `${sectionAr}: إضافة${name ? ` «${name}»` : ""}`;
   }
   if (res?.operation === "remove_item") return `${sectionAr}: حذف عنصر`;
+  if (res?.operation === "move_item") {
+    const name = itemLabelOf(newData, section, res.newItemRef);
+    return `${sectionAr}: إعادة ترتيب${name ? ` «${name}»` : ""} إلى الموضع ${Number(res.newValue) + 1}`;
+  }
   const item = itemLabelOf(newData, section, res?.newItemRef || res?.itemRef);
   const fl = fieldLabel(section, res?.field);
   const value = typeof res?.newValue === "object" ? "" : String(res?.newValue ?? "");

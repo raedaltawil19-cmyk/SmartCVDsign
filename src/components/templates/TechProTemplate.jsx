@@ -2,6 +2,7 @@ import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import ContactBar from "./ContactBar";
+import ReferenceEntries, { referencesTitle, referencesHidden } from "./ReferenceEntries";
 
 const BLUE = "#1B4FD8";
 const DARK = "#0f172a";
@@ -104,22 +105,21 @@ function Sprak({ d, editable, actions }) {
 }
 
 function Referenser({ d, editable, actions }) {
-  const list = d.references || [];
-  if (!editable && list.length === 0) return null;
+  if (referencesHidden(d)) return null;
+  if (!editable && (d.references || []).length === 0) return null;
   return (
     <section>
-      <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>Referenser</h2>
-      <div className="space-y-3">
-        {list.map((r, i) => (
-          <div key={i} className="relative cv-keep">
-            <h3 className="text-[13px] font-bold text-slate-900"><EditText value={r.namn} editable={editable} onChange={(v) => actions.setRef(i, "namn", v)} placeholder="Namn" /></h3>
-            <div className="text-[12px] font-medium" style={{ color: BLUE }}><EditText value={r.relation} editable={editable} onChange={(v) => actions.setRef(i, "relation", v)} placeholder="Relation / titel" /></div>
-            <div className="text-[11.5px] text-slate-600"><EditText value={r.kontakt} editable={editable} onChange={(v) => actions.setRef(i, "kontakt", v)} placeholder="Kontaktuppgifter" /></div>
-            {editable && <button onClick={() => actions.removeRef(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
-          </div>
-        ))}
-        {editable && <button onClick={actions.addRef} className="no-print text-[11.5px] flex items-center gap-1" style={{ color: BLUE }}><Plus className="w-3 h-3" />Lägg till referens</button>}
-      </div>
+      <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>{referencesTitle(d)}</h2>
+      <ReferenceEntries
+        d={d} editable={editable} actions={actions}
+        nameClassName="text-[13px] font-bold text-slate-900"
+        metaClassName="text-[12px] font-medium"
+        metaStyle={{ color: BLUE }}
+        contactClassName="text-[11.5px] text-slate-600"
+        noteClassName="text-[11.5px] text-slate-600"
+        addClassName="text-[11.5px]"
+        addStyle={{ color: BLUE }}
+      />
     </section>
   );
 }

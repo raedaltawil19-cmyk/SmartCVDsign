@@ -31,7 +31,16 @@ export const FIELD_ROLES = {
   utbildning: { examen: "degree", skola: "school", period: "date", beskrivning: "description" },
   fardigheter: { namn: "skill", niva: "skill_level" },
   sprak: { sprak: "language", niva: "language_level" },
-  references: { namn: "reference_name", relation: "reference_relation", kontakt: "reference_contact" }
+  references: {
+    namn: "reference_name",
+    relation: "reference_relation",
+    organisation: "reference_organisation",
+    epost: "reference_email",
+    telefon: "reference_phone",
+    anteckning: "reference_note"
+  },
+  // إعدادات قسم المراجع: العنوان والإظهار — قسم بعنصر واحد
+  referensinstallningar: { referencesTitel: "section_title", referencesDold: "section_hidden" }
 };
 
 /** مرادفات الأدوار بعدة لغات — metadata للفهم، لا شروط خاصة في المنطق */
@@ -54,7 +63,12 @@ export const ROLE_ALIASES = {
   language_level: ["niva", "nivå", "level", "المستوى"],
   reference_name: ["namn", "name", "referens", "reference", "الاسم", "المرجع"],
   reference_relation: ["relation", "relationship", "title", "المسمى", "العلاقة", "الصفة"],
-  reference_contact: ["kontakt", "contact", "telefon", "email", "التواصل", "الاتصال"]
+  reference_organisation: ["organisation", "företag", "foretag", "company", "arbetsplats", "الشركة", "المؤسسة", "جهة العمل"],
+  reference_email: ["epost", "e-post", "email", "mail", "الايميل", "البريد", "البريد الالكتروني"],
+  reference_phone: ["telefon", "phone", "mobil", "nummer", "الهاتف", "التلفون", "الجوال", "الرقم"],
+  reference_note: ["anteckning", "kontakt", "contact", "note", "notes", "custom text", "fritext", "ملاحظة", "نص", "نص إضافي", "التواصل"],
+  section_title: ["titel", "rubrik", "title", "section title", "عنوان", "اسم القسم", "عنوان القسم"],
+  section_hidden: ["dold", "hidden", "visible", "synlig", "مخفي", "إظهار", "إخفاء"]
 };
 
 export const SECTION_META = {
@@ -126,16 +140,24 @@ export const SECTION_META = {
     titleField: "namn",
     aliases: ["referenser", "referens", "references", "reference", "المراجع", "المرجع"],
     inLayout: true
+  },
+  referensinstallningar: {
+    kind: "object",
+    label: "Referensrubrik & synlighet",
+    labelAr: "عنوان قسم المراجع وإظهاره",
+    prefix: "references_settings",
+    aliases: ["referensrubrik", "referens titel", "references title", "references section", "عنوان المراجع", "اسم قسم المراجع", "إخفاء المراجع", "إظهار المراجع"],
+    inLayout: false
   }
 };
 
 /** الأقسام التي تظهر في هيكل الأعمدة (تستخدمها الأدوات و LayoutEditor) */
 export const SECTION_KEYS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
 /** كل أقسام السيرة التي يراها المستخدم فعليًا */
-export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS];
+export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS, "referensinstallningar"];
 
 /** الأقسام ذات العنصر الواحد ومعرّفاتها الثابتة */
-const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
+const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main", referensinstallningar: "references_settings" };
 
 /** هوية العنصر: الحقول التي تُشتق منها البصمة الثابتة */
 const IDENTITY_FIELDS = {
@@ -143,7 +165,8 @@ const IDENTITY_FIELDS = {
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
   sprak: ["sprak"],
-  references: ["namn"]
+  // المرجع قد يكون بلا اسم (نص حر فقط) — الهوية تُشتق من أي محتوى مميّز
+  references: ["namn", "anteckning", "organisation"]
 };
 
 function hash5(str) {
@@ -176,7 +199,8 @@ const itemLabel = (section, item) => {
   if (section === "utbildning") return [item.examen, item.skola].filter(Boolean).join(" – ");
   if (section === "fardigheter") return item.namn || "";
   if (section === "sprak") return item.sprak || "";
-  if (section === "references") return item.namn || "";
+  if (section === "references") return [item.namn, item.organisation].filter(Boolean).join(" – ") || item.anteckning || "";
+  if (section === "referensinstallningar") return "Referensrubrik";
   return "";
 };
 
@@ -261,6 +285,11 @@ export function buildCVIndex(data) {
     });
     sections.push(makeSection(key, items));
   }
+
+  sections.push(makeSection("referensinstallningar", [singleItem("referensinstallningar", {
+    referencesTitel: d.referencesTitel || "",
+    referencesDold: d.referencesDold === true
+  })]));
 
   return { sections, sectionKeys: ALL_SECTION_KEYS };
 }

@@ -2,6 +2,7 @@ import { EditText } from "./Editable";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_LAYOUTS } from "@/lib/cvModel";
 import ContactBar from "./ContactBar";
+import ReferenceEntries, { referencesTitle, referencesHidden } from "./ReferenceEntries";
 
 const GOLD = "#B08D57";
 
@@ -91,22 +92,22 @@ function Sprak({ d, editable, actions }) {
 }
 
 function Referenser({ d, editable, actions }) {
-  const list = d.references || [];
-  if (!editable && list.length === 0) return null;
+  if (referencesHidden(d)) return null;
+  if (!editable && (d.references || []).length === 0) return null;
   return (
     <section>
-      <h2 className="text-[11px] tracking-[0.3em] uppercase font-semibold mb-4 text-center pb-2 border-b border-slate-200" style={{ color: GOLD }}>Referenser</h2>
-      <div className="space-y-4">
-        {list.map((r, i) => (
-          <div key={i} className="relative text-center cv-keep">
-            <h3 className="text-[14.5px] font-semibold text-slate-900"><EditText value={r.namn} editable={editable} onChange={(v) => actions.setRef(i, "namn", v)} placeholder="Namn" /></h3>
-            <div className="text-[12.5px] text-slate-500 italic"><EditText value={r.relation} editable={editable} onChange={(v) => actions.setRef(i, "relation", v)} placeholder="Relation / titel" /></div>
-            <div className="text-[12px] text-slate-600"><EditText value={r.kontakt} editable={editable} onChange={(v) => actions.setRef(i, "kontakt", v)} placeholder="Kontaktuppgifter" /></div>
-            {editable && <button onClick={() => actions.removeRef(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
-          </div>
-        ))}
-        {editable && <button onClick={actions.addRef} className="no-print text-[12px] flex items-center gap-1 mx-auto" style={{ color: GOLD }}><Plus className="w-3 h-3" />Lägg till referens</button>}
-      </div>
+      <h2 className="text-[11px] tracking-[0.3em] uppercase font-semibold mb-4 text-center pb-2 border-b border-slate-200" style={{ color: GOLD }}>{referencesTitle(d)}</h2>
+      <ReferenceEntries
+        d={d} editable={editable} actions={actions}
+        wrapperClassName="space-y-4"
+        itemClassName="relative text-center cv-keep"
+        nameClassName="text-[14.5px] font-semibold text-slate-900"
+        metaClassName="text-[12.5px] text-slate-500 italic"
+        contactClassName="text-[12px] text-slate-600"
+        noteClassName="text-[12px] text-slate-600"
+        addClassName="text-[12px] mx-auto"
+        addStyle={{ color: GOLD }}
+      />
     </section>
   );
 }
