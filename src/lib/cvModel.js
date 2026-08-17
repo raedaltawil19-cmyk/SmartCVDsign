@@ -5,7 +5,7 @@ export const emptyCV = {
   profil: "",
   erfarenhet: [{ roll: "", foretag: "", period: "", beskrivning: "" }],
   utbildning: [{ examen: "", skola: "", period: "", beskrivning: "" }],
-  fardigheter: [{ namn: "", niva: 80 }],
+  fardigheter: [{ namn: "", niva: null }],
   sprak: [{ sprak: "", niva: "" }],
   references: []
 };
@@ -154,7 +154,8 @@ export function mergeCV(res, base) {
     profil: pick(r.profil, b.profil),
     erfarenhet: (r.erfarenhet && r.erfarenhet.length) ? r.erfarenhet.map(e => ({ roll: e.roll || "", foretag: e.foretag || "", period: e.period || "", beskrivning: e.beskrivning || "" })) : (b.erfarenhet || emptyCV.erfarenhet),
     utbildning: (r.utbildning && r.utbildning.length) ? r.utbildning.map(u => ({ examen: u.examen || "", skola: u.skola || "", period: u.period || "", beskrivning: u.beskrivning || "" })) : (b.utbildning || emptyCV.utbildning),
-    fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : 80 })) : (b.fardigheter || emptyCV.fardigheter),
+    // مستوى المهارة اختياري: يُحفظ كما هو، وغيابه يعني «بلا مستوى» ولا يُفرض رقم افتراضي
+    fardigheter: (r.fardigheter && r.fardigheter.length) ? r.fardigheter.map(f => ({ namn: f.namn || "", niva: typeof f.niva === "number" ? f.niva : null })) : (b.fardigheter || emptyCV.fardigheter),
     sprak: (r.sprak && r.sprak.length) ? r.sprak.map(s => ({ sprak: s.sprak || "", niva: s.niva || "" })) : (b.sprak || emptyCV.sprak),
     references: Array.isArray(r.references) ? r.references.map(x => ({ namn: x.namn || "", relation: x.relation || "", kontakt: x.kontakt || "" })) : (b.references || emptyCV.references)
   };

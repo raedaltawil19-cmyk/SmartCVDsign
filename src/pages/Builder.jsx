@@ -181,18 +181,21 @@ export default function Builder() {
   const setContact = (k, v) => { setData((d) => ({ ...d, kontakt: { ...d.kontakt, [k]: v } })); logAction("manual_edit", { field: `kontakt.${k}` }, `contact:${k}`); };
   const setExp = (i, k, v) => { setData((d) => { const a = [...d.erfarenhet]; a[i] = { ...a[i], [k]: v }; return { ...d, erfarenhet: a }; }); logAction("manual_edit", { field: `erfarenhet[${i}].${k}` }, `exp:${i}:${k}`); };
   const setEdu = (i, k, v) => { setData((d) => { const a = [...d.utbildning]; a[i] = { ...a[i], [k]: v }; return { ...d, utbildning: a }; }); logAction("manual_edit", { field: `utbildning[${i}].${k}` }, `edu:${i}:${k}`); };
-  const setSkill = (i, k, v) => { setData((d) => { const a = [...d.fardigheter]; a[i] = { ...a[i], [k]: k === "niva" ? Number(v) : v }; return { ...d, fardigheter: a }; }); logAction("manual_edit", { field: `fardigheter[${i}].${k}` }, `skill:${i}:${k}`); };
+  const setSkill = (i, k, v) => { setData((d) => { const a = [...d.fardigheter]; a[i] = { ...a[i], [k]: k === "niva" ? (v === null || v === "" ? null : Number(v)) : v }; return { ...d, fardigheter: a }; }); logAction("manual_edit", { field: `fardigheter[${i}].${k}` }, `skill:${i}:${k}`); };
   const setSprak = (i, k, v) => { setData((d) => { const a = [...d.sprak]; a[i] = { ...a[i], [k]: v }; return { ...d, sprak: a }; }); logAction("manual_edit", { field: `sprak[${i}].${k}` }, `sprak:${i}:${k}`); };
   const addExp = () => { setData((d) => ({ ...d, erfarenhet: [...d.erfarenhet, { roll: "", foretag: "", period: "", beskrivning: "" }] })); logAction("manual_edit", { field: "إضافة خبرة" }); };
   const removeExp = (i) => { setData((d) => ({ ...d, erfarenhet: d.erfarenhet.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف خبرة #${i + 1}` }); };
   const addEdu = () => { setData((d) => ({ ...d, utbildning: [...d.utbildning, { examen: "", skola: "", period: "", beskrivning: "" }] })); logAction("manual_edit", { field: "إضافة تعليم" }); };
   const removeEdu = (i) => { setData((d) => ({ ...d, utbildning: d.utbildning.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف تعليم #${i + 1}` }); };
-  const addSkill = () => { setData((d) => ({ ...d, fardigheter: [...d.fardigheter, { namn: "", niva: 80 }] })); logAction("manual_edit", { field: "إضافة مهارة" }); };
+  const addSkill = () => { setData((d) => ({ ...d, fardigheter: [...d.fardigheter, { namn: "", niva: null }] })); logAction("manual_edit", { field: "إضافة مهارة" }); };
   const removeSkill = (i) => { setData((d) => ({ ...d, fardigheter: d.fardigheter.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف مهارة #${i + 1}` }); };
   const addSprak = () => { setData((d) => ({ ...d, sprak: [...d.sprak, { sprak: "", niva: "" }] })); logAction("manual_edit", { field: "إضافة لغة" }); };
   const removeSprak = (i) => { setData((d) => ({ ...d, sprak: d.sprak.filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف لغة #${i + 1}` }); };
+  const setRef = (i, k, v) => { setData((d) => { const a = [...(d.references || [])]; a[i] = { ...a[i], [k]: v }; return { ...d, references: a }; }); logAction("manual_edit", { field: `references[${i}].${k}` }, `ref:${i}:${k}`); };
+  const addRef = () => { setData((d) => ({ ...d, references: [...(d.references || []), { namn: "", relation: "", kontakt: "" }] })); logAction("manual_edit", { field: "إضافة مرجع" }); };
+  const removeRef = (i) => { setData((d) => ({ ...d, references: (d.references || []).filter((_, x) => x !== i) })); logAction("manual_edit", { field: `حذف مرجع #${i + 1}` }); };
 
-  const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak };
+  const actions = { setField, setContact, setExp, setEdu, setSkill, setSprak, addExp, removeExp, addEdu, removeEdu, addSkill, removeSkill, addSprak, removeSprak, setRef, addRef, removeRef };
 
   useEffect(() => {
     if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }

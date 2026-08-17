@@ -70,11 +70,12 @@ function Fardigheter({ d, editable, actions }) {
               <EditText value={f.namn} editable={editable} onChange={(v) => actions.setSkill(i, "namn", v)} className="text-[12px] font-medium text-slate-700" placeholder="Färdighet" />
               {editable && <button onClick={() => actions.removeSkill(i)} className="no-print"><X className="w-3 h-3 text-slate-300" /></button>}
             </div>
-            {editable ? (
+            {/* المستوى اختياري: بلا مستوى ⇒ لا شريط ولا منزلق */}
+            {editable && typeof f.niva === "number" ? (
               <input type="range" min={0} max={100} value={f.niva} onChange={(e) => actions.setSkill(i, "niva", Number(e.target.value))} className="w-full h-1.5 accent-blue-600" />
-            ) : (
+            ) : typeof f.niva === "number" ? (
               <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${f.niva}%`, background: BLUE }} /></div>
-            )}
+            ) : null}
           </div>
         ))}
         {editable && <button onClick={actions.addSkill} className="no-print text-[11.5px] flex items-center gap-1" style={{ color: BLUE }}><Plus className="w-3 h-3" />Lägg till</button>}
@@ -102,7 +103,28 @@ function Sprak({ d, editable, actions }) {
   );
 }
 
-const RENDER = { profil: Profil, erfarenhet: Erfarenhet, utbildning: Utbildning, fardigheter: Fardigheter, sprak: Sprak };
+function Referenser({ d, editable, actions }) {
+  const list = d.references || [];
+  if (!editable && list.length === 0) return null;
+  return (
+    <section>
+      <h2 className="text-[11px] tracking-[0.18em] uppercase font-bold mb-3 pb-1.5 border-b-2" style={{ color: BLUE, borderColor: BLUE }}>Referenser</h2>
+      <div className="space-y-3">
+        {list.map((r, i) => (
+          <div key={i} className="relative cv-keep">
+            <h3 className="text-[13px] font-bold text-slate-900"><EditText value={r.namn} editable={editable} onChange={(v) => actions.setRef(i, "namn", v)} placeholder="Namn" /></h3>
+            <div className="text-[12px] font-medium" style={{ color: BLUE }}><EditText value={r.relation} editable={editable} onChange={(v) => actions.setRef(i, "relation", v)} placeholder="Relation / titel" /></div>
+            <div className="text-[11.5px] text-slate-600"><EditText value={r.kontakt} editable={editable} onChange={(v) => actions.setRef(i, "kontakt", v)} placeholder="Kontaktuppgifter" /></div>
+            {editable && <button onClick={() => actions.removeRef(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
+          </div>
+        ))}
+        {editable && <button onClick={actions.addRef} className="no-print text-[11.5px] flex items-center gap-1" style={{ color: BLUE }}><Plus className="w-3 h-3" />Lägg till referens</button>}
+      </div>
+    </section>
+  );
+}
+
+const RENDER = { profil: Profil, erfarenhet: Erfarenhet, utbildning: Utbildning, fardigheter: Fardigheter, sprak: Sprak, references: Referenser };
 
 export default function TechProTemplate({ data: d, editable, actions, layout }) {
   const lay = layout || DEFAULT_LAYOUTS.techpro;

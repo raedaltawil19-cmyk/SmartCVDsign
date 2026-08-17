@@ -90,7 +90,9 @@ const fail = (errorCode, message, section, operation) => ({
 /** فرض النوع حسب القسم والحقل */
 function checkValueType(section, field, value) {
   if (section === "fardigheter" && field === "niva") {
-    if (typeof value !== "number" || !Number.isFinite(value)) return "مستوى المهارة يجب أن يكون رقماً.";
+    // المستوى اختياري تماماً: null / "" = بلا مستوى
+    if (value === null || value === "") return null;
+    if (typeof value !== "number" || !Number.isFinite(value)) return "مستوى المهارة يجب أن يكون رقماً أو null (بلا مستوى).";
     if (value < 0 || value > 100) return "مستوى المهارة يجب أن يكون بين 0 و100.";
     return null;
   }
@@ -285,12 +287,15 @@ export function runCvEditContent(input, cvData) {
       }
       const extra = Object.keys(inp.item).filter((k) => !allowedFields.includes(k));
       if (extra.length) return fail("INPUT_UNKNOWN_KEYS", `حقول غير معروفة في العنصر: ${extra.join(", ")}.`, section, operation);
-      const missing = allowedFields.filter((f) => inp.item[f] === undefined && !(section === "fardigheter" && f === "niva"));
+      // حقول اختياري تركها: مستوى المهارة، وتفاصيل المرجع الثانوية
+      const OPTIONAL_ON_ADD = { fardigheter: ["niva"], references: ["relation", "kontakt"] };
+      const optional = OPTIONAL_ON_ADD[section] || [];
+      const missing = allowedFields.filter((f) => inp.item[f] === undefined && !optional.includes(f));
       if (missing.length) {
         return fail("ITEM_REQUIRED_FIELDS", `حقول مطلوبة ناقصة: ${missing.join(", ")}.`, section, operation);
       }
       for (const f of allowedFields) {
-        if (section === "fardigheter" && f === "niva" && inp.item[f] === undefined) continue;
+        if (optional.includes(f) && inp.item[f] === undefined) continue;
         const err = checkValueType(section, f, inp.item[f]);
         if (err) return fail("VALUE_TYPE_INVALID", err, section, operation);
       }
@@ -308,7 +313,7 @@ export function runCvEditContent(input, cvData) {
       }
       const newItem = {};
       for (const f of allowedFields) {
-        if (section === "fardigheter" && f === "niva" && inp.item[f] === undefined) newItem[f] = null;
+        if (section === "fardigheter" && f === "niva") newItem[f] = typeof inp.item[f] === "number" ? inp.item[f] : null;
         else newItem[f] = inp.item[f] ?? "";
       }
       arr.splice(at, 0, newItem);
@@ -332,7 +337,8 @@ export function runCvEditContent(input, cvData) {
       const loc = locateByRef(draft, section, inp.itemRef);
       if (loc.error) return fail(loc.error, loc.error === "ITEM_AMBIGUOUS" ? "المرجع يطابق أكثر من عنصر — حدِّد العنصر بدقة." : `لم أجد العنصر (${inp.itemRef}) في القسم.`, section, operation);
       const arr = draft[section];
-      if ((arr || []).length <= 1) {
+      // المراجع قسم اختياري بالكامل: يجوز أن يفرغ تماماً (حينها لا يُعرض في السيرة)
+      if (section !== "references" && (arr || []).length <= 1) {
         return fail("SECTION_WOULD_BE_EMPTY", `${SECTION_META[section]?.labelAr || section} يجب أن يبقى فيه عنصر واحد على الأقل.`, section, operation);
       }
       const removed = arr[loc.index];

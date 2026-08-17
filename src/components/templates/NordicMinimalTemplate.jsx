@@ -102,7 +102,28 @@ function Sprak({ d, editable, actions }) {
   );
 }
 
-const RENDER = { profil: Profil, erfarenhet: Erfarenhet, utbildning: Utbildning, fardigheter: Fardigheter, sprak: Sprak };
+function Referenser({ d, editable, actions }) {
+  const list = d.references || [];
+  if (!editable && list.length === 0) return null;
+  return (
+    <section>
+      <SectionHead>Referenser</SectionHead>
+      <div className="space-y-3">
+        {list.map((r, i) => (
+          <div key={i} className="relative cv-keep">
+            <h3 className="text-[13.5px] font-medium text-slate-900"><EditText value={r.namn} editable={editable} onChange={(v) => actions.setRef(i, "namn", v)} placeholder="Namn" /></h3>
+            <div className="text-[12.5px] text-slate-500"><EditText value={r.relation} editable={editable} onChange={(v) => actions.setRef(i, "relation", v)} placeholder="Relation / titel" /></div>
+            <div className="text-[12.5px] text-slate-600"><EditText value={r.kontakt} editable={editable} onChange={(v) => actions.setRef(i, "kontakt", v)} placeholder="Kontaktuppgifter" /></div>
+            {editable && <button onClick={() => actions.removeRef(i)} className="no-print absolute -right-6 top-0"><X className="w-4 h-4 text-slate-300" /></button>}
+          </div>
+        ))}
+        {editable && <button onClick={actions.addRef} className="no-print text-[12px] flex items-center gap-1 text-slate-400"><Plus className="w-3 h-3" />Lägg till referens</button>}
+      </div>
+    </section>
+  );
+}
+
+const RENDER = { profil: Profil, erfarenhet: Erfarenhet, utbildning: Utbildning, fardigheter: Fardigheter, sprak: Sprak, references: Referenser };
 
 export default function NordicMinimalTemplate({ data: d, editable, actions, layout }) {
   const lay = layout || DEFAULT_LAYOUTS.nordic;

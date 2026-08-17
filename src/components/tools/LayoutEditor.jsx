@@ -3,7 +3,7 @@ import { SECTIONS } from "@/lib/cvModel";
 import { X, GripVertical, Columns2 } from "lucide-react";
 
 const LABELS = Object.fromEntries(SECTIONS.map((s) => [s.key, s.label]));
-const AR = { profil: "نبذة", erfarenhet: "الخبرات", utbildning: "التعليم", fardigheter: "المهارات", sprak: "اللغات" };
+const AR = { profil: "نبذة", erfarenhet: "الخبرات", utbildning: "التعليم", fardigheter: "المهارات", sprak: "اللغات", references: "المراجع" };
 
 export default function LayoutEditor({ layout, hasSidebar, onChange, onClose }) {
   const lanes = hasSidebar ? ["main", "sidebar"] : ["main"];

@@ -27,10 +27,10 @@ export const CV_MOVE_SECTION_INPUT_SCHEMA = {
   required: ["templateId", "section"],
   properties: {
     templateId: { type: "string", enum: Object.keys(TEMPLATE_LAYOUT_SCHEMAS) },
-    section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
+    section: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"] },
     targetSlot: { type: "string", description: "معرّف سلوت أو وصف بشري (sidebar / main / يمين / left / höger ...)" },
-    before: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
-    after: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"] },
+    before: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"] },
+    after: { type: "string", enum: ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"] },
     index: { type: "integer", minimum: 0 }
   }
 };

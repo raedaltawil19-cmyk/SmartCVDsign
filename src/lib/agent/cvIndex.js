@@ -142,7 +142,8 @@ const IDENTITY_FIELDS = {
   erfarenhet: ["roll", "foretag", "period"],
   utbildning: ["examen", "skola", "period"],
   fardigheter: ["namn"],
-  sprak: ["sprak"]
+  sprak: ["sprak"],
+  references: ["namn"]
 };
 
 function hash5(str) {
