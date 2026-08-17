@@ -24,7 +24,13 @@ export function createExportService() {
       }
 
       const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map((node) => node.outerHTML)
+        .map((node) => {
+          if (node.tagName === "LINK") {
+            const href = node.href;
+            return href ? `<link rel="stylesheet" href="${href}">` : "";
+          }
+          return node.outerHTML;
+        })
         .join("\n");
 
       printWindow.document.open();
@@ -58,11 +64,20 @@ ${styles}
         printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true });
       };
 
-      if (printWindow.document.fonts?.ready) {
-        printWindow.document.fonts.ready.then(() => setTimeout(print, 50));
-      } else {
+      const waitForRender = async () => {
+        try {
+          if (printWindow.document.fonts?.ready) await printWindow.document.fonts.ready;
+        } catch (_) {}
+        const links = Array.from(printWindow.document.querySelectorAll('link[rel="stylesheet"]'));
+        await Promise.all(links.map((link) => new Promise((resolve) => {
+          if (link.sheet) return resolve();
+          link.addEventListener("load", resolve, { once: true });
+          link.addEventListener("error", resolve, { once: true });
+          setTimeout(resolve, 1500);
+        })));
         setTimeout(print, 100);
-      }
+      };
+      waitForRender();
     },
     exportPNG: (filename = "cv.png") => exportCVPNG(filename),
   };
