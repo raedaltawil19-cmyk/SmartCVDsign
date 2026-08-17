@@ -1,4 +1,5 @@
 import { exportCVPNG } from "@/lib/exportImage";
+import { exportCVPDF } from "@/lib/exportPdf";
 import { EXPORT_INTERFACE, assertImplements } from "@/services/interfaces";
 
 /**
@@ -9,6 +10,8 @@ export function createExportService() {
   const service = {
     name: "export",
     print: () => window.print(),
+    // PDF مباشر: لا رأس/تذييل من المتصفح (لا رابط ولا تاريخ)
+    exportPDF: (filename = "cv.pdf") => exportCVPDF(filename),
     exportPNG: (filename = "cv.png") => exportCVPNG(filename),
   };
 

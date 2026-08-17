@@ -287,7 +287,7 @@ export default function Builder() {
     setAuthChecking(true);
     const ok = await guard();
     setAuthChecking(false);
-    if (ok) exportSvc.print();
+    if (ok) await exportSvc.exportPDF(`${(data.namn || "cv").trim()}.pdf`);
   };
 
   // Print gate: block native print / Ctrl+P when not authenticated.
