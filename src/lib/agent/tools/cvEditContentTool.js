@@ -285,7 +285,7 @@ export function runCvEditContent(input, cvData) {
       }
       const extra = Object.keys(inp.item).filter((k) => !allowedFields.includes(k));
       if (extra.length) return fail("INPUT_UNKNOWN_KEYS", `حقول غير معروفة في العنصر: ${extra.join(", ")}.`, section, operation);
-      const missing = allowedFields.filter((f) => inp.item[f] === undefined);
+      const missing = allowedFields.filter((f) => inp.item[f] === undefined && !(section === "fardigheter" && f === "niva"));
       if (missing.length) {
         return fail("ITEM_REQUIRED_FIELDS", `حقول مطلوبة ناقصة: ${missing.join(", ")}.`, section, operation);
       }
