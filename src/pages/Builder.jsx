@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { emptyCV, mergeCV, DEFAULT_LAYOUTS, emptyReference } from "@/lib/cvModel";
+import { emptyCV, mergeCV, DEFAULT_LAYOUTS, emptyReference, normalizeLayout } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
 import { useLanguage } from "@/lib/i18n";
@@ -148,7 +148,8 @@ export default function Builder() {
         if (rec) {
           if (rec.data) setData(mergeCV(rec.data));
           if (rec.templateId) { skipLayoutResetRef.current = true; setTemplateId(rec.templateId); }
-          if (rec.layout) setLayout(rec.layout);
+          // النسخ المحفوظة قبل إضافة قسم المراجع لا تحتوي references في الـlayout — التطبيع يُدرجه
+          if (rec.layout) setLayout(normalizeLayout(rec.layout, rec.templateId || templateId));
           if (rec.templateSource) setTemplateSource(rec.templateSource);
           if (rec.templateReviewStatus) setTemplateReviewStatus(rec.templateReviewStatus);
           setCvMeta({ cvType: rec.cvType, parentCvId: rec.parentCvId, jobApplicationId: rec.jobApplicationId, titel: rec.titel });
@@ -170,7 +171,7 @@ export default function Builder() {
     try {
       if (p.data) setData(mergeCV(p.data));
       if (p.templateId) { skipLayoutResetRef.current = true; setTemplateId(p.templateId); }
-      if (p.layout) setLayout(p.layout);
+      if (p.layout) setLayout(normalizeLayout(p.layout, p.templateId || templateId));
       toast({ title: "أكمل ما بدأته", description: "تمت استعادة مسودة سيرتك بعد تسجيل الدخول." });
     } catch (e) {}
     auth.clearDraft();
