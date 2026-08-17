@@ -130,9 +130,9 @@ export const SECTION_META = {
 };
 
 /** الأقسام التي تظهر في هيكل الأعمدة (تستخدمها الأدوات و LayoutEditor) */
-export const SECTION_KEYS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
+export const SECTION_KEYS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak", "references"]; 
 /** كل أقسام السيرة التي يراها المستخدم فعليًا */
-export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS, "references"]; 
+export const ALL_SECTION_KEYS = ["header", "kontakt", ...SECTION_KEYS];
 
 /** الأقسام ذات العنصر الواحد ومعرّفاتها الثابتة */
 const SINGLE_ITEM_IDS = { header: "header_main", kontakt: "contact_main", profil: "profile_main" };
