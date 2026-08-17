@@ -93,7 +93,6 @@ function Sprak({ d, editable, actions }) {
 
 function Referenser({ d, editable, actions }) {
   if (referencesHidden(d)) return null;
-  if (!editable && (d.references || []).length === 0) return null;
   return (
     <section>
       <h2 className="text-[11px] tracking-[0.3em] uppercase font-semibold mb-4 text-center pb-2 border-b border-slate-200" style={{ color: GOLD }}>{referencesTitle(d)}</h2>
