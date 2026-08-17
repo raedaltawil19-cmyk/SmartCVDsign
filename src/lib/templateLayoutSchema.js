@@ -5,7 +5,7 @@
  */
 
 /** الأقسام القابلة للنقل في كل القوالب (مطابقة لـ SECTIONS في cvModel) */
-export const MOVABLE_SECTIONS = ["profil", "erfarenhet", "utbildning", "fardigheter", "sprak"];
+export const MOVABLE_SECTIONS = ["profil", "erfarenhet", "utbildning", "references", "fardigheter", "sprak"];
 
 /** عناصر مثبّتة داخل تصميم القالب — لا يجوز نقلها أو حذفها عبر أوامر الـlayout */
 export const FIXED_SECTIONS = ["header", "kontakt"];
