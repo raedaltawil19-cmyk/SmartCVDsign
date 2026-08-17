@@ -9,7 +9,8 @@ import { EXPORT_INTERFACE, assertImplements } from "@/services/interfaces";
 export function createExportService() {
   const service = {
     name: "export",
-    print: () => {
+    print: () => window.print(),
+    printIsolated: () => {
       const source = document.querySelector(".cv-print-area");
       if (!source) {
         window.print();
