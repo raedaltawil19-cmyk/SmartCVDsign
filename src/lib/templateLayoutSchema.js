@@ -24,7 +24,7 @@ export const TEMPLATE_LAYOUT_SCHEMAS = {
       { id: "sidebar", label: "العمود الجانبي", side: SIDES.LEFT, width: "34%", minItems: 1, primary: false },
       { id: "main", label: "العمود الرئيسي", side: SIDES.RIGHT, width: "66%", minItems: 1, primary: true }
     ],
-    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
     constraints: {
       // العمود الجانبي يُرسم دائماً لأن Kontakt مثبّت داخله، لذلك تفريغه يترك عموداً شبه فارغ.
       sidebarAlwaysRendered: true
@@ -42,7 +42,7 @@ export const TEMPLATE_LAYOUT_SCHEMAS = {
       { id: "main", label: "العمود الرئيسي", side: SIDES.LEFT, width: "65%", minItems: 1, primary: true },
       { id: "sidebar", label: "العمود الجانبي", side: SIDES.RIGHT, width: "35%", minItems: 0, primary: false }
     ],
-    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
     constraints: {
       // القالب يخفي العمود الجانبي تلقائياً عندما يصبح فارغاً.
       sidebarAlwaysRendered: false,
@@ -62,7 +62,7 @@ export const TEMPLATE_LAYOUT_SCHEMAS = {
       { id: "main", label: "العمود الرئيسي", side: SIDES.LEFT, width: "66%", minItems: 1, primary: true },
       { id: "sidebar", label: "العمود الجانبي", side: SIDES.RIGHT, width: "34%", minItems: 0, primary: false }
     ],
-    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning"], sidebar: ["fardigheter", "sprak"] },
+    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning", "references"], sidebar: ["fardigheter", "sprak"] },
     constraints: { sidebarAlwaysRendered: false }
   },
 
@@ -76,7 +76,7 @@ export const TEMPLATE_LAYOUT_SCHEMAS = {
     slots: [
       { id: "main", label: "العمود الوحيد", side: SIDES.CENTER, width: "620px", minItems: 1, primary: true }
     ],
-    defaultPlacement: { main: MOVABLE_SECTIONS, sidebar: [] },
+    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning", "references", "fardigheter", "sprak"], sidebar: [] },
     constraints: {
       // كل الأقسام مصممة بمحاذاة وسطية — لا يوجد سلوت ثانٍ في التصميم.
       centeredContent: true,
@@ -94,7 +94,7 @@ export const TEMPLATE_LAYOUT_SCHEMAS = {
     slots: [
       { id: "main", label: "العمود الوحيد", side: SIDES.CENTER, width: "640px", minItems: 1, primary: true }
     ],
-    defaultPlacement: { main: MOVABLE_SECTIONS, sidebar: [] },
+    defaultPlacement: { main: ["profil", "erfarenhet", "utbildning", "references", "fardigheter", "sprak"], sidebar: [] },
     constraints: { reorderOnly: true }
   }
 };
