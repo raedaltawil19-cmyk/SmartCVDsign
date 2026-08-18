@@ -1,0 +1,49 @@
+{
+  "name": "SharedCV",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "Public unguessable share token"
+    },
+    "sourceCvId": {
+      "type": "string",
+      "description": "Original SavedCV id"
+    },
+    "titel": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "description": "Snapshot of CV content at share time"
+    },
+    "templateId": {
+      "type": "string"
+    },
+    "layout": {
+      "type": "object"
+    },
+    "createdByEmail": {
+      "type": "string",
+      "description": "Optional display attribution; never used for authorization"
+    }
+  },
+  "required": [
+    "token",
+    "data",
+    "templateId",
+    "layout"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
