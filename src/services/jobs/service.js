@@ -109,26 +109,32 @@ export function createJobsService({ llm }) {
         )}\n\nHär är en lista med svenska jobbannonser:\n${JSON.stringify(
           top.map((t) => t.ad)
         )}\n\nBedöm hur väl kandidatens erfarenheter, färdigheter och profil matchar varje annons. Returnera en JSON-array där varje element har: id (motsvarande annonsens id), matchPercent (0-100), reason (en kort mening på svenska om varför det passar eller vad som saknas). Bevara ordningen för alla id. Returnera endast JSON.`;
-        llmResult = await llm.completeJson({
-          prompt,
-          schema: {
-            type: "object",
-            properties: {
-              results: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string" },
-                    matchPercent: { type: "number" },
-                    reason: { type: "string" },
+        try {
+          llmResult = await llm.completeJson({
+            prompt,
+            schema: {
+              type: "object",
+              properties: {
+                results: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      matchPercent: { type: "number" },
+                      reason: { type: "string" },
+                    },
                   },
                 },
               },
             },
-          },
-        });
-        setCached(rankKey, llmResult, RANK_TTL);
+          });
+          setCached(rankKey, llmResult, RANK_TTL);
+        } catch {
+          // Ranking must never make a successful JobTech search disappear.
+          // If the LLM is unavailable, the local matcher remains the source of truth.
+          llmResult = { results: [] };
+        }
       }
 
       // 3. Merge: LLM score for the top N, local score for the rest
