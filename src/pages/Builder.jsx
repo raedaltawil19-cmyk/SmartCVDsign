@@ -655,7 +655,7 @@ export default function Builder() {
   };
 
   // ── نقطة اختيار المسار: تحسين عام (Review Coach) أو تخصيص لوظيفة — مسار واحد فقط لكل قرار ──
-  const [choiceOpen, setChoiceOpen] = useState(incomingIntents.length === 0);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const choiceReady = isWorkflowChoiceReady({ cvId: currentCvId, templateId, templateReviewStatus, processing });
 
   const chooseWorkflow = (choice) => {
@@ -874,7 +874,7 @@ export default function Builder() {
             minimized={assistantMinimized}
             onMinimize={() => { setAssistantMinimized(true); setShowSmart(true); }}
             onRestore={() => { setAssistantMinimized(false); setShowSmart(true); }}
-            onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
+            onLayoutChange={(l) => { setLayout(l); setMagicEdit(false); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
             onDataChange={(d, summary) => { setData(d); setMagicEdit(false); logAction("ai_command", { command: summary || "تعديل محتوى عبر مساعد السيرة" }); }}
             onClose={() => { setShowSmart(false); setAssistantMinimized(false); }}
           />
