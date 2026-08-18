@@ -16,6 +16,23 @@ function distanceKm(a, b) {
   return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+function textTokens(text) {
+  return new Set(String(text || "").toLowerCase().split(/[^a-zåäö0-9]+/i).filter((x) => x.length > 3));
+}
+
+function similarJobScore(source, candidate) {
+  const sourceTitle = textTokens(source?.rubrik || source?.jobTitle);
+  const candidateTitle = textTokens(candidate?.rubrik || candidate?.jobTitle);
+  const sourceBody = textTokens(`${source?.rubrik || ""} ${source?.beskrivning || ""}`);
+  const candidateBody = textTokens(`${candidate?.rubrik || ""} ${candidate?.beskrivning || ""}`);
+  const titleUnion = new Set([...sourceTitle, ...candidateTitle]);
+  const titleOverlap = titleUnion.size ? [...sourceTitle].filter((x) => candidateTitle.has(x)).length / sourceTitle.size : 0;
+  const bodyUnion = new Set([...sourceBody, ...candidateBody]);
+  const bodyOverlap = bodyUnion.size ? [...sourceBody].filter((x) => candidateBody.has(x)).length / sourceBody.size : 0;
+  const sameOccupation = source?.yrkesomrade && candidate?.yrkesomrade && source.yrkesomrade === candidate.yrkesomrade ? 1 : 0;
+  return Math.round(Math.min(100, (titleOverlap * 65) + (bodyOverlap * 25) + (sameOccupation * 10)));
+}
+
 /**
  * JobsService — Swedish labor-market access.
  * `search` delegates to the SearchJobs backend function (Arbetsförmedlingen JobTech),
@@ -45,10 +62,19 @@ export function createJobsService({ llm }) {
       if (!title) return { jobs: [] };
       const res = await service.search({ q: title, publishedDays, limit: Math.min(limit + 3, 20), municipalities: municipality ? [municipality] : undefined });
       const sourceId = String(job?.id || "");
-      const jobs = (res?.data?.jobs || res?.jobs || []).filter((item) => String(item.id) !== sourceId).map((item) => ({
-        ...item,
-        distanceKm: distanceKm(job, item),
-      })).sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)).slice(0, limit);
+      const jobs = (res?.data?.jobs || res?.jobs || [])
+        .filter((item) => String(item.id) !== sourceId)
+        .map((item) => ({
+          ...item,
+          distanceKm: distanceKm(job, item),
+          similarityPercent: similarJobScore(job, item),
+        }))
+        .sort((a, b) => {
+          const scoreA = a.similarityPercent + (a.distanceKm == null ? 0 : Math.max(0, 20 - Math.min(a.distanceKm, 20)));
+          const scoreB = b.similarityPercent + (b.distanceKm == null ? 0 : Math.max(0, 20 - Math.min(b.distanceKm, 20)));
+          return scoreB - scoreA;
+        })
+        .slice(0, limit);
       return { jobs, sourceJob: job };
     },
 
