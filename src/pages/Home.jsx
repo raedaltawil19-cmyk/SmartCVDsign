@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { TEMPLATES } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import { FileText, Upload, ArrowLeft, Loader2, PencilLine, Sparkles, Sparkle } from "lucide-react";
+import { FileText, Upload, ArrowLeft, Loader2, PencilLine, Sparkle } from "lucide-react";
 import MyCVs from "@/components/MyCVs";
 import { suggestTemplates } from "@/lib/templateMatcher";
 
@@ -141,10 +141,6 @@ export default function Home() {
           </div>
           <span className="text-lg font-semibold tracking-tight">CVcraft</span>
           <nav className="mr-4 flex items-center gap-1 text-sm">
-            <Link to="/agent" className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>مرشد السيرة</span>
-            </Link>
             <Link to="/applications" className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">{t("nav.applications")}</Link>
           </nav>
         </div>

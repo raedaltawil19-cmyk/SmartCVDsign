@@ -2,15 +2,13 @@ import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
 import Home from '@/pages/Home';
 import Builder from '@/pages/Builder';
 import MyApplications from '@/pages/MyApplications';
 import CareerDashboard from '@/pages/CareerDashboard';
-import AgentChat from '@/pages/AgentChat';
-import ApplicationTailor from '@/pages/ApplicationTailor';
 import TemplateAdvisor from '@/pages/TemplateAdvisor';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
@@ -29,6 +27,12 @@ const LoginRedirect = () => {
   );
 };
 
+const LegacyTailorRedirect = () => {
+  const path = window.location.pathname;
+  const cvId = path.startsWith("/tailor/") ? path.slice("/tailor/".length) : "";
+  return <Navigate to={cvId ? `/builder/${cvId}` : "/builder"} replace />;
+};
+
 const AuthenticatedApp = () => {
   return (
     <Routes>
@@ -38,9 +42,10 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<LoginRedirect />} />}>
         <Route path="/applications" element={<MyApplications />} />
         <Route path="/dashboard" element={<CareerDashboard />} />
-        <Route path="/agent" element={<AgentChat />} />
-        <Route path="/tailor/:cvId" element={<ApplicationTailor />} />
-        <Route path="/tailor" element={<ApplicationTailor />} />
+        {/* Legacy routes are compatibility redirects; the canonical workflows live inside Builder. */}
+        <Route path="/agent" element={<Navigate to="/" replace />} />
+        <Route path="/tailor/:cvId" element={<LegacyTailorRedirect />} />
+        <Route path="/tailor" element={<Navigate to="/builder" replace />} />
         <Route path="/template-advisor/:cvId" element={<TemplateAdvisor />} />
         <Route path="/template-advisor" element={<TemplateAdvisor />} />
       </Route>
