@@ -82,7 +82,8 @@ const deepCopy = (v) => (v === undefined || v === null ? v : JSON.parse(JSON.str
  * لا يعدّل base إطلاقاً.
  * @param {{base:object, ad?:object, jobApplicationId?:string|null}} args
  */
-export function buildTailoredPayload({ base, ad, jobApplicationId } = {}) {
+export function buildTailoredPayload(args = {}) {
+  const { base, ad, jobApplicationId } = args;
   if (!base || !base.id || !base.data) return { error: "BASE_CV_INVALID" };
   const jobTitle = String(ad?.rubrik || "").trim();
   return {
