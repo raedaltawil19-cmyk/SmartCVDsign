@@ -821,7 +821,7 @@ export default function Builder() {
       )}
 
       {assistantMounted && (
-        <div className={`no-print fixed bottom-4 left-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl ${showSmart ? "" : "pointer-events-none opacity-0"}`} aria-hidden={!showSmart}>
+        <div className={`no-print fixed bottom-4 left-4 z-40 w-[calc(100vw-2rem)] sm:w-[380px] max-w-[380px] shadow-2xl rounded-2xl ${showSmart ? "" : "pointer-events-none opacity-0"}`} aria-hidden={!showSmart}>
           <SmartCVAssistantPanel
             data={data}
             layout={layout}
