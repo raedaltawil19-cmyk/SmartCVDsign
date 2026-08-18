@@ -29,6 +29,7 @@ import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
+import NotificationCenter from "@/components/notifications/NotificationCenter";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -583,6 +584,7 @@ export default function Builder() {
             <span>{t("builder.back")}</span>
           </button>
           <div className="flex items-center gap-2">
+            <NotificationCenter />
             {autoSaveStatus === "saving" && (
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
                 <Loader2 className="w-3 h-3 animate-spin" />
