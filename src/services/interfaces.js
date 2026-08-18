@@ -87,6 +87,8 @@ export const NOTIFICATIONS_INTERFACE = defineInterface(PORT.NOTIFICATIONS, [
 export const COURSES_INTERFACE = defineInterface(PORT.COURSES, [
   "list",
   "upsertMany",
+  "notifyNewCourses",
+  "discoverForCV",
   "markSeen",
 ]);
 
