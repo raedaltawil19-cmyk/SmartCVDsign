@@ -48,7 +48,7 @@ export default function Builder() {
   const { toast } = useToast();
   const { dir, t, lang } = useLanguage();
   const { isAuthenticated } = useAuth();
-  const { llm, cvRepository, auth, export: exportSvc } = useServices();
+  const { llm, cvRepository, auth, export: exportSvc, courses } = useServices();
   const incoming = location.state;
 
   const [data, setData] = useState(emptyCV);
@@ -91,6 +91,7 @@ export default function Builder() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState("");
+  const courseDiscoveryRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
   const autoSaveReadyRef = useRef(false);
   const creatingRef = useRef(false);
@@ -331,7 +332,15 @@ export default function Builder() {
     } catch (_) {}
   };
 
+  const triggerCourseDiscovery = useCallback(() => {
+    if (courseDiscoveryRef.current || processing || !data) return;
+    courseDiscoveryRef.current = true;
+    Promise.resolve(courses?.discoverForCV?.({ cv: data, jobTitle: data.titel }))
+      .finally(() => { courseDiscoveryRef.current = false; });
+  }, [courses, data, processing]);
+
   const exportPDF = () => {
+    triggerCourseDiscovery();
     // Keep the native print call synchronous with the user's click.
     // Safari can block window.print() when it is invoked after an async auth check.
     if (!isAuthenticated) {
@@ -404,12 +413,14 @@ export default function Builder() {
       const payload = { titel, data, templateId, layout };
       if (currentCvId) {
         await cvRepository.update(currentCvId, payload);
+        triggerCourseDiscovery();
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
         const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current });
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
+        triggerCourseDiscovery();
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
