@@ -36,7 +36,7 @@ import NotificationCenter from "@/components/notifications/NotificationCenter";
 import SuitableJobsPanel from "@/components/jobs/SuitableJobsPanel";
 import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
 import CVPreview from "@/components/CVPreview";
-import { Copy, Eye, Share2, X, Plus as PlusIcon, Sparkles as SparklesIcon, Target as TargetIcon, UserCircle, BriefcaseBusiness, Inbox, LoaderCircle } from "lucide-react";
+import { Copy, Eye, Share2, X, Plus as PlusIcon, Sparkles as SparklesIcon, Target as TargetIcon, BriefcaseBusiness } from "lucide-react";
 import ProfileMenu from "@/components/corner/ProfileMenu";
 import AddCVSourceSheet from "@/components/builder/AddCVSourceSheet";
 
@@ -771,7 +771,7 @@ export default function Builder() {
         )}
         {!processing && (
           <div ref={panelRef} className="cv-builder-panel flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 flex">
-            <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30">
+            <div className="no-print hidden sm:block fixed top-1/2 right-4 -translate-y-1/2 z-30">
               <CVSideToolbar
                 onImprove={startGeneralImprove}
                 improving={cvReview.loading || regenerating}
@@ -795,8 +795,6 @@ export default function Builder() {
                 agentActive={showSmart}
                 onLog={() => setShowLog((v) => !v)}
                 logActive={showLog}
-                data={data}
-                onApply={(d) => setData(d)}
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
@@ -811,6 +809,24 @@ export default function Builder() {
       </div>
 
       <div className="print-notice">{t("builder.printLocked")}</div>
+
+      <nav className="no-print sm:hidden fixed inset-x-3 bottom-3 z-[80] h-[68px] rounded-[24px] bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl flex items-center justify-around px-1" dir={dir} aria-label="أدوات السيرة الرئيسية">
+        <button onClick={startGeneralImprove} disabled={processing || regenerating} className="min-w-14 min-h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-slate-600 disabled:opacity-40" aria-label="تحسين عام">
+          <SparklesIcon className="w-5 h-5" /><span className="text-[10px]">تحسين</span>
+        </button>
+        <button onClick={() => setShowAddSource(true)} className="-mt-7 w-16 h-16 rounded-full bg-slate-900 text-white shadow-xl ring-4 ring-[#F5F5F5] flex flex-col items-center justify-center gap-0.5" aria-label="إضافة CV">
+          <PlusIcon className="w-7 h-7" /><span className="text-[9px]">إضافة</span>
+        </button>
+        <button onClick={() => setTailorOpen(true)} disabled={!currentCvId || processing} className="min-w-14 min-h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-slate-600 disabled:opacity-40" aria-label="مطابقة لوظيفة">
+          <TargetIcon className="w-5 h-5" /><span className="text-[10px]">مطابقة</span>
+        </button>
+        <button onClick={() => navigate("/applications")} className="min-w-14 min-h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-slate-600" aria-label="طلبات التوظيف">
+          <BriefcaseBusiness className="w-5 h-5" /><span className="text-[10px]">الطلبات</span>
+        </button>
+        <button onClick={() => (showSmart ? setShowSmart(false) : openAssistant())} className={`min-w-14 min-h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 ${showSmart ? "text-[#000066]" : "text-slate-600"}`} aria-label="مساعد السيرة">
+          <SparklesIcon className="w-5 h-5" /><span className="text-[10px]">AI</span>
+        </button>
+      </nav>
 
       {showTemplates && (
         <TemplatePickerModal
