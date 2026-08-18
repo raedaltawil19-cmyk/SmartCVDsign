@@ -18,7 +18,8 @@ export function createExportService() {
       }
 
       // Open synchronously from the user's click so Safari does not block printing.
-      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+      // Safari can return a null WindowProxy when noopener is explicitly used here.
+      const printWindow = window.open("", "_blank", "width=900,height=1200");
       if (!printWindow) {
         window.print();
         return;
@@ -47,8 +48,13 @@ ${styles}
   html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
   body { width: 210mm; }
   .cv-print-area { width: 210mm !important; box-shadow: none !important; margin: 0 !important; }
+  .cv-scale-wrapper { transform: none !important; width: 210mm !important; }
+  .cv-scale-parent { width: 210mm !important; height: auto !important; margin: 0 !important; }
+  .cv-builder-panel { overflow: visible !important; height: auto !important; }
   .no-print { display: none !important; }
   a[href*="base44"], a[href*="pass44"] { display: none !important; }
+  h2, h3 { break-after: avoid-page; page-break-after: avoid; }
+  .cv-keep { break-inside: avoid-page; page-break-inside: avoid; }
 </style>
 </head>
 <body></body>
@@ -59,7 +65,10 @@ ${styles}
       clone.classList.add("cv-print-area");
       printWindow.document.body.replaceChildren(clone);
 
+      let printed = false;
       const print = () => {
+        if (printed || printWindow.closed) return;
+        printed = true;
         printWindow.focus();
         printWindow.print();
         printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true });
