@@ -1,18 +1,8 @@
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n";
-import { LayoutTemplate, Target, RefreshCw, Loader2, Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText } from "lucide-react";
-import CVTools from "./CVTools";
-import JobMatchModal from "./JobMatchModal";
-import TemplatePickerModal from "./TemplatePickerModal";
+import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText } from "lucide-react";
 
 export default function CVSideToolbar({
-  onImprove,
-  regenerating,
-  processing,
-  data,
-  onApply,
-  templateId,
-  onTemplateChange,
   scale,
   isFit,
   onZoomIn,
@@ -29,9 +19,6 @@ export default function CVSideToolbar({
   logActive,
 }) {
   const { t, dir } = useLanguage();
-  const [jobOpen, setJobOpen] = useState(false);
-  const [tplOpen, setTplOpen] = useState(false);
-
   const tip = dir === "rtl" ? "right-full mr-2" : "left-full ml-2";
 
   const Tip = ({ label, hint }) => (
@@ -85,15 +72,9 @@ export default function CVSideToolbar({
         <div className="w-8 h-px bg-slate-200 my-0.5" />
         <Btn icon={MessageSquare} label="مساعد السيرة" hint="اكتب أمراً بلغتك لتعديل أو ترتيب أو حذف أي جزء من سيرتك" onClick={onAgent} active={agentActive} />
         <Btn icon={ScrollText} label="سجل الإجراءات" hint="عرض كل التعديلات التي جرت على سيرتك بالترتيب" onClick={onLog} active={logActive} />
-        <Btn icon={LayoutTemplate} label={t("builder.changeTemplate")} hint="اختيار شكل وتصميم آخر للسيرة مع بقاء بياناتك كما هي" onClick={() => setTplOpen(true)} />
-        <Btn icon={Target} label={t("builder.matchJob")} hint="مطابقة سيرتك مع إعلان وظيفة وإبراز ما يهم صاحب العمل" onClick={() => setJobOpen(true)} />
-        <Btn icon={RefreshCw} label={t("builder.improve")} hint="تحسين صياغة نصوص سيرتك بأسلوب أكثر احترافية" onClick={onImprove} disabled={regenerating || processing} busy={regenerating} />
-        <div className="w-8 h-px bg-slate-200 my-1" />
-        <CVTools data={data} onApply={onApply} iconOnly />
+
       </div>
 
-      {jobOpen && <JobMatchModal data={data} onApply={onApply} onClose={() => setJobOpen(false)} />}
-      {tplOpen && <TemplatePickerModal templateId={templateId} onChange={onTemplateChange} onClose={() => setTplOpen(false)} />}
     </>
   );
 }
