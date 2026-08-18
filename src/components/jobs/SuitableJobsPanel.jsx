@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, ExternalLink, Loader2, MapPin, Search, SlidersHorizontal, WalletCards, X } from "lucide-react";
+import { Briefcase, ExternalLink, Loader2, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { useServices } from "@/hooks/useServices";
 
 export default function SuitableJobsPanel({ data }) {
