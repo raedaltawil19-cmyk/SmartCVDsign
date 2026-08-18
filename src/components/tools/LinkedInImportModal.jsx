@@ -37,7 +37,7 @@ export default function LinkedInImportModal({ data, onApply, onClose }) {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         fileUrl = file_url;
       }
-      const res = await llm.importLinkedIn({ text: text.trim(), fileUrl });
+      const res = await llm.importLinkedIn({ text: text.trim(), fileUrl, baseCV: data });
       if (!res || (!res.erfarenhet?.length && !res.utbildning?.length && !res.fardigheter?.length && !res.certifikat?.length && !res.projekt?.length && !res.profil)) {
         toast({ title: "لم نتمكن من استخراج بيانات", description: "تأكد من لصق ملف LinkedIn كاملاً.", variant: "destructive" });
       } else {
@@ -50,23 +50,21 @@ export default function LinkedInImportModal({ data, onApply, onClose }) {
     }
   };
 
+  // raw is already the result of the canonical aggregator and therefore
+  // already contains the current CV + LinkedIn reconciled into one schema.
   const buildExtracted = () => {
     if (!raw) return null;
     const base = mergeCV(raw);
     const clean = (a) => (a || []).filter((x) => x && Object.values(x).some((v) => v && String(v).trim()));
-    const certs = clean(raw.certifikat).map((c) => ({ examen: c.namn || "", skola: c.utvardare || "", period: c.datum || "", beskrivning: "" }));
-    const projs = clean(raw.projekt).map((p) => ({ roll: p.namn || "", foretag: "", period: p.period || "", beskrivning: p.beskrivning || "" }));
     return {
       ...base,
-      utbildning: [...clean(base.utbildning), ...certs],
-      erfarenhet: [...clean(base.erfarenhet), ...projs],
       _meta: {
         experience: clean(base.erfarenhet).length,
         education: clean(base.utbildning).length,
         skills: clean(base.fardigheter).length,
         languages: clean(base.sprak).length,
-        certificates: certs.length,
-        projects: projs.length,
+        certificates: 0,
+        projects: 0,
       },
     };
   };
@@ -84,30 +82,12 @@ export default function LinkedInImportModal({ data, onApply, onClose }) {
     if (!extracted) return;
     setApplying(true);
     try {
-      const cur = data || {};
-      const cleanArr = (a, key) => (a || []).filter((x) => x && (!key || (x[key] && String(x[key]).trim())));
-      const dedupe = (base, add, key) => {
-        const names = new Set(base.map((b) => (b[key] || "").toLowerCase().trim()).filter(Boolean));
-        return add.filter((x) => !x[key] || !names.has((x[key] || "").toLowerCase().trim()));
-      };
-      const merged = {
-        namn: cur.namn || extracted.namn,
-        titel: cur.titel || extracted.titel,
-        kontakt: fillObj(cur.kontakt, extracted.kontakt),
-        profil: (cur.profil || "").trim() || extracted.profil,
-        erfarenhet: [...cleanArr(cur.erfarenhet, "roll"), ...cleanArr(extracted.erfarenhet, "roll")],
-        utbildning: [...cleanArr(cur.utbildning, "examen"), ...cleanArr(extracted.utbildning, "examen")],
-        fardigheter: (() => {
-          const b = cleanArr(cur.fardigheter, "namn");
-          return [...b, ...dedupe(b, cleanArr(extracted.fardigheter, "namn"), "namn")];
-        })(),
-        sprak: (() => {
-          const b = cleanArr(cur.sprak, "sprak");
-          return [...b, ...dedupe(b, cleanArr(extracted.sprak, "sprak"), "sprak")];
-        })(),
-      };
+      // The canonical aggregator has already merged LinkedIn with the current
+      // CV. Do not run a second client-side merge (which could reintroduce
+      // duplicates or make a different decision from the AI merge layer).
+      const { _meta, ...merged } = extracted;
       onApply(merged);
-      toast({ title: "تم دمج بيانات LinkedIn", description: "أُضيفت الأقسام الجديدة دون حذف بياناتك الحالية." });
+      toast({ title: "تم دمج بيانات LinkedIn", description: "تم دمج LinkedIn مع السيرة الحالية عبر محرك الدمج الموحد." });
       onClose();
     } finally {
       setApplying(false);
