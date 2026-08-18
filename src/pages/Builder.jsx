@@ -28,6 +28,8 @@ import { researchFor } from "@/lib/agent/reviewResearch";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
+import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
+import { createTailoredCV } from "@/lib/cvProfiles";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
