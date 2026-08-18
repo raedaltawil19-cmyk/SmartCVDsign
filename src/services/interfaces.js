@@ -55,7 +55,7 @@ export const CV_REPOSITORY_INTERFACE = defineInterface(PORT.CV_REPOSITORY, [
   "remove",
 ]);
 
-export const JOBS_INTERFACE = defineInterface(PORT.JOBS, ["search", "rank"]);
+export const JOBS_INTERFACE = defineInterface(PORT.JOBS, ["search", "findSimilar", "salaryIntelligence", "rank"]);
 
 export const AUTH_INTERFACE = defineInterface(PORT.AUTH, [
   "isAuthenticated",
