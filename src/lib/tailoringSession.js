@@ -57,7 +57,7 @@ export function resolveBaseCV(args = {}) {
 
 /**
  * يبدأ جلسة تخصيص: يحدّد الأساس ثم ينشئ نسخة tailored مستقلة عنه.
- * @param {{repository:{create:Function}, list:Array, preferredId?:string, ad?:object, jobApplicationId?:string}} args
+ * @param {{repository?:{create:Function}, list?:Array, preferredId?:string, ad?:object, jobApplicationId?:string}} args
  */
 export async function startTailoringSession(args = {}) {
   const { repository, list, preferredId, ad, jobApplicationId } = args;
