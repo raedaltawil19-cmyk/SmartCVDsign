@@ -49,8 +49,8 @@ async function scbSalary(ssyk) {
   const csv = await res.text();
   const lines = csv.trim().split(/\r?\n/).slice(1);
   const values = lines.flatMap((line) => {
-    const m = line.match(/,(\d+(?:\.\d+)?(?:,\d+(?:\.\d+)?)*)$/);
-    return m ? m[1].split(',').map(Number) : [];
+    const cols = line.split(',').slice(3).map((v) => Number(String(v).replace(/\"/g, '')));
+    return cols.filter((v) => Number.isFinite(v));
   });
   if (values.length < 5) throw new Error('SCB salary data unavailable');
   return { p10: values[0], p25: values[1], median: values[2], p75: values[3], p90: values[4], year: 2025, source: 'SCB/Medlingsinstitutet' };
