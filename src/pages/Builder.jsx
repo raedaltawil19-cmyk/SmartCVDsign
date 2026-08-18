@@ -30,6 +30,9 @@ import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
+import CVPreview from "@/components/CVPreview";
+import { Copy, Eye, Share2, X } from "lucide-react";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -53,6 +56,9 @@ export default function Builder() {
   const skipLayoutResetRef = useRef(false);
   const [showLayout, setShowLayout] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   // توصيات واردة من مخصّص الطلبات (جسر Job Tailor → مساعد السيرة) — تُفتح اللوحة فوراً لتُسلَّم كـIntents
   // كل عنصر تسليم يُوسَم بمصدره: حمولة تنفيذ داخلية لا رسالة كتبها المستخدم
   const incomingIntents = (Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [])
@@ -286,6 +292,25 @@ export default function Builder() {
   void histVersion;
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
+
+  const copyCVLink = async () => {
+    const url = window.location.href;
+    try { await navigator.clipboard.writeText(url); toast({ title: "تم نسخ رابط السيرة" }); }
+    catch { toast({ title: "تعذّر نسخ الرابط", variant: "destructive" }); }
+  };
+  const emailCV = () => {
+    const subject = encodeURIComponent(data.titel || "CV");
+    const body = encodeURIComponent(`السيرة الذاتية: ${window.location.href}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+  const shareApplication = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: data.titel || "Smart CV", text: "CV / Application", url });
+      else await navigator.clipboard.writeText(url);
+      toast({ title: "تمت مشاركة رابط السيرة" });
+    } catch (_) {}
+  };
 
   const exportPDF = () => {
     // Keep the native print call synchronous with the user's click.
@@ -606,6 +631,24 @@ export default function Builder() {
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">مساعد السيرة</span>
             </button>
+            <button onClick={() => setShowTemplates(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <LayoutTemplate className="w-4 h-4" />
+              <span className="hidden sm:inline">CV Templates</span>
+            </button>
+            <button onClick={() => setShowPreview(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <Eye className="w-4 h-4" />
+              <span className="hidden sm:inline">Preview</span>
+            </button>
+            <button onClick={() => setShowShare((v) => !v)} className="relative inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Share</span>
+              {showShare && <div className="absolute top-11 right-0 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 text-right">
+                <button onClick={copyCVLink} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm inline-flex items-center gap-2"><Copy className="w-4 h-4" /> Copy CV Link</button>
+                <button onClick={emailCV} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Email CV</button>
+                <button onClick={() => { setShowShare(false); exportPDF(); }} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Print / PDF</button>
+                <button onClick={shareApplication} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Share Smart CV / Application</button>
+              </div>}
+            </button>
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">{t("builder.layout")}</span>
@@ -721,6 +764,23 @@ export default function Builder() {
       </div>
 
       <div className="print-notice">{t("builder.printLocked")}</div>
+
+      {showTemplates && (
+        <TemplatePickerModal
+          templateId={templateId}
+          onChange={(id) => { setTemplateId(id); logAction("template_change", { template: id, source: "header" }); }}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
+
+      {showPreview && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setShowPreview(false)}>
+          <div className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden" dir={dir} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200"><div className="flex items-center gap-2"><Eye className="w-4 h-4 text-[#526B35]" /><span className="font-semibold text-sm">CV Preview</span></div><button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button></div>
+            <div className="p-5 overflow-auto max-h-[calc(92vh-56px)] flex justify-center"><div className="bg-white shadow-lg" style={{ width: A4_W, minHeight: A4_H }}><CVPreview templateId={templateId} data={data} editable={false} layout={layout} /></div></div>
+          </div>
+        </div>
+      )}
 
       {showLayout && (
         <LayoutEditor
