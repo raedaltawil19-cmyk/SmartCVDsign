@@ -40,7 +40,7 @@ async function scbSalary(ssyk) {
   params.set('lang', 'sv');
   params.set('valueCodes[Sektor]', '0');
   params.set('valueCodes[Yrke2012]', ssyk);
-  params.set('valueCodes[Kon]', '1');
+  params.set('valueCodes[Kon]', '1+2');
   params.set('valueCodes[ContentsCode]', '000007CF,000007CG,000007CE,000007CH,000007CI');
   params.set('valueCodes[Tid]', '2025');
   params.set('outputFormat', 'csv');
