@@ -90,7 +90,7 @@ async function scbSalary(ssyk) {
 
 function personalBand(salary, years) {
   const y = Math.max(0, Number(years) || 0);
-  if (y < 2) return { min: salary.p10, max: salary.p50 || salary.median, level: 'early' };
+  if (y < 2) return { min: salary.p25, max: salary.median, level: 'early' };
   if (y < 5) return { min: salary.p25, max: salary.p75, level: 'experienced' };
   if (y < 8) return { min: salary.median, max: salary.p75, level: 'senior' };
   return { min: salary.p75, max: salary.p90, level: 'high_experience' };
@@ -126,7 +126,9 @@ export default async function(req) {
       totalExperienceYears: Number(totalYears.toFixed(1)),
       salary: { min: Math.round(band.min), max: Math.round(band.max), currency: 'SEK', monthly: true, experienceLevel: band.level },
       market: salary,
-      sources: [{ name: 'SCB / Medlingsinstitutet', table: SCB_TABLE, year: salary.year }]
+      methodology: 'SSYK occupation classification + relevant experience from CV periods + Swedish wage distribution',
+      sources: [{ name: 'SCB / Medlingsinstitutet', table: SCB_TABLE, year: salary.year }],
+      confidence: classification.confidence === 'high' ? 'high' : (classification.confidence === 'medium' ? 'medium' : 'low')
     });
   } catch (error) {
     return Response.json({ error: error?.message || 'SALARY_INTELLIGENCE_ERROR' }, { status: 500 });
