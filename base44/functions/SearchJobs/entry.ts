@@ -53,6 +53,8 @@ export default async function(req) {
         arbetsgivare: ad.employer ? (ad.employer.name || "") : "",
         kommun: wa.municipality || "",
         lan: wa.region || "",
+        latitude: Array.isArray(wa.coordinates) ? Number(wa.coordinates[1]) : null,
+        longitude: Array.isArray(wa.coordinates) ? Number(wa.coordinates[0]) : null,
         land: wa.country || "",
         publicerad: ad.publication_date || "",
         deadline: ad.application_deadline || "",
