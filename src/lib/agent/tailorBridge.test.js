@@ -56,12 +56,12 @@ export function runTailorBridgeTests() {
 
   return (async () => {
     // 10) لا مسار كتابة على SavedCV في مسار Job Tailor
-    const [tailorPage, hook, agent] = await Promise.all([
-      fetch("/src/pages/ApplicationTailor.jsx").then((r) => r.text()),
+    const [tailorDialog, hook, agent] = await Promise.all([
+      fetch("/src/components/tailor/JobTailorDialog.jsx").then((r) => r.text()),
       fetch("/src/lib/agent/useTailorRecommendations.js").then((r) => r.text()),
       fetch("/base44/agents/application_tailor.jsonc").then((r) => r.text()).catch(() => ""),
     ]);
-    add("10. صفحة Job Tailor بلا update/delete على السيرة", !/cvRepository\.update\(|cvRepository\.remove\(|SavedCV\.update|SavedCV\.delete/.test(tailorPage), null);
+    add("10. نافذة Job Tailor بلا update/delete على السيرة", !/cvRepository\.update\(|cvRepository\.remove\(|SavedCV\.update|SavedCV\.delete/.test(tailorDialog), null);
     add("11. الجسر (hook) بلا أي كتابة أو تنفيذ", !/update\(|create\(|executeAssistantAction|CV_ACTION/.test(hook), null);
     if (agent) add("12. تعريف الوكيل لا يمنح update على SavedCV", !/"SavedCV"[\s\S]{0,120}update/.test(agent), null);
 
