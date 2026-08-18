@@ -23,18 +23,54 @@ export function createLLMService() {
       });
     },
 
-    /** Read raw input / uploaded file and build a normalized Swedish CV. */
-    async processCV({ text, fileUrl }) {
-      const prompt =
-        CV_PROCESS_PROMPT +
-        "\n\nAnvändarens inmatning (valfritt språk — skapa CV:t på inmatningens språk, eller svenska om inmatningen är tom):\n" +
-        (text || "(se filen)");
+    /**
+     * Canonical CV ingestion/aggregation layer.
+     * Every source (pasted text, PDF/DOC and LinkedIn) is extracted into the
+     * same CV schema and reconciled together. A source never silently wins;
+     * duplicate facts are merged, while conflicting facts are preserved in
+     * the best-supported record rather than discarded.
+     */
+    async aggregateCVSources({ text, fileUrl, linkedinText, linkedinFileUrl, baseCV } = {}) {
+      const sourceParts = [];
+      if (text?.trim() || fileUrl) sourceParts.push(`SOURCE A — USER CV TEXT / UPLOADED CV FILE\n${text?.trim() || "(see attached file)"}`);
+      if (linkedinText?.trim() || linkedinFileUrl) sourceParts.push(`SOURCE B — LINKEDIN PROFILE / EXPORT\n${linkedinText?.trim() || "(see attached LinkedIn file)"}`);
+      if (baseCV) sourceParts.push(`SOURCE C — CURRENT NORMALIZED CV ALREADY IN THE BUILDER\n${JSON.stringify(baseCV)}`);
+
+      if (!sourceParts.length) return mergeCV(baseCV || {});
+
+      const prompt = `${CV_PROCESS_PROMPT}
+
+DU är den centrala CV-INGESTION- OCH MERGE-agenten. Du får en eller flera källor nedan.
+Din uppgift är INTE att välja en källa framför en annan. Extrahera först fakta från varje källa och bygg sedan ETT gemensamt CV enligt schemat.
+
+MERGE-REGLER:
+1. Alla verkliga arbetslivserfarenheter från alla källor ska hamna i erfarenhet.
+2. Om två poster tydligt beskriver samma anställning, slå ihop dem till EN post och kombinera all information. Behåll den mest kompletta beskrivningen och komplettera med detaljer från den andra källan.
+3. Om poster verkar likna varandra men datum, företag eller roll skiljer sig på ett sätt som inte säkert kan lösas, slå INTE ihop dem. Behåll båda posterna hellre än att förlora fakta.
+4. Om samma utbildning, språk eller färdighet förekommer flera gånger, deduplicera den utan att förlora information.
+5. Om en källa saknar ett fält men en annan källa innehåller det, fyll fältet från den andra källan.
+6. Uppfinn aldrig en uppgift och gissa aldrig datum, företag, roll eller resultat.
+7. LinkedIn Projects ska placeras där de faktiskt hör hemma. Ett projekt som tydligt är del av en anställning får berika den erfarenheten; ett fristående projekt ska representeras i erfarenhet utan att låtsas vara en anställning.
+8. Certifications/Licenses ska placeras i utbildning endast om CV-modellen saknar separat certifikatsektion; behåll certifikatets namn, utfärdare och datum i beskrivningen.
+9. Den nuvarande CV-datan är en KÄLLA, inte en auktoritet. Den får kompletteras och korrigeras av nya källor när den nya informationen är tydlig, men får aldrig raderas bara för att den saknas i en ny källa.
+10. Bevara all unik information. Sammanfatta inte bort ansvarsområden eller resultat.
+11. Returnera endast ett enda normaltiserat CV enligt CV_SCHEMA.
+
+KÄLLOR:
+${sourceParts.join("\n\n==============================\n\n")}`;
+
+      const fileUrls = [fileUrl, linkedinFileUrl].filter(Boolean);
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
-        file_urls: fileUrl ? [fileUrl] : undefined,
+        file_urls: fileUrls.length ? fileUrls : undefined,
         response_json_schema: CV_SCHEMA,
       });
-      return mergeCV(res);
+      return mergeCV(res, baseCV);
+    },
+
+    /** Backwards-compatible entry point for the initial text/PDF flow. */
+    async processCV({ text, fileUrl }) {
+      return service.aggregateCVSources({ text, fileUrl });
     },
 
     /** Apply a natural-language instruction to an existing CV, preserving all info. */
@@ -218,50 +254,17 @@ export function createLLMService() {
       return base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: schema });
     },
 
-    /** LinkedIn Import — extract a LinkedIn profile (text or uploaded file) into a Swedish CV with certifikat/projekt as separate arrays. */
-    async importLinkedIn({ text, fileUrl }) {
-      const cvObjSchema = {
-        type: "object",
-        properties: {
-          ...CV_SCHEMA.properties,
-          certifikat: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: { namn: { type: "string" }, utvardare: { type: "string" }, datum: { type: "string" } },
-            },
-          },
-          projekt: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: { namn: { type: "string" }, beskrivning: { type: "string" }, period: { type: "string" } },
-            },
-          },
-        },
-      };
-      const schema = { type: "object", properties: { cv: cvObjSchema } };
-      const prompt =
-        `Du är en CV-konverterare. Användaren vill importera sin LinkedIn-profil till ett svenskt CV.\n\n` +
-        `Innehåll (text från profilsidan eller en LinkedIn-export/PDF):\n` +
-        (fileUrl ? "(se filen)" : (text || "(tomt)")) + `\n\n` +
-        `Kartlägg extraheringen:\n` +
-        `- Name/Headline → namn och titel\n` +
-        `- About/Summary → profil\n` +
-        `- Experience → erfarenhet (roll, foretag, period "Månad År – Månad År" eller "År – Nu", beskrivning med hela ansvarsområden)\n` +
-        `- Education → utbildning\n` +
-        `- Skills → fardigheter (niva 0–100; 70 om osäkert)\n` +
-        `- Languages → sprak (niva: "Modersmål" / "Flytande" / "Goda kunskaper" / "Grundläggande")\n` +
-        `- Certifications & Licenses → certifikat (namn, utvardare, datum)\n` +
-        `- Projects → projekt (namn, beskrivning, period)\n` +
-        `- Kontakt: kontakt.linkedin om länk finns; epost/telefon/adress om de framgår.\n\n` +
-        `Regler: Bevara ALL information och översätt till svenska. Skriv naturligt och professionellt — SAMMANFATTA INTE. HITTA INGET på fakta som inte finns; lämna fält tomt om data saknas. Returnera giltig JSON med ett "cv"-objekt enligt schemat.`;
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        response_json_schema: schema,
-        file_urls: fileUrl ? [fileUrl] : undefined,
+    /**
+     * LinkedIn is another CV source, not a separate CV-building pipeline.
+     * The current builder data is passed as baseCV so LinkedIn is reconciled
+     * with PDF/text/manual data through the same canonical aggregator.
+     */
+    async importLinkedIn({ text, fileUrl, baseCV }) {
+      return service.aggregateCVSources({
+        linkedinText: text,
+        linkedinFileUrl: fileUrl,
+        baseCV,
       });
-      return res?.cv || res || {};
     },
 
     /** Salary Advisor — estimate salary for the Swedish market based on role/region/experience/industry. */
