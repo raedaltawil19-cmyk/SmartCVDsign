@@ -14,7 +14,7 @@ import { isMaster, isTailored, pickBestBaseCV, createTailoredCV, tailoredJobSimi
 
 /**
  * يحدّد نسخة الأساس (master) لهذه الجلسة.
- * @returns {{base:object|null, source:"explicit"|"parent"|"match", confidence:"explicit"|"strong"|"weak"|"none", cautious:boolean, margin:number, ranked:Array, error?:string}}
+ * @returns {{base:object|null, source:"explicit"|"parent"|"match"|"selected_tailored"|"original_master", confidence:"explicit"|"strong"|"weak"|"none", cautious:boolean, margin:number, ranked:Array, similarity?:number, error?:string}}
  */
 export function resolveBaseCV({ list, preferredId, ad } = {}) {
   const all = Array.isArray(list) ? list : [];
