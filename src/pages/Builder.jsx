@@ -526,7 +526,7 @@ export default function Builder() {
    * قرار المصدر لا يعتمد على الاختيار وحده: النسخة المحددة Tailored تُستخدم
    * فقط إذا كانت الوظيفة الجديدة مشابهة؛ وإلا نعود إلى الـMaster المحسن.
    */
-  const sendTailorToAssistant = (selectedIds, review, adInput = {}) => {
+  const sendTailorToAssistant = async (selectedIds, review, adInput = {}) => {
     if (!currentCvId) return { ok: false, error: "لا توجد سيرة محفوظة للعمل عليها.", sentIds: [] };
 
     const ad = adFromUserText(adInput.adText || review?.summary || "");
@@ -563,10 +563,12 @@ export default function Builder() {
       return { next, resolved };
     };
 
-    // هذه العملية أصبحت async؛ لا نسمح بتسليم التوصيات قبل إنشاء النسخة.
-    createVersion().then(({ next, resolved, error }) => {
-      if (error || !next) return;
-      const { intents, rejected } = buildSelectedIntents({
+    // لا نسمح بتسليم التوصيات قبل إنشاء النسخة.
+    const { next, resolved, error } = await createVersion();
+    if (error || !next) {
+      return { ok: false, error: error === "NO_CONFIDENT_BASE" ? "لم أجد نسخة أساس موثوقة لهذه الوظيفة." : "تعذّر إنشاء النسخة المخصصة.", sentIds: [] };
+    }
+    const { intents, rejected } = buildSelectedIntents({
         review,
         selectedIds,
         cvId: next.id,
@@ -575,22 +577,17 @@ export default function Builder() {
         cvLanguage: cvLanguageTag(next.data || data),
         uiLanguage: lang,
         source: "application_tailor"
-      });
-      if (intents.length === 0) {
-        toast({ title: "لم يتم إنشاء تعديلات من التوصيات المحددة", variant: "destructive" });
-        return;
-      }
-      deliverToAssistant(intents.map((intent) => ({ intent })));
-      if (resolved.source === "original_master") {
-        toast({ title: "تم إنشاء نسخة جديدة من السيرة الأصلية", description: "الوظيفة مختلفة عن التخصص السابق، لذلك بدأنا من النسخة الأصلية المحسنة." });
-      } else if (resolved.source === "selected_tailored") {
-        toast({ title: "تم إنشاء نسخة جديدة بناءً على النسخة الحالية", description: "الوظيفة الجديدة قريبة من الوظيفة السابقة، لذلك حافظنا على التخصص الموجود." });
-      }
-    }).catch(() => {
-      toast({ title: "تعذّر إنشاء النسخة المخصصة", variant: "destructive" });
     });
-
-    return { ok: true, error: "", sentIds: selectedIds };
+    if (intents.length === 0) {
+      return { ok: false, error: describeRejection(rejected[0]?.error), sentIds: [] };
+    }
+    deliverToAssistant(intents.map((intent) => ({ intent })));
+    if (resolved.source === "original_master") {
+      toast({ title: "تم إنشاء نسخة جديدة من السيرة الأصلية", description: "الوظيفة مختلفة عن التخصص السابق، لذلك بدأنا من النسخة الأصلية المحسنة." });
+    } else if (resolved.source === "selected_tailored") {
+      toast({ title: "تم إنشاء نسخة جديدة بناءً على النسخة الحالية", description: "الوظيفة الجديدة قريبة من الوظيفة السابقة، لذلك حافظنا على التخصص الموجود." });
+    }
+    return { ok: true, error: rejected.length ? describeRejection(rejected[0].error) : "", sentIds: intents.map((intent) => intent.recommendationId) };
   };
 
   /**
