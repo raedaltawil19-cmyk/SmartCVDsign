@@ -37,9 +37,9 @@ export default function TailorSuggestionsStep({ review, selectedIds, sentIds = [
             className="w-full inline-flex items-center justify-center gap-2 text-[13px] px-4 py-2.5 rounded-xl bg-[#000066] text-white hover:bg-[#00003d] transition-colors disabled:opacity-40"
           >
             <Send className="w-4 h-4" />
-            <span>إرسال المحدد إلى مساعد السيرة{selectedIds.filter((id) => !sentIds.includes(id)).length > 0 ? ` (${selectedIds.filter((id) => !sentIds.includes(id)).length})` : ""}</span>
+            <span>تطبيق التخصيصات{selectedIds.filter((id) => !sentIds.includes(id)).length > 0 ? ` (${selectedIds.filter((id) => !sentIds.includes(id)).length})` : ""}</span>
           </button>
-          <p className="text-[10.5px] text-slate-400">مساعد السيرة هو الذي ينفّذ ما اخترته فقط.</p>
+          <p className="text-[10.5px] text-slate-400">سيتم تطبيق ما اخترته على النسخة المخصصة فقط.</p>
         </>
       )}
     </div>
