@@ -83,7 +83,6 @@ const deepCopy = (v) => (v === undefined || v === null ? v : JSON.parse(JSON.str
  */
 export function buildTailoredPayload({ base, ad, jobApplicationId } = {}) {
   if (!base || !base.id || !base.data) return { error: "BASE_CV_INVALID" };
-  if (isTailored(base)) return { error: "BASE_MUST_BE_MASTER" };
   const jobTitle = String(ad?.rubrik || "").trim();
   return {
     payload: {
@@ -95,6 +94,10 @@ export function buildTailoredPayload({ base, ad, jobApplicationId } = {}) {
       templateReviewStatus: base.templateReviewStatus || "skipped",
       cvType: TAILORED,
       parentCvId: base.id,
+      sourceMasterCvId: isMaster(base) ? base.id : (base.sourceMasterCvId || base.parentCvId || undefined),
+      tailoredForJobTitle: jobTitle || undefined,
+      tailoredForCompany: ad?.arbetsgivare || ad?.company || undefined,
+      tailoredForJobDescription: String(ad?.beskrivning || "").slice(0, 6000) || undefined,
       jobApplicationId: jobApplicationId || undefined,
     },
   };
