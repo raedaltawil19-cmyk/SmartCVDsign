@@ -320,7 +320,8 @@ export default function Builder() {
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
   const shareApplication = async () => {
-    const url = window.location.href;
+    const url = await createShareUrl();
+    if (!url) return;
     try {
       if (navigator.share) await navigator.share({ title: data.titel || "Smart CV", text: "CV / Application", url });
       else await navigator.clipboard.writeText(url);
