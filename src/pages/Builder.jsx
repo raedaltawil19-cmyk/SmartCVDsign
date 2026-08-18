@@ -400,19 +400,8 @@ export default function Builder() {
   const cvReview = useCVReview({ cvId: currentCvId, templateId, layout, data, templateReviewStatus });
   const startReviewRef = useRef(cvReview.run);
   startReviewRef.current = cvReview.run;
-  const prewarmReviewRef = useRef(cvReview.prewarm);
-  prewarmReviewRef.current = cvReview.prewarm;
-
-  // تشغيل مسبق للمراجعة بمجرّد جهاز السيرة: نفس الوكيل ونفس السياق ونفس التحليل بالكامل،
-  // لكن بلا عرض — النتيجة المكتملة تُخزَّن بمفتاح نسخة السيرة، فيراها المستخدم فوراً عند الطلب.
-  useEffect(() => {
-    if (processing) return;
-    if (!currentCvId || !templateId || !layout) return;
-    // انتظار استقرار التحرير قبل التجهيز — حتى لا تُشغَّل مراجعة عند كل ضغطة مفتاح
-    const timer = setTimeout(() => prewarmReviewRef.current(), 6000);
-    return () => clearTimeout(timer);
-  }, [processing, currentCvId, templateId, layout, data]);
-
+  // لا توجد مراجعة تلقائية قبل اختيار مسار العمل.
+  // CV Review Coach يبدأ فقط عندما يختار المستخدم "تحسين عام" من WorkflowChoiceCard.
   // مقبس التشغيل اليدوي — لا تشغيل تلقائي عند تغيّر data/layout/templateId أو إعادة الرسم
   useEffect(() => {
     window.__cvcraftStartReview = (userRequest) => {
