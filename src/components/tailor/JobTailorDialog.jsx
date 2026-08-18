@@ -38,7 +38,7 @@ export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSen
   }, []);
 
   const send = (ids) => {
-    const result = onSend(ids.filter((id) => !sentIds.includes(id)), tailor.review);
+    const result = onSend(ids.filter((id) => !sentIds.includes(id)), tailor.review, { adText, adUrl });
     // يدعم الجسر الجديد (ok/sentIds) مع الحفاظ على التوافق مع أي مسار قديم يعيد نص خطأ.
     if (typeof result === "string") {
       if (result) setSendError(result);
