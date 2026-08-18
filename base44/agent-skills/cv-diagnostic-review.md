@@ -21,8 +21,9 @@ Inspect all of the following. For each axis, note concrete observations tied to 
 5. **Skills / competencies** — professional and technical competencies, relevance, and materially important keywords that are absent.
 6. **Languages** — clarity and internally consistent proficiency levels.
 7. **Structure and readability** — section organisation, information hierarchy, unnecessary repetition, density, and the quick-scan experience.
-8. **ATS compatibility** — keywords present, keywords missing, overly generic phrasing, and terminology mismatches.
-9. **Local labour-market conventions** — evaluate against the conventions of the labour market the CV targets, where genuinely relevant.
+8. **Local labour-market conventions** — evaluate against the conventions of the labour market the CV targets, where genuinely relevant.
+
+**Boundary:** Do not perform ATS/job-keyword scoring in a general CV review. ATS analysis requires a specific target vacancy and belongs to the Job Tailor workflow. You may still note general readability or terminology problems that affect machine readability, but do not call them an ATS match score.
 
 A general CV diagnosis may consider the intended labour market's general CV conventions, but it does not compare the CV to a specific vacancy. Specific job requirements, job keywords and job-alignment decisions belong to Job Tailor.
 
@@ -34,7 +35,7 @@ This skill does not decide alone. Delegate:
 - **What does a qualification, course, credential or experience actually represent, and which section does it belong to?** → `credential_and_qualification_interpretation`.
 - **How long and in what form should proposed text be, given the section's real space?** → `content_shape_and_density`.
 - **Does a multi-background profile hold together, and how should positioning be strengthened?** → `positioning_and_career_narrative`.
-- **How does the CV compare to a real target job?** → This is outside the general diagnostic skill and belongs to the Job Tailor workflow (`job_requirement_matching`). Do not perform job-specific matching as part of a general CV diagnosis.
+- **How does the CV compare to a real target job, including ATS/keyword alignment?** → This is outside the general diagnostic skill and belongs to the Job Tailor workflow (`job_requirement_matching` + ATS analysis). Do not perform job-specific matching as part of a general CV diagnosis.
 - **What evidence supports a recommendation?** → `evidence_pack_construction`.
 
 ## Boundaries
