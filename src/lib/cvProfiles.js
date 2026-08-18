@@ -17,6 +17,22 @@ export const TAILORED = "tailored";
 /** فارق الدرجة الذي دونه يصبح الاختيار غير حاسم */
 export const WEAK_MARGIN = 8;
 
+/** تشابه الوظيفة الحالية مع الوظيفة التي خُصصت لها نسخة Tailored. */
+export function tailoredJobSimilarity(record, ad) {
+  if (!isTailored(record)) return 0;
+  const oldText = [record.tailoredForJobTitle, record.tailoredForCompany, record.tailoredForJobDescription].filter(Boolean).join(" ").toLowerCase();
+  const newText = [ad?.rubrik, ad?.beskrivning, (ad?.krav || []).map((k) => k?.namn).join(" ")].filter(Boolean).join(" ").toLowerCase();
+  if (!oldText || !newText) return 0;
+  const tokens = (s) => new Set(s.split(/[^a-zåäö0-9]+/i).filter((x) => x.length > 2));
+  const a = tokens(oldText); const b = tokens(newText);
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const t of a) if (b.has(t)) intersection += 1;
+  return Math.round(100 * (2 * intersection) / (a.size + b.size));
+}
+
+export const TAILORED_SOURCE_THRESHOLD = 35;
+
 /**
  * نوع السيرة. السجلات القديمة قد لا تحمل cvType — تُعتبر master بالاستنتاج،
  * ولا يُكتب أي شيء في قاعدة البيانات لتصحيحها.
