@@ -30,6 +30,7 @@ export function buildTailorRequest({ adText, adUrl }) {
 export default function useJobTailorPopup({ cvRecord }) {
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const pollTimersRef = useRef([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const convRef = useRef(null);
@@ -40,6 +41,11 @@ export default function useJobTailorPopup({ cvRecord }) {
     const unsubscribe = base44.agents.subscribeToConversation(conversationId, (d) => setMessages(d?.messages || []));
     return () => unsubscribe();
   }, [conversationId]);
+
+  useEffect(() => () => {
+    pollTimersRef.current.forEach(clearTimeout);
+    pollTimersRef.current = [];
+  }, []);
 
   // التحليل ينتهي عند وصول كتلة توصيات مكتملة أو خطأ عقد
   useEffect(() => {
@@ -62,7 +68,30 @@ export default function useJobTailorPopup({ cvRecord }) {
         convRef.current = conv;
         setConversationId(conv.id);
       }
+
+      // Subscribe BEFORE sending the message. React state/effects are asynchronous;
+      // waiting for conversationId here could miss a fast assistant response entirely.
+      const unsubscribe = base44.agents.subscribeToConversation(conv.id, (d) => {
+        setMessages(d?.messages || []);
+      });
+
       await base44.agents.addMessage(conv, { role: "user", content: `${built.request}${cvContextBlock(cvRecord)}` });
+
+      // Safety net for missed realtime events: read the conversation repeatedly until
+      // the strict CV_REVIEW parser settles or the normal hook reports an error.
+      pollTimersRef.current.forEach(clearTimeout);
+      pollTimersRef.current = [1000, 2500, 5000, 9000, 15000, 25000, 40000, 60000, 90000].map((ms) => setTimeout(async () => {
+        try {
+          const latest = await base44.agents.getConversation(conv.id);
+          if (latest?.messages) setMessages(latest.messages);
+        } catch {
+          // realtime subscription remains the primary channel
+        }
+      }, ms));
+
+      // Keep the temporary listener alive for this request; the main subscription is
+      // still established through conversationId as well. Cleanup happens on unmount.
+      void unsubscribe;
     } catch {
       setAnalyzing(false);
       setError("ANALYZE_FAILED");
