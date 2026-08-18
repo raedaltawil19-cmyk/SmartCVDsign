@@ -88,7 +88,10 @@ export function EditText({ value, editable, onChange, className, as = "input", p
   const onInput = () => {
     if (!ref.current) return;
     if (ref.current.textContent.trim() === "") ref.current.innerHTML = "";
-    onChange(ref.current.innerHTML);
+    onChange(DOMPurify.sanitize(ref.current.innerHTML, {
+      ALLOWED_TAGS: ["br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "p"],
+      ALLOWED_ATTR: []
+    }));
   };
   const applyFormat = (type) => {
     ref.current?.focus();
