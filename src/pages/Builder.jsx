@@ -299,8 +299,7 @@ export default function Builder() {
     if (!currentCvId) { toast({ title: "احفظ السيرة أولاً", variant: "destructive" }); return null; }
     try {
       const token = `${crypto.randomUUID().replaceAll("-", "")}__${Date.now().toString(36)}`;
-      const me = await auth.me().catch(() => null);
-      await base44.entities.SharedCV.create({ token, sourceCvId: currentCvId, titel: data.titel || "CV", data, templateId, layout, createdByEmail: me?.email || "" });
+      await base44.entities.SharedCV.create({ token, sourceCvId: currentCvId, titel: data.titel || "CV", data, templateId, layout });
       return `${window.location.origin}/share/${token}`;
     } catch {
       toast({ title: "تعذّر إنشاء رابط المشاركة", variant: "destructive" });
