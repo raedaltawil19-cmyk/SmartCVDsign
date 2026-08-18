@@ -781,7 +781,7 @@ export default function Builder() {
         <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setShowPreview(false)}>
           <div className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden" dir={dir} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200"><div className="flex items-center gap-2"><Eye className="w-4 h-4 text-[#526B35]" /><span className="font-semibold text-sm">CV Preview</span></div><button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button></div>
-            <div className="p-5 overflow-auto max-h-[calc(92vh-56px)] flex justify-center"><div className="bg-white shadow-lg" style={{ width: A4_W, minHeight: A4_H }}><CVPreview templateId={templateId} data={data} editable={false} layout={layout} /></div></div>
+            <div className="p-5 overflow-auto max-h-[calc(92vh-56px)] flex justify-center"><div className="bg-white shadow-lg" style={{ width: A4_W, minHeight: A4_H }}><CVPreview templateId={templateId} data={data} editable={false} actions={actions} layout={layout} /></div></div>
           </div>
         </div>
       )}
