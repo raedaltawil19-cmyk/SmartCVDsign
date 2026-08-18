@@ -80,6 +80,7 @@ const deepCopy = (v) => (v === undefined || v === null ? v : JSON.parse(JSON.str
 /**
  * حِمل إنشاء نسخة مخصّصة — كائن جديد بالكامل مشتقّ من الأساس، بلا أي مرجع مشترك معه.
  * لا يعدّل base إطلاقاً.
+ * @param {{base:object, ad?:object, jobApplicationId?:string|null}} args
  */
 export function buildTailoredPayload({ base, ad, jobApplicationId } = {}) {
   if (!base || !base.id || !base.data) return { error: "BASE_CV_INVALID" };
