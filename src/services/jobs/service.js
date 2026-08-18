@@ -31,6 +31,23 @@ export function createJobsService({ llm }) {
         });
     },
 
+    async findSimilar(job, { publishedDays = 30, limit = 8, municipality } = {}) {
+      const title = String(job?.rubrik || job?.jobTitle || "").trim();
+      if (!title) return { jobs: [] };
+      const res = await service.search({ q: title, publishedDays, limit: Math.min(limit + 3, 20), municipalities: municipality ? [municipality] : undefined });
+      const sourceId = String(job?.id || "");
+      const jobs = (res?.data?.jobs || res?.jobs || []).filter((item) => String(item.id) !== sourceId).slice(0, limit);
+      return { jobs, sourceJob: job };
+    },
+
+    async salaryIntelligence({ job, cv } = {}) {
+      const jobTitle = String(job?.rubrik || job?.jobTitle || "").trim();
+      if (!jobTitle) return null;
+      const experience = Array.isArray(cv?.erfarenhet) ? cv.erfarenhet : [];
+      const res = await base44.functions.invoke("SalaryIntelligence", { jobTitle, experience });
+      return res?.data || res || null;
+    },
+
     async rank(cvData, adsForLLM) {
       // 1. Local pre-scoring (no credits)
       const scored = (adsForLLM || []).map((ad) => ({
