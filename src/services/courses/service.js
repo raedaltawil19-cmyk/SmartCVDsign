@@ -20,7 +20,7 @@ function courseKey(course) {
  * It intentionally does not run inside Job Tailor; discovery can be triggered
  * independently and new records can create Notifications afterwards.
  */
-export function createCoursesService({ notifications }) {
+export function createCoursesService({ notifications, llm, jobs }) {
   return {
     name: "courses",
 
@@ -65,20 +65,50 @@ export function createCoursesService({ notifications }) {
           const created = await base44.entities.RecommendedCourse.create({ ...payload, isNew: true });
           byKey.set(key, created);
           results.push({ record: created, isNew: true });
-          if (notifications) {
-            await notifications.create({
-              type: "course_found",
-              title: "وجدنا لك دورة جديدة",
-              message: `${created.title} مناسبة لملفك المهني.`,
-              targetType: "recommended_courses",
-              targetId: created.id,
-              metadata: { courseKey: key },
-            });
-          }
         }
       }
 
       return results;
+    },
+
+    async notifyNewCourses(newRecords = []) {
+      if (!notifications || !newRecords.length) return null;
+      const count = newRecords.length;
+      return notifications.create({
+        type: "course_found",
+        title: `وجدنا ${count} ${count === 1 ? "دورة إضافية" : "دورات إضافية"} مناسبة لمسارك المهني`,
+        message: `اكتشفنا ${count} ${count === 1 ? "دورة إضافية" : "دورات إضافية"} لتطوير مسارك المهني.`,
+        targetType: "recommended_courses",
+        targetId: newRecords[0]?.record?.id || "",
+        metadata: { count, courseIds: newRecords.map((x) => x.record?.id).filter(Boolean) },
+      });
+    },
+
+    async discoverForCV({ cv, jobTitle } = {}) {
+      if (!llm || !jobs || !cv) return { newCourses: [], searched: false };
+      const title = jobTitle || cv.titel || "";
+      if (!title.trim()) return { newCourses: [], searched: false };
+      const search = await jobs.search({ q: title, publishedDays: 21, limit: 18 });
+      const list = search?.data?.jobs || [];
+      let ranked = list;
+      if (list.length) {
+        const inputs = list.map((j) => ({ id: j.id, rubrik: j.rubrik, arbetsgivare: j.arbetsgivare, plats: [j.kommun, j.lan].filter(Boolean).join(", "), beskrivning: (j.beskrivning || "").slice(0, 500), krav: j.erfarenhetKrav }));
+        const rankRes = await jobs.rank(cv, inputs);
+        const byId = Object.fromEntries((rankRes.results || []).map((r) => [r.id, r]));
+        ranked = list.map((j) => ({ ...j, matchPercent: byId[j.id]?.matchPercent ?? 0 })).sort((a, b) => (b.matchPercent || 0) - (a.matchPercent || 0));
+      }
+      const existing = await base44.entities.RecommendedCourse.list("-updated_date", 500);
+      const existingKeys = new Set((existing || []).map((x) => x.courseKey));
+      const skillText = `${(cv.fardigheter || []).map((s) => s?.namn || "").join(" ")} ${(ranked.slice(0, 6).map((j) => `${j.rubrik || ""} ${j.beskrivning || ""}`).join(" "))}`.toLowerCase();
+      const weak = [...new Set(skillText.split(/[^a-zåäö0-9]+/i).filter((x) => x.length > 3))].filter((x) => !((cv.fardigheter || []).some((s) => String(s?.namn || "").toLowerCase().includes(x)))).slice(0, 8);
+      const ads = ranked.slice(0, 8).map((j) => ({ rubrik: j.rubrik, arbetsgivare: j.arbetsgivare, plats: [j.kommun, j.lan].filter(Boolean).join(", "), matchPercent: j.matchPercent }));
+      const courses = await llm.recommendSwedishCourses({ cv, jobTitle: title, weakSkills: weak, currentMatch: ranked.length ? Math.round(ranked.reduce((s, j) => s + (j.matchPercent || 0), 0) / ranked.length) : null, jobAds: ads });
+      const candidates = (Array.isArray(courses) ? courses : []).filter((c) => c?.title && c?.url && !existingKeys.has(courseKey(c)));
+      if (!candidates.length) return { newCourses: [], searched: true };
+      const saved = await this.upsertMany(candidates);
+      const fresh = saved.filter((x) => x.isNew);
+      if (fresh.length) await this.notifyNewCourses(fresh);
+      return { newCourses: fresh, searched: true };
     },
 
     markSeen(id) {
