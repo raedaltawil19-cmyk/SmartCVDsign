@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 import { useEditContext } from "./EditContext";
 import FloatingToolbar from "./FloatingToolbar";
@@ -6,12 +7,15 @@ import FloatingToolbar from "./FloatingToolbar";
 const INPUT_BASE =
   "bg-transparent border-0 outline-none w-full p-0 m-0 placeholder:text-slate-300 focus:bg-slate-50/60 rounded transition-colors";
 
-// يحوّل نص عادي إلى HTML: يحافظ على الأسطر الجديدة كـ <br>، ويترك الـHTML كما هو
+// يحوّل النص إلى HTML آمن مع السماح فقط بتنسيق CV البسيط.
 function toHtml(v) {
   if (!v) return "";
   const s = String(v);
-  if (/<[a-z!]/i.test(s)) return s;
-  return s.replace(/\n/g, "<br>");
+  const html = /<[a-z!]/i.test(s) ? s : s.replace(/\n/g, "<br>");
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "p"],
+    ALLOWED_ATTR: []
+  });
 }
 
 export function EditText({ value, editable, onChange, className, as = "input", placeholder = "", rows = 3 }) {
