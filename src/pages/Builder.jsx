@@ -36,7 +36,9 @@ import NotificationCenter from "@/components/notifications/NotificationCenter";
 import SuitableJobsPanel from "@/components/jobs/SuitableJobsPanel";
 import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
 import CVPreview from "@/components/CVPreview";
-import { Copy, Eye, Share2, X } from "lucide-react";
+import { Copy, Eye, Share2, X, Plus as PlusIcon, Sparkles as SparklesIcon, Target as TargetIcon, UserCircle, BriefcaseBusiness, Inbox, LoaderCircle } from "lucide-react";
+import ProfileMenu from "@/components/corner/ProfileMenu";
+import AddCVSourceSheet from "@/components/builder/AddCVSourceSheet";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -63,6 +65,8 @@ export default function Builder() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [magicEdit, setMagicEdit] = useState(false);
   // توصيات واردة من مخصّص الطلبات (جسر Job Tailor → مساعد السيرة) — تُفتح اللوحة فوراً لتُسلَّم كـIntents
   // كل عنصر تسليم يُوسَم بمصدره: حمولة تنفيذ داخلية لا رسالة كتبها المستخدم
   const incomingIntents = (Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [])
@@ -71,6 +75,7 @@ export default function Builder() {
   const [assistantMounted, setAssistantMounted] = useState(incomingIntents.length > 0);
   const [assistantMinimized, setAssistantMinimized] = useState(false);
   const openAssistant = () => { setAssistantMounted(true); setShowSmart(true); setAssistantMinimized(false); };
+  const keepAssistantHidden = () => { setAssistantMounted(true); setShowSmart(false); setAssistantMinimized(false); };
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -137,7 +142,7 @@ export default function Builder() {
   const runProcess = useCallback(async (text, fileUrl) => {
     setProcessing(true);
     try {
-      const merged = await llm.processCV({ text, fileUrl });
+      const merged = await llm.aggregateCVSources({ text, fileUrl });
       setData(merged);
     } catch (e) {
       toast({ title: "Kunde inte läsa in informationen", description: "Försök igen eller redigera manuellt.", variant: "destructive" });
@@ -480,7 +485,8 @@ export default function Builder() {
   /** نقطة التسليم الوحيدة إلى مساعد السيرة — بعد التأكيد فقط */
   const deliverToAssistant = (items) => {
     if (items.length === 0) return;
-    openAssistant();
+    keepAssistantHidden();
+    setMagicEdit(true);
     const cycle = ++sendCycleRef.current;
     setPendingIntents((prev) => [
       ...prev,
@@ -669,6 +675,14 @@ export default function Builder() {
     }
   };
 
+  const startGeneralImprove = () => {
+    if (processing || regenerating) return;
+    setChoiceOpen(false);
+    if (cvReview.review) cvReview.reset();
+    startReviewRef.current();
+    logAction("ai_command", { command: "تحسين السيرة بشكل عام" });
+  };
+
   const acceptSuggestedTemplate = async () => {
     // القالب فقط؛ الـeffect القائم يزامن layout والحفظ التلقائي يحفظ الاثنين
     setTemplateId(review.templateId);
@@ -678,79 +692,28 @@ export default function Builder() {
 
   return (
     <div dir={dir} className="cv-builder-root h-screen bg-[#F5F5F5] text-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
-      <header className="no-print shrink-0 border-b border-slate-200 bg-white">
-        <div className="px-5 py-3 pr-[104px] flex items-center justify-between gap-3 flex-wrap">
-          <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
-            <ArrowRight className="w-4 h-4" />
-            <span>{t("builder.back")}</span>
+      <header className="no-print shrink-0 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl supports-[backdrop-filter]:bg-white/75">
+        <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-3">
+          <button onClick={() => navigate("/")} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600" aria-label={t("builder.back")}>
+            <ArrowRight className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <NotificationCenter />
-            {autoSaveStatus === "saving" && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                جارٍ الحفظ...
-              </span>
-            )}
-            {autoSaveStatus === "saved" && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-green-600">
-                <Check className="w-3 h-3" />
-                تم الحفظ
-              </span>
-            )}
-            {choiceReady && !choiceOpen && (
-              <button onClick={() => setChoiceOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <span>ماذا تريد أن تفعل؟</span>
-              </button>
-            )}
-            <button onClick={() => (showSmart ? setShowSmart(false) : openAssistant())} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">مساعد السيرة</span>
-            </button>
-            <button onClick={() => setShowTemplates(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowTemplates(true)} className="min-h-10 px-3 rounded-full hover:bg-slate-100 text-sm font-medium text-slate-800 inline-flex items-center gap-2" aria-label="قوالب CV">
               <LayoutTemplate className="w-4 h-4" />
-              <span className="hidden sm:inline">CV Templates</span>
+              <span className="hidden sm:inline">CV</span>
             </button>
-            <button onClick={() => setShowPreview(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <Eye className="w-4 h-4" />
-              <span className="hidden sm:inline">Preview</span>
-            </button>
+            <button onClick={() => setShowTemplates(true)} className="min-h-10 px-3 rounded-full hover:bg-slate-100 text-sm text-slate-600 hidden sm:inline-flex">القوالب</button>
+            <NotificationCenter />
             <div className="relative">
-              <button onClick={() => setShowShare((v) => !v)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
-              {showShare && <div className="absolute top-11 right-0 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 text-right">
-                <button onClick={copyCVLink} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm inline-flex items-center gap-2"><Copy className="w-4 h-4" /> Copy CV Link</button>
-                <button onClick={emailCV} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Email CV</button>
-                <button onClick={() => { setShowShare(false); exportPDF(); }} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Print / PDF</button>
-                <button onClick={shareApplication} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Share Smart CV / Application</button>
+              <button onClick={() => setShowShare((v) => !v)} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600" aria-label="مشاركة"><Share2 className="w-4 h-4" /></button>
+              {showShare && <div className="absolute top-12 left-0 z-50 w-64 bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-2xl p-1.5 text-right">
+                <button onClick={copyCVLink} className="w-full min-h-11 px-3 rounded-xl hover:bg-slate-50 text-sm inline-flex items-center gap-2"><Copy className="w-4 h-4" /> Copy CV Link</button>
+                <button onClick={emailCV} className="w-full min-h-11 px-3 rounded-xl hover:bg-slate-50 text-sm text-right">Email CV</button>
+                <button onClick={() => { setShowShare(false); exportPDF(); }} className="w-full min-h-11 px-3 rounded-xl hover:bg-slate-50 text-sm text-right">Print / PDF</button>
+                <button onClick={shareApplication} className="w-full min-h-11 px-3 rounded-xl hover:bg-slate-50 text-sm text-right">Share Application</button>
               </div>}
             </div>
-            <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">{t("builder.layout")}</span>
-            </button>
-            <button onClick={() => setSaveOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <Save className="w-4 h-4" />
-              <span>{t("builder.save")}</span>
-            </button>
-            {currentCvId && (
-              <button onClick={() => setTailorOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#D9E830] text-black hover:bg-[#c5d420] transition-colors font-medium">
-                <Target className="w-4 h-4" />
-                <span className="hidden sm:inline">تخصيص CV لوظيفة معينة</span>
-              </button>
-            )}
-            {currentCvId && (
-              <button onClick={() => navigate(`/template-advisor/${currentCvId}`)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <LayoutTemplate className="w-4 h-4" />
-                <span className="hidden sm:inline">استشارة قالب</span>
-              </button>
-            )}
-            <button onClick={exportPDF} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#000066] text-white hover:bg-[#00003d] transition-colors">
-              {authChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              <span>{t("builder.pdf")}</span>
-            </button>
+            <ProfileMenu />
           </div>
         </div>
       </header>
@@ -775,12 +738,14 @@ export default function Builder() {
       )}
 
       {choiceReady && choiceOpen && !cvReview.ready && (
-        <div className="no-print shrink-0 px-4 pt-3 bg-slate-200/60">
-          <WorkflowChoiceCard
-            onGeneral={() => chooseWorkflow(WORKFLOW_GENERAL)}
-            onTailor={() => chooseWorkflow(WORKFLOW_TAILOR)}
-            onClose={() => setChoiceOpen(false)}
-          />
+        <div className="no-print fixed inset-x-0 top-14 z-50 px-4 pt-3 pointer-events-none">
+          <div className="max-w-xl mx-auto pointer-events-auto">
+            <WorkflowChoiceCard
+              onGeneral={() => chooseWorkflow(WORKFLOW_GENERAL)}
+              onTailor={() => chooseWorkflow(WORKFLOW_TAILOR)}
+              onClose={() => setChoiceOpen(false)}
+            />
+          </div>
         </div>
       )}
 
@@ -808,8 +773,9 @@ export default function Builder() {
           <div ref={panelRef} className="cv-builder-panel flex-1 overflow-y-auto overflow-x-hidden p-6 bg-slate-200/60 flex">
             <div className="no-print fixed top-1/2 right-4 -translate-y-1/2 z-30">
               <CVSideToolbar
-                onImprove={regenerate}
-                regenerating={regenerating}
+                onImprove={startGeneralImprove}
+                improving={cvReview.loading || regenerating}
+                onTailor={() => setTailorOpen(true)}
                 processing={processing}
                 data={data}
                 onApply={(d) => setData(d)}
@@ -829,6 +795,8 @@ export default function Builder() {
                 agentActive={showSmart}
                 onLog={() => setShowLog((v) => !v)}
                 logActive={showLog}
+                data={data}
+                onApply={(d) => setData(d)}
               />
             </div>
             <div style={{ width: A4_W * scale, height: contentH * scale }} className="cv-scale-parent m-auto">
@@ -891,9 +859,19 @@ export default function Builder() {
             onMinimize={() => { setAssistantMinimized(true); setShowSmart(true); }}
             onRestore={() => { setAssistantMinimized(false); setShowSmart(true); }}
             onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
-            onDataChange={(d, summary) => { setData(d); logAction("ai_command", { command: summary || "تعديل محتوى عبر مساعد السيرة" }); }}
+            onDataChange={(d, summary) => { setData(d); setMagicEdit(false); logAction("ai_command", { command: summary || "تعديل محتوى عبر مساعد السيرة" }); }}
             onClose={() => { setShowSmart(false); setAssistantMinimized(false); }}
           />
+        </div>
+      )}
+
+      {magicEdit && (
+        <div className="fixed inset-0 z-[90] pointer-events-none flex items-center justify-center" aria-live="polite">
+          <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] animate-pulse" />
+          <div className="relative rounded-full bg-white/90 border border-slate-200 shadow-2xl px-5 py-3 inline-flex items-center gap-3 text-sm font-medium text-slate-800">
+            <SparklesIcon className="w-5 h-5 text-[#000066] animate-pulse" />
+            يتم تطبيق التحسينات…
+          </div>
         </div>
       )}
 
@@ -906,6 +884,14 @@ export default function Builder() {
           onConfirm={confirmEvidence}
           onSkip={popEvidence}
           onCancel={popEvidence}
+        />
+      )}
+
+      {showAddSource && (
+        <AddCVSourceSheet
+          currentCV={data}
+          onApply={(next) => { setData(mergeCV(next)); setMagicEdit(false); }}
+          onClose={() => setShowAddSource(false)}
         />
       )}
 
