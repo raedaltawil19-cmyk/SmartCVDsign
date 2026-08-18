@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { emptyCV, mergeCV, DEFAULT_LAYOUTS, emptyReference, normalizeLayout } from "@/lib/cvModel";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
+import { base44 } from "@/api/base44Client";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
