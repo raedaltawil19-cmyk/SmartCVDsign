@@ -30,6 +30,7 @@ import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import SuitableJobsPanel from "@/components/jobs/SuitableJobsPanel";
 import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
 import CVPreview from "@/components/CVPreview";
 import { Copy, Eye, Share2, X } from "lucide-react";
@@ -721,6 +722,7 @@ export default function Builder() {
       )}
 
       <div className="flex-1 flex min-h-0">
+        {!processing && <div className="hidden xl:block shrink-0"><SuitableJobsPanel data={data} /></div>}
         {processing && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
             <Loader2 className="w-8 h-8 animate-spin text-[#000066]" />
