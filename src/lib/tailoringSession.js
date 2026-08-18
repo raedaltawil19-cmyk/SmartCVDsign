@@ -10,7 +10,7 @@
  *
  * منطق نقيّ: لا SDK ولا React. المستودع يُمرَّر حقناً.
  */
-import { isMaster, isTailored, pickBestBaseCV, createTailoredCV } from "@/lib/cvProfiles";
+import { isMaster, isTailored, pickBestBaseCV, createTailoredCV, tailoredJobSimilarity, TAILORED_SOURCE_THRESHOLD } from "@/lib/cvProfiles";
 
 /**
  * يحدّد نسخة الأساس (master) لهذه الجلسة.
@@ -25,10 +25,18 @@ export function resolveBaseCV({ list, preferredId, ad } = {}) {
     return { base: preferred, source: "explicit", confidence: "explicit", cautious: false, margin: 0, ranked: [] };
   }
 
-  // سيرة مخصّصة: نعود إلى أصلها بدل التخصيص فوق تخصيص.
+  // السيرة المخصّصة يمكن أن تكون مصدرًا لتخصيص جديد إذا كانت الوظيفة الجديدة
+  // من نفس العائلة المهنية. إذا كانت مختلفة بوضوح نرجع إلى السيرة الأصلية المحسنة.
   if (preferred && isTailored(preferred)) {
-    const parent = all.find((r) => r?.id === preferred.parentCvId && isMaster(r));
-    if (parent) return { base: parent, source: "parent", confidence: "explicit", cautious: false, margin: 0, ranked: [] };
+    const similarity = tailoredJobSimilarity(preferred, ad);
+    if (similarity >= TAILORED_SOURCE_THRESHOLD) {
+      return { base: preferred, source: "selected_tailored", confidence: "strong", cautious: false, margin: similarity, ranked: [], similarity };
+    }
+    const master = all.find((r) => r?.id === preferred.sourceMasterCvId && isMaster(r))
+      || all.find((r) => r?.id === preferred.parentCvId && isMaster(r));
+    if (master) {
+      return { base: master, source: "original_master", confidence: similarity > 0 ? "weak" : "explicit", cautious: similarity > 0, margin: similarity, ranked: [], similarity };
+    }
   }
 
   const picked = pickBestBaseCV(all, ad);
