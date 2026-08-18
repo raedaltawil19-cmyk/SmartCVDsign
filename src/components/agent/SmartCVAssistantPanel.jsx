@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import MessageBubble from "@/components/agent/MessageBubble";
-import { Send, Loader2, X, Sparkles } from "lucide-react";
+import { Send, Loader2, X, Sparkles, Minus, Maximize2, Move } from "lucide-react";
 import { executeAssistantAction, stripAction } from "@/lib/agent/smartAssistantAction";
 import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { summaryText } from "@/lib/agent/changeSummary";
@@ -18,13 +18,15 @@ const strip = (m) => ({ ...m, content: stripAction(String(m.content || "").split
  * ترسل السيرة الحالية (cvModel + template + layout) كسياق مع كل رسالة،
  * فتكون إجابات الوكيل مبنية على السيرة المعروضة فعلاً لا على شكلها البصري.
  */
-export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, pendingIntents, onLayoutChange, onDataChange, onClose }) {
+export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, pendingIntents, onLayoutChange, onDataChange, onClose, minimized = false, onMinimize, onRestore }) {
   const { dir, lang, t } = useLanguage();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [notes, setNotes] = useState([]);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const dragRef = useRef(null);
   const endRef = useRef(null);
   const ctxRef = useRef({ data, layout, templateId, cvId, onLayoutChange, onDataChange, uiLang: lang });
   ctxRef.current = { data, layout, templateId, cvId, onLayoutChange, onDataChange, uiLang: lang };
@@ -51,6 +53,28 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   }, [conversation?.id]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, notes]);
+
+  // نافذة قابلة للتحريك دون مكتبة إضافية. الموضع نسبي إلى نقطة التثبيت الافتراضية.
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current) return;
+      const d = dragRef.current;
+      setPosition({ x: d.startX + e.clientX - d.pointerX, y: d.startY + e.clientY - d.pointerY });
+    };
+    const onUp = () => { dragRef.current = null; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
+  const startDrag = (e) => {
+    if (e.button !== 0 || minimized) return;
+    dragRef.current = { pointerX: e.clientX, pointerY: e.clientY, startX: position.x, startY: position.y };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
 
   // تنفيذ إجراءات الـlayout التي يقترحها الوكيل — عبر cv_move_section فقط، ومرة واحدة لكل رسالة.
   // رسائل الوكيل تصل تدريجياً (streaming) وكتلة الإجراء تظهر في آخر النص، لذلك لا نعتبر الرسالة
