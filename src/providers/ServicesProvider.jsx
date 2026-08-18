@@ -55,10 +55,10 @@ export function ServicesProvider({ children }) {
     const notifications = createNotificationsService();
     assertImplements(notifications, NOTIFICATIONS_INTERFACE);
 
-    const courses = createCoursesService({ notifications });
+    const courses = createCoursesService({ notifications, llm, jobs });
     assertImplements(courses, COURSES_INTERFACE);
 
-    const inbox = createInboxService();
+    const inbox = createInboxService({ llm, notifications });
     assertImplements(inbox, INBOX_INTERFACE);
 
     return { llm, cvRepository, jobs, auth, export: exporter, applications, notifications, courses, inbox };
