@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText } from "lucide-react";
 
