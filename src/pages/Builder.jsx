@@ -336,7 +336,7 @@ export default function Builder() {
       guard();
       return;
     }
-    exportSvc.print();
+    exportSvc.printIsolated();
   };
 
   // Print gate: block native print / Ctrl+P when not authenticated.
