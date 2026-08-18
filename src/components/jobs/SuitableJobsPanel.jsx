@@ -12,6 +12,8 @@ export default function SuitableJobsPanel({ data }) {
   const [selected, setSelected] = useState(null);
   const [salary, setSalary] = useState(null);
   const [salaryLoading, setSalaryLoading] = useState(false);
+  const [similarJobs, setSimilarJobs] = useState([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
 
   const defaultQuery = useMemo(() => [data?.titel, ...(data?.fardigheter || []).map((s) => s?.namn).filter(Boolean).slice(0, 4)].filter(Boolean).join(" "), [data]);
 
@@ -32,14 +34,18 @@ export default function SuitableJobsPanel({ data }) {
   useEffect(() => { if (defaultQuery) search(); }, [defaultQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showSalary = async (job) => {
-    setSelected(job); setSalary(null); setSalaryLoading(true);
-    try {
-      const experience = (data?.erfarenhet || []).length;
-      const region = [job.kommun, job.lan].filter(Boolean).join(", ");
-      const result = await llm.estimateSalary({ jobTitle: job.rubrik || data?.titel || "", region, experience, industry: "Annat" });
-      setSalary(result);
-    } catch { setSalary(null); }
-    finally { setSalaryLoading(false); }
+    setSelected(job);
+    setSalary(null);
+    setSimilarJobs([]);
+    setSalaryLoading(true);
+    setSimilarLoading(true);
+
+    // Background workflow starts immediately from the selected job; CV is optional for similarity.
+    const similarPromise = jobsService.findSimilar(job, { publishedDays: 30, limit: 6 });
+    const salaryPromise = data ? jobsService.salaryIntelligence({ job, cv: data }) : Promise.resolve(null);
+
+    similarPromise.then((result) => setSimilarJobs(result?.jobs || [])).catch(() => setSimilarJobs([])).finally(() => setSimilarLoading(false));
+    salaryPromise.then((result) => setSalary(result?.salary ? { ...result.salary, reason: `مبني على ${result.experienceYears ?? 0} سنة خبرة مرتبطة بالمهنة، وبيانات SCB.`, source: result.sources?.[0]?.name } : null)).catch(() => setSalary(null)).finally(() => setSalaryLoading(false));
   };
 
   return (
