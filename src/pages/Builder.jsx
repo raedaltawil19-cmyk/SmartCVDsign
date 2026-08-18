@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Download, Loader2, LayoutGrid, Save, Target, LayoutTemplate, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, LayoutTemplate } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
