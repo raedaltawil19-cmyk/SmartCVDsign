@@ -33,6 +33,7 @@ export function assertImplements(impl, spec) {
 
 export const LLM_INTERFACE = defineInterface(PORT.LLM, [
   "completeJson",
+  "aggregateCVSources",
   "processCV",
   "transformCV",
   "regenerateCV",
