@@ -17,7 +17,8 @@ import { isMaster, isTailored, pickBestBaseCV, createTailoredCV, tailoredJobSimi
  * @param {{list?:Array, preferredId?:string, ad?:object}} args
  * @returns {{base:object|null, source:"explicit"|"parent"|"match"|"selected_tailored"|"original_master", confidence:"explicit"|"strong"|"weak"|"none", cautious:boolean, margin:number, ranked:Array, similarity?:number, error?:string}}
  */
-export function resolveBaseCV({ list, preferredId, ad } = {}) {
+export function resolveBaseCV(args = {}) {
+  const { list, preferredId, ad } = args;
   const all = Array.isArray(list) ? list : [];
   const preferred = preferredId ? all.find((r) => r?.id === preferredId) : null;
 
@@ -58,7 +59,8 @@ export function resolveBaseCV({ list, preferredId, ad } = {}) {
  * يبدأ جلسة تخصيص: يحدّد الأساس ثم ينشئ نسخة tailored مستقلة عنه.
  * @param {{repository:{create:Function}, list:Array, preferredId?:string, ad?:object, jobApplicationId?:string}} args
  */
-export async function startTailoringSession({ repository, list, preferredId, ad, jobApplicationId } = {}) {
+export async function startTailoringSession(args = {}) {
+  const { repository, list, preferredId, ad, jobApplicationId } = args;
   const resolved = resolveBaseCV({ list, preferredId, ad });
   if (!resolved.base) return { error: resolved.error || "NO_CONFIDENT_BASE", resolved };
   const { created, error } = await createTailoredCV(repository, { base: resolved.base, ad, jobApplicationId });
