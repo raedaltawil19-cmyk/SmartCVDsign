@@ -1,5 +1,6 @@
 import { useLanguage } from "@/lib/i18n";
-import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText, Loader2 } from "lucide-react";
+import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText, Loader2, Sparkles, Target, Wrench } from "lucide-react";
+import CVTools from "./CVTools";
 
 export default function CVSideToolbar({
   scale,
@@ -16,6 +17,11 @@ export default function CVSideToolbar({
   agentActive,
   onLog,
   logActive,
+  onImprove,
+  improving,
+  onTailor,
+  data,
+  onApply,
 }) {
   const { t, dir } = useLanguage();
   const tip = dir === "rtl" ? "right-full mr-2" : "left-full ml-2";
@@ -69,7 +75,10 @@ export default function CVSideToolbar({
         <Btn icon={Undo2} label={t("builder.undo")} hint="إلغاء آخر تعديل والعودة خطوة للخلف" onClick={onUndo} disabled={!canUndo} />
         <Btn icon={Redo2} label={t("builder.redo")} hint="إعادة تنفيذ التعديل الذي تم إلغاؤه" onClick={onRedo} disabled={!canRedo} />
         <div className="w-8 h-px bg-slate-200 my-0.5" />
-        <Btn icon={MessageSquare} label="مساعد السيرة" hint="اكتب أمراً بلغتك لتعديل أو ترتيب أو حذف أي جزء من سيرتك" onClick={onAgent} active={agentActive} />
+        <Btn icon={Sparkles} label="تحسين عام" hint="مراجعة السيرة واختيار التحسينات التي تريد تطبيقها" onClick={onImprove} busy={improving} />
+        <Btn icon={Target} label="مطابقة لوظيفة" hint="ألصق إعلان الوظيفة أو أدخل رابطه لتخصيص نسخة مستقلة" onClick={onTailor} />
+        <CVTools data={data} onApply={onApply} iconOnly />
+        <Btn icon={MessageSquare} label="مساعد السيرة" hint="مساعدك الذكي للتعديل اليدوي عند الحاجة" onClick={onAgent} active={agentActive} />
         <Btn icon={ScrollText} label="سجل الإجراءات" hint="عرض كل التعديلات التي جرت على سيرتك بالترتيب" onClick={onLog} active={logActive} />
 
       </div>
