@@ -57,6 +57,9 @@ export default function Builder() {
   const incomingIntents = (Array.isArray(incoming?.assistantIntents) ? incoming.assistantIntents : [])
     .map((it) => ({ ...it, kind: INTERNAL_DELIVERY, label: it.label || it.title || null }));
   const [showSmart, setShowSmart] = useState(incomingIntents.length > 0);
+  const [assistantMounted, setAssistantMounted] = useState(incomingIntents.length > 0);
+  const [assistantMinimized, setAssistantMinimized] = useState(false);
+  const openAssistant = () => { setAssistantMounted(true); setShowSmart(true); setAssistantMinimized(false); };
   const [processing, setProcessing] = useState(!!(incoming?.text || incoming?.fileUrl));
   const [regenerating, setRegenerating] = useState(false);
   const mode = "preview";
@@ -421,7 +424,7 @@ export default function Builder() {
   /** نقطة التسليم الوحيدة إلى مساعد السيرة — بعد التأكيد فقط */
   const deliverToAssistant = (items) => {
     if (items.length === 0) return;
-    setShowSmart(true);
+    openAssistant();
     const cycle = ++sendCycleRef.current;
     setPendingIntents((prev) => [
       ...prev,
@@ -597,7 +600,7 @@ export default function Builder() {
                 <span>ماذا تريد أن تفعل؟</span>
               </button>
             )}
-            <button onClick={() => setShowSmart((v) => !v)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            <button onClick={() => (showSmart ? setShowSmart(false) : openAssistant())} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">مساعد السيرة</span>
             </button>
@@ -698,7 +701,7 @@ export default function Builder() {
                 canRedo={canRedo}
                 onUndo={undo}
                 onRedo={redo}
-                onAgent={() => setShowSmart((v) => !v)}
+                onAgent={() => (showSmart ? setShowSmart(false) : openAssistant())}
                 agentActive={showSmart}
                 onLog={() => setShowLog((v) => !v)}
                 logActive={showLog}
@@ -735,17 +738,20 @@ export default function Builder() {
         />
       )}
 
-      {showSmart && (
-        <div className="no-print fixed bottom-4 left-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl">
+      {assistantMounted && (
+        <div className={`no-print fixed bottom-4 left-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] shadow-2xl rounded-2xl ${showSmart ? "" : "pointer-events-none opacity-0"}`} aria-hidden={!showSmart}>
           <SmartCVAssistantPanel
             data={data}
             layout={layout}
             templateId={templateId}
             cvId={currentCvId}
             pendingIntents={pendingIntents}
+            minimized={assistantMinimized}
+            onMinimize={() => { setAssistantMinimized(true); setShowSmart(true); }}
+            onRestore={() => { setAssistantMinimized(false); setShowSmart(true); }}
             onLayoutChange={(l) => { setLayout(l); logAction("layout_change", { source: "assistant", detail: "cv_move_section" }); }}
             onDataChange={(d, summary) => { setData(d); logAction("ai_command", { command: summary || "تعديل محتوى عبر مساعد السيرة" }); }}
-            onClose={() => setShowSmart(false)}
+            onClose={() => { setShowSmart(false); setAssistantMinimized(false); }}
           />
         </div>
       )}
