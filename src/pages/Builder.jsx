@@ -294,14 +294,29 @@ export default function Builder() {
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
 
-  const copyCVLink = async () => {
-    const url = window.location.href;
-    try { await navigator.clipboard.writeText(url); toast({ title: "تم نسخ رابط السيرة" }); }
-    catch { toast({ title: "تعذّر نسخ الرابط", variant: "destructive" }); }
+  const createShareUrl = async () => {
+    if (!currentCvId) { toast({ title: "احفظ السيرة أولاً", variant: "destructive" }); return null; }
+    try {
+      const token = `${crypto.randomUUID().replaceAll("-", "")}__${Date.now().toString(36)}`;
+      const me = await auth.me().catch(() => null);
+      await base44.entities.SharedCV.create({ token, sourceCvId: currentCvId, titel: data.titel || "CV", data, templateId, layout, createdByEmail: me?.email || "" });
+      return `${window.location.origin}/share/${token}`;
+    } catch {
+      toast({ title: "تعذّر إنشاء رابط المشاركة", variant: "destructive" });
+      return null;
+    }
   };
-  const emailCV = () => {
+  const copyCVLink = async () => {
+    const url = await createShareUrl();
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); toast({ title: "تم إنشاء ونسخ رابط السيرة" }); }
+    catch { toast({ title: "تم إنشاء الرابط، لكن تعذّر نسخه تلقائياً" }); }
+  };
+  const emailCV = async () => {
+    const url = await createShareUrl();
+    if (!url) return;
     const subject = encodeURIComponent(data.titel || "CV");
-    const body = encodeURIComponent(`السيرة الذاتية: ${window.location.href}`);
+    const body = encodeURIComponent(`السيرة الذاتية: ${url}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
   const shareApplication = async () => {
