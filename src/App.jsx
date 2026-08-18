@@ -11,6 +11,7 @@ import MyApplications from '@/pages/MyApplications';
 import CareerDashboard from '@/pages/CareerDashboard';
 import TemplateAdvisor from '@/pages/TemplateAdvisor';
 import RecommendedCourses from '@/pages/RecommendedCourses';
+import SharedCV from '@/pages/SharedCV';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ServicesProvider from '@/providers/ServicesProvider';
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Home />} />
       <Route path="/builder" element={<Builder />} />
       <Route path="/builder/:cvId" element={<Builder />} />
+      <Route path="/share/:token" element={<SharedCV />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<LoginRedirect />} />}>
         <Route path="/applications" element={<MyApplications />} />
         <Route path="/dashboard" element={<CareerDashboard />} />
