@@ -10,8 +10,40 @@ function yearsBetween(start, end) {
   return Math.max(0, (e.getTime() - s.getTime()) / (365.25 * 86400000));
 }
 
+function parseDateValue(value, isEnd = false) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const text = String(value).trim().toLowerCase();
+  if (/^(nu|pågående|ongoing|present|current)$/.test(text)) return new Date();
+  const year = text.match(/\b(19|20)\d{2}\b/);
+  const month = text.match(/\b(0?[1-9]|1[0-2])\b/);
+  if (year) {
+    const m = month ? Number(month[1]) - 1 : (isEnd ? 11 : 0);
+    const day = isEnd ? new Date(Number(year[0]), m + 1, 0).getDate() : 1;
+    return new Date(Number(year[0]), m, day);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function periodDates(item) {
+  const directStart = item?.start || item?.fran || item?.from;
+  const directEnd = item?.end || item?.till || item?.to;
+  if (directStart || directEnd) return [parseDateValue(directStart), parseDateValue(directEnd, true)];
+  const period = String(item?.period || "");
+  const years = period.match(/\b(19|20)\d{2}\b/g) || [];
+  if (!years.length) return [null, null];
+  const start = parseDateValue(years[0]);
+  const end = years[1] ? parseDateValue(years[1], true) : (/nu|pågående|ongoing|present|current/i.test(period) ? new Date() : parseDateValue(years[0], true));
+  return [start, end];
+}
+
 function experienceYears(experience = []) {
-  return experience.reduce((sum, item) => sum + yearsBetween(item?.start || item?.fran || item?.from || '', item?.end || item?.till || item?.to || null), 0);
+  return experience.reduce((sum, item) => {
+    const [start, end] = periodDates(item);
+    if (!start) return sum;
+    return sum + yearsBetween(start, end);
+  }, 0);
 }
 
 async function classifyWithLLM(client, jobTitle, experience) {
