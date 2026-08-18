@@ -639,16 +639,18 @@ export default function Builder() {
               <Eye className="w-4 h-4" />
               <span className="hidden sm:inline">Preview</span>
             </button>
-            <button onClick={() => setShowShare((v) => !v)} className="relative inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Share</span>
+            <div className="relative">
+              <button onClick={() => setShowShare((v) => !v)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
               {showShare && <div className="absolute top-11 right-0 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 text-right">
                 <button onClick={copyCVLink} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm inline-flex items-center gap-2"><Copy className="w-4 h-4" /> Copy CV Link</button>
                 <button onClick={emailCV} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Email CV</button>
                 <button onClick={() => { setShowShare(false); exportPDF(); }} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Print / PDF</button>
                 <button onClick={shareApplication} className="w-full px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-right">Share Smart CV / Application</button>
               </div>}
-            </button>
+            </div>
             <button onClick={() => setShowLayout(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">{t("builder.layout")}</span>
