@@ -1,18 +1,8 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useServices } from "@/hooks/useServices";
-import CoverLetterModal from "./CoverLetterModal";
-import QualityModal from "./QualityModal";
-import JobSuggestionsModal from "./JobSuggestionsModal";
-import ATSAnalyzerModal from "./ATSAnalyzerModal";
-import AchievementOptimizerModal from "./AchievementOptimizerModal";
-import GapDetectorModal from "./GapDetectorModal";
-import InterviewAssistantModal from "./InterviewAssistantModal";
-import SalaryAdvisorModal from "./SalaryAdvisorModal";
 import LinkedInImportModal from "./LinkedInImportModal";
-import CompanyTailoringModal from "./CompanyTailoringModal";
-import CourseAdvisorModal from "./CourseAdvisorModal";
-import { Wrench, Loader2, MoreHorizontal, Mail, ShieldCheck, Languages, Briefcase, Gauge, Award, CalendarRange, Mic, Wallet, Linkedin, Scale, GraduationCap } from "lucide-react";
+import { Wrench, Loader2, MoreHorizontal, Languages, Linkedin } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
 export default function CVTools({ data, onApply, iconOnly = false }) {
@@ -94,17 +84,7 @@ export default function CVTools({ data, onApply, iconOnly = false }) {
                 <button onClick={() => setTone("kort")} className="flex-1 text-[12px] px-2 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">Kort</button>
               </div>
               <div className="h-px bg-slate-100 my-1" />
-              <Item icon={Briefcase} label="وظائف مقترحة (سويدية)" onClick={() => { setModal("jobsugg"); setOpen(false); }} />
-              <Item icon={Scale} label="تخصيص للشركة (ثقافة)" onClick={() => { setModal("company"); setOpen(false); }} />
-              <Item icon={Mail} label="رسالة مقدمة (Personligt brev)" onClick={() => { setModal("cover"); setOpen(false); }} />
-              <Item icon={CalendarRange} label="كشف فجوات التوظيف" onClick={() => { setModal("gap"); setOpen(false); }} />
-              <Item icon={Award} label="مُحسّن الإنجازات" onClick={() => { setModal("achieve"); setOpen(false); }} />
-              <Item icon={Mic} label="مساعد المقابلات" onClick={() => { setModal("interview"); setOpen(false); }} />
-              <Item icon={Wallet} label="مستشار الرواتب (السويد)" onClick={() => { setModal("salary"); setOpen(false); }} />
-              <Item icon={GraduationCap} label="دورات مجانية (السوق السويدي)" onClick={() => { setModal("courses"); setOpen(false); }} />
               <Item icon={Linkedin} label="استيراد من LinkedIn" onClick={() => { setModal("linkedin"); setOpen(false); }} />
-              <Item icon={Gauge} label="محلّل توافق ATS" onClick={() => { setModal("ats"); setOpen(false); }} />
-              <Item icon={ShieldCheck} label="فحص جودة النص" onClick={() => { setModal("quality"); setOpen(false); }} />
             </div>
           </>
         )}
@@ -117,17 +97,7 @@ export default function CVTools({ data, onApply, iconOnly = false }) {
         </div>
       )}
 
-      {modal === "cover" && <CoverLetterModal data={data} onClose={() => setModal(null)} />}
-      {modal === "quality" && <QualityModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "jobsugg" && <JobSuggestionsModal data={data} onClose={() => setModal(null)} />}
-      {modal === "ats" && <ATSAnalyzerModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "achieve" && <AchievementOptimizerModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "gap" && <GapDetectorModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "interview" && <InterviewAssistantModal data={data} onClose={() => setModal(null)} />}
-      {modal === "salary" && <SalaryAdvisorModal data={data} onClose={() => setModal(null)} />}
       {modal === "linkedin" && <LinkedInImportModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "company" && <CompanyTailoringModal data={data} onApply={onApply} onClose={() => setModal(null)} />}
-      {modal === "courses" && <CourseAdvisorModal data={data} onClose={() => setModal(null)} />}
     </>
   );
 }
