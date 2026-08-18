@@ -7,6 +7,15 @@ const SEARCH_TTL = 10 * 60 * 1000; // 10 min
 const RANK_TTL = 30 * 60 * 1000; // 30 min
 const LLM_TOP_N = 8; // only the best N go to the LLM
 
+function distanceKm(a, b) {
+  if (![a?.latitude, a?.longitude, b?.latitude, b?.longitude].every(Number.isFinite)) return null;
+  const rad = (v) => (v * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLon = rad(b.longitude - a.longitude);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
 /**
  * JobsService — Swedish labor-market access.
  * `search` delegates to the SearchJobs backend function (Arbetsförmedlingen JobTech),
@@ -36,7 +45,10 @@ export function createJobsService({ llm }) {
       if (!title) return { jobs: [] };
       const res = await service.search({ q: title, publishedDays, limit: Math.min(limit + 3, 20), municipalities: municipality ? [municipality] : undefined });
       const sourceId = String(job?.id || "");
-      const jobs = (res?.data?.jobs || res?.jobs || []).filter((item) => String(item.id) !== sourceId).slice(0, limit);
+      const jobs = (res?.data?.jobs || res?.jobs || []).filter((item) => String(item.id) !== sourceId).map((item) => ({
+        ...item,
+        distanceKm: distanceKm(job, item),
+      })).sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)).slice(0, limit);
       return { jobs, sourceJob: job };
     },
 
