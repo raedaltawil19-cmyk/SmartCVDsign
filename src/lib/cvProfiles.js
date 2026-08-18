@@ -80,7 +80,7 @@ const deepCopy = (v) => (v === undefined || v === null ? v : JSON.parse(JSON.str
 /**
  * حِمل إنشاء نسخة مخصّصة — كائن جديد بالكامل مشتقّ من الأساس، بلا أي مرجع مشترك معه.
  * لا يعدّل base إطلاقاً.
- * @param {{base:object, ad?:object, jobApplicationId?:string|null}} args
+ * @param {{base?:object, ad?:object, jobApplicationId?:string|null}} args
  */
 export function buildTailoredPayload(args = {}) {
   const { base, ad, jobApplicationId } = args;
