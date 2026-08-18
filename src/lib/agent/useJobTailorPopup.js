@@ -28,23 +28,19 @@ export function buildTailorRequest({ adText, adUrl }) {
 }
 
 export default function useJobTailorPopup({ cvRecord }) {
-  const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const pollTimersRef = useRef([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const convRef = useRef(null);
+  const unsubscribeRef = useRef(null);
   const tailor = useTailorRecommendations({ messages, targetCv: cvRecord || null });
-
-  useEffect(() => {
-    if (!conversationId) return;
-    const unsubscribe = base44.agents.subscribeToConversation(conversationId, (d) => setMessages(d?.messages || []));
-    return () => unsubscribe();
-  }, [conversationId]);
 
   useEffect(() => () => {
     pollTimersRef.current.forEach(clearTimeout);
     pollTimersRef.current = [];
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = null;
   }, []);
 
   // التحليل ينتهي عند وصول كتلة توصيات مكتملة أو خطأ عقد
@@ -66,12 +62,12 @@ export default function useJobTailorPopup({ cvRecord }) {
           metadata: { name: "تخصيص لوظيفة", description: "تخصيص السيرة الحالية لإعلان وظيفة", cvId: cvRecord.id }
         });
         convRef.current = conv;
-        setConversationId(conv.id);
       }
 
       // Subscribe BEFORE sending the message. React state/effects are asynchronous;
       // waiting for conversationId here could miss a fast assistant response entirely.
-      const unsubscribe = base44.agents.subscribeToConversation(conv.id, (d) => {
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = base44.agents.subscribeToConversation(conv.id, (d) => {
         setMessages(d?.messages || []);
       });
 
@@ -89,9 +85,6 @@ export default function useJobTailorPopup({ cvRecord }) {
         }
       }, ms));
 
-      // Keep the temporary listener alive for this request; the main subscription is
-      // still established through conversationId as well. Cleanup happens on unmount.
-      void unsubscribe;
     } catch {
       setAnalyzing(false);
       setError("ANALYZE_FAILED");
