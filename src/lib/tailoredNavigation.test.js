@@ -84,12 +84,13 @@ export function runTailoredNavTests() {
       const src = await Promise.all([
         fetch("/src/lib/tailoredLookup.js").then((r) => r.text()),
         fetch("/src/components/cv/CVRelationBar.jsx").then((r) => r.text()),
-        fetch("/src/components/workflow/TailoringStartCard.jsx").then((r) => r.text()),
+        fetch("/src/components/tailor/JobTailorDialog.jsx").then((r) => r.text()),
       ]);
       const banned = /\.update\(|\.remove\(|SavedCV\.update|setData\(/;
       add("I. وحدات البحث/العرض بلا أي مسار كتابة", src.every((s) => !banned.test(s)), null);
-      const tailor = await fetch("/src/pages/ApplicationTailor.jsx").then((r) => r.text());
-      add("J. صفحة التخصيص تستدعي create فقط (لا update/remove)", !/cvRepository\.update\(|cvRepository\.remove\(/.test(tailor) && /createTailoredCV/.test(tailor), null);
+      const builder = await fetch("/src/pages/Builder.jsx").then((r) => r.text());
+      const tailorDialog = await fetch("/src/components/tailor/JobTailorDialog.jsx").then((r) => r.text());
+      add("J. Builder يفتح Job Tailor داخلياً ولا يكتب على السيرة منه", /<JobTailorDialog/.test(builder) && !/cvRepository\.update\(|cvRepository\.remove\(/.test(tailorDialog), null);
     }
 
     // K) Builder لا يحذف شيئاً
