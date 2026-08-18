@@ -1,5 +1,5 @@
 import { useLanguage } from "@/lib/i18n";
-import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText, Loader2, Sparkles, Target, Wrench } from "lucide-react";
+import { Plus, Minus, Maximize, Undo2, Redo2, MessageSquare, ScrollText, Loader2, Sparkles, Target } from "lucide-react";
 import CVTools from "./CVTools";
 
 export default function CVSideToolbar({
