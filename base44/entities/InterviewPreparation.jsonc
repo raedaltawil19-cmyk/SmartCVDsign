@@ -1,0 +1,27 @@
+{
+  "name": "InterviewPreparation",
+  "description": "\u062a\u062d\u0636\u064a\u0631 \u0645\u0642\u0627\u0628\u0644\u0629 \u0645\u0631\u062a\u0628\u0637 \u0628\u0631\u0633\u0627\u0644\u0629 \u062f\u0639\u0648\u0629 \u0645\u0642\u0627\u0628\u0644\u0629.",
+  "properties": {
+    "sourceMessageId": {
+      "type": "string"
+    },
+    "jobApplicationId": {
+      "type": "string"
+    },
+    "cvId": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "jobTitle": {
+      "type": "string"
+    },
+    "preparation": {
+      "type": "object"
+    },
+    "createdAt": {
+      "type": "string"
+    }
+  }
+}
