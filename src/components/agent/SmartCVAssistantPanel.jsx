@@ -156,17 +156,25 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
   };
 
   return (
-    <div dir={dir} className="flex flex-col h-[460px] bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
-      <div className="shrink-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200">
+    <div dir={dir} style={{ transform: `translate(${position.x}px, ${position.y}px)` }} className={`flex flex-col ${minimized ? "h-auto" : "h-[460px]"} bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden`}>
+      <div onPointerDown={startDrag} className="shrink-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200 cursor-move select-none">
+        <Move className="w-3.5 h-3.5 text-slate-300" />
         <Sparkles className="w-4 h-4 text-[#000066]" />
         <span className="text-sm font-semibold text-slate-800">{t("assistant.title")}</span>
         <span className="text-[10px] text-slate-400">{t("assistant.subtitle")}</span>
-        <button onClick={onClose} aria-label={t("assistant.close")} className="ms-auto text-slate-400 hover:text-slate-700 transition-colors">
-          <X className="w-4 h-4" />
-        </button>
+        <div className="ms-auto flex items-center gap-1">
+          {minimized ? (
+            <button onPointerDown={(e) => e.stopPropagation()} onClick={onRestore} aria-label="Restore" className="p-1 text-slate-400 hover:text-slate-700 transition-colors"><Maximize2 className="w-4 h-4" /></button>
+          ) : (
+            <button onPointerDown={(e) => e.stopPropagation()} onClick={onMinimize} aria-label="Minimize" className="p-1 text-slate-400 hover:text-slate-700 transition-colors"><Minus className="w-4 h-4" /></button>
+          )}
+          <button onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label={t("assistant.close")} className="p-1 text-slate-400 hover:text-slate-700 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+      {!minimized && <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-xs text-slate-400 text-center pt-8 leading-relaxed">
             {t("assistant.empty")}<br />{t("assistant.emptyExample")}
@@ -184,9 +192,9 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
           </div>
         )}
         <div ref={endRef} />
-      </div>
+      </div>}
 
-      <form onSubmit={send} className="shrink-0 flex items-center gap-2 p-3 bg-white border-t border-slate-200">
+      {!minimized && <form onSubmit={send} className="shrink-0 flex items-center gap-2 p-3 bg-white border-t border-slate-200">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -201,7 +209,7 @@ export default function SmartCVAssistantPanel({ data, layout, templateId, cvId, 
         >
           <Send className="w-4 h-4" />
         </button>
-      </form>
+      </form>}
     </div>
   );
 }
