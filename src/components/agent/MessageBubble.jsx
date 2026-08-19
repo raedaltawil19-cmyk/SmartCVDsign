@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, CheckCircle2, Loader2, XCircle, Wrench } from "lucide-react";
+import { ChevronDown, Check, CheckCircle2, Copy, Loader2, XCircle, Wrench } from "lucide-react";
 
 const STATUS_META = {
   pending: { icon: Loader2, spin: true, text: "بانتظار…", cls: "text-slate-400" },
@@ -23,8 +23,19 @@ function prettyJson(str) {
 export default function MessageBubble({ message }) {
   const isUser = message.role === "user";
   const [expanded, setExpanded] = useState({});
+  const [copied, setCopied] = useState(false);
 
   if (message.role === "system") return null;
+
+  const copyMessage = async () => {
+    const content = String(message.content || "").trim();
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -37,6 +48,17 @@ export default function MessageBubble({ message }) {
           ) : (
             <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm">
               <p className="whitespace-pre-wrap">{message.content}</p>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={copyMessage}
+                  className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
+                  aria-label="نسخ التقرير"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? "تم النسخ" : "نسخ"}</span>
+                </button>
+              </div>
             </div>
           )
         )}

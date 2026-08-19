@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Loader2, LayoutTemplate } from "lucide-react";
+import { ArrowRight, Loader2, LayoutTemplate, Save } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
@@ -29,10 +29,11 @@ import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
-import { createTailoredCV } from "@/lib/cvProfiles";
+import { createTailoredCV, cvTypeOf, DRAFT, MASTER, TAILORED, isMaster } from "@/lib/cvProfiles";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import { processTailoredCvForProfile } from "@/services/professionalProfile/profileIntegration";
 import SuitableJobsPanel from "@/components/jobs/SuitableJobsPanel";
 import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
 import CVPreview from "@/components/CVPreview";
@@ -173,7 +174,16 @@ export default function Builder() {
           if (rec.layout) setLayout(normalizeLayout(rec.layout, rec.templateId || templateId));
           if (rec.templateSource) setTemplateSource(rec.templateSource);
           if (rec.templateReviewStatus) setTemplateReviewStatus(rec.templateReviewStatus);
-          setCvMeta({ cvType: rec.cvType, parentCvId: rec.parentCvId, jobApplicationId: rec.jobApplicationId, titel: rec.titel });
+          setCvMeta({
+            cvType: cvTypeOf(rec),
+            parentCvId: rec.parentCvId,
+            sourceMasterCvId: rec.sourceMasterCvId,
+            jobApplicationId: rec.jobApplicationId,
+            tailoredForJobTitle: rec.tailoredForJobTitle,
+            tailoredForCompany: rec.tailoredForCompany,
+            tailoredForJobDescription: rec.tailoredForJobDescription,
+            titel: rec.titel
+          });
           setCurrentCvId(rec.id);
         }
       } catch (e) {
@@ -250,8 +260,18 @@ export default function Builder() {
             try {
               // سيرة جديدة = سجل جديد مستقل. لا قراءة لقائمة السجلات، ولا تبنّي لأحدثها،
               // ولا حذف لأي سجل آخر — تعدّد الـMasters والنسخ المخصّصة مصون.
-              const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current });
+              const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current, cvType: DRAFT });
               setCurrentCvId(rec.id);
+              setCvMeta({
+                cvType: DRAFT,
+                parentCvId: rec.parentCvId,
+                sourceMasterCvId: rec.sourceMasterCvId,
+                jobApplicationId: rec.jobApplicationId,
+                tailoredForJobTitle: rec.tailoredForJobTitle,
+                tailoredForCompany: rec.tailoredForCompany,
+                tailoredForJobDescription: rec.tailoredForJobDescription,
+                titel: rec.titel || titel
+              });
               navigate(`/builder/${rec.id}`, { replace: true });
             } finally {
               creatingRef.current = false;
@@ -413,25 +433,88 @@ export default function Builder() {
     }
   };
 
-  const saveCV = async (name) => {
+  const saveCV = async (name, mode = "save") => {
     const titel = (name && name.trim()) || data.titel || "Min CV";
     setSaving(true);
     try {
       const ok = await auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
       if (!ok) return;
       const payload = { titel, data, templateId, layout };
-      if (currentCvId) {
-        await cvRepository.update(currentCvId, payload);
+      const persisted = currentCvId ? await cvRepository.get(currentCvId).catch(() => null) : null;
+      const currentType = cvTypeOf(persisted || { cvType: cvMeta?.cvType });
+      const updateMeta = (rec, fallbackType) => {
+        setCvMeta({
+          cvType: cvTypeOf({ cvType: rec?.cvType || fallbackType }),
+          parentCvId: rec?.parentCvId,
+          sourceMasterCvId: rec?.sourceMasterCvId,
+          jobApplicationId: rec?.jobApplicationId,
+          tailoredForJobTitle: rec?.tailoredForJobTitle,
+          tailoredForCompany: rec?.tailoredForCompany,
+          tailoredForJobDescription: rec?.tailoredForJobDescription,
+          titel: rec?.titel || titel
+        });
+      };
+      const maybeTriggerProfessionalAnalysis = (type, idOverride = null) => {
+        if (!isMaster({ cvType: type })) return;
         triggerCourseDiscovery();
-        Promise.resolve(repositioning.approve("auto")).catch(() => {});
+        Promise.resolve(repositioning.approve("auto", idOverride || currentCvId)).catch(() => {});
+      };
+
+      if (mode === "new_version") {
+        const isTailoredVersion = currentCvId && currentType === TAILORED;
+        const sourceRec = isTailoredVersion ? persisted : null;
+        const createPayload = isTailoredVersion
+          ? {
+              ...payload,
+              cvType: TAILORED,
+              parentCvId: sourceRec?.parentCvId || cvMeta?.parentCvId,
+              sourceMasterCvId: sourceRec?.sourceMasterCvId || cvMeta?.sourceMasterCvId,
+              jobApplicationId: sourceRec?.jobApplicationId || cvMeta?.jobApplicationId,
+              tailoredForJobTitle: sourceRec?.tailoredForJobTitle || cvMeta?.tailoredForJobTitle,
+              tailoredForCompany: sourceRec?.tailoredForCompany || cvMeta?.tailoredForCompany,
+              tailoredForJobDescription: sourceRec?.tailoredForJobDescription || cvMeta?.tailoredForJobDescription,
+              templateSource,
+              templateReviewStatus
+            }
+          : {
+              ...payload,
+              cvType: MASTER,
+              templateSource,
+              templateReviewStatus,
+              ...(currentCvId ? {} : templateOriginRef.current)
+            };
+        const rec = await cvRepository.create(createPayload);
+        setCurrentCvId(rec.id);
+        updateMeta(rec, createPayload.cvType);
+        navigate(`/builder/${rec.id}`, { replace: true });
+        maybeTriggerProfessionalAnalysis(createPayload.cvType, rec.id);
+        // Phase 3B: extract professional evidence from new tailored CV version.
+        // Fire-and-forget: failure must never affect CV saving.
+        if (isTailoredVersion) {
+          Promise.resolve(processTailoredCvForProfile(rec, (id) => cvRepository.get(id))).catch(() => {});
+        }
+        toast({ title: "تم حفظ نسخة جديدة", description: titel });
+        setSaveOpen(false);
+        return;
+      }
+
+      if (currentCvId) {
+        const nextType = currentType === DRAFT ? MASTER : currentType;
+        const updatePayload = {
+          ...payload,
+          cvType: nextType
+        };
+        await cvRepository.update(currentCvId, updatePayload);
+        updateMeta({ ...cvMeta, ...updatePayload }, nextType);
+        maybeTriggerProfessionalAnalysis(nextType, currentCvId);
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
-        const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current });
+        const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current, cvType: MASTER });
         setCurrentCvId(rec.id);
+        updateMeta(rec, MASTER);
         navigate(`/builder/${rec.id}`, { replace: true });
-        triggerCourseDiscovery();
-        Promise.resolve(repositioning.approve("auto", rec.id)).catch(() => {});
+        maybeTriggerProfessionalAnalysis(MASTER, rec.id);
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
@@ -571,9 +654,13 @@ export default function Builder() {
       if (next.layout) setLayout(normalizeLayout(next.layout, next.templateId || templateId));
       setCurrentCvId(next.id);
       setCvMeta({
-        cvType: next.cvType,
+        cvType: cvTypeOf(next),
         parentCvId: next.parentCvId,
+        sourceMasterCvId: next.sourceMasterCvId,
         jobApplicationId: next.jobApplicationId,
+        tailoredForJobTitle: next.tailoredForJobTitle,
+        tailoredForCompany: next.tailoredForCompany,
+        tailoredForJobDescription: next.tailoredForJobDescription,
         titel: next.titel,
       });
       logAction("cv_version_created", {
@@ -710,6 +797,7 @@ export default function Builder() {
             </button>
             <button onClick={() => setShowTemplates(true)} className="min-h-10 px-3 rounded-full hover:bg-slate-100 text-sm text-slate-600 hidden sm:inline-flex">القوالب</button>
             <NotificationCenter />
+            <button onClick={() => setSaveOpen(true)} disabled={saving} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600 disabled:opacity-40" aria-label="حفظ السيرة"><Save className="w-4 h-4" /></button>
             <div className="relative">
               <button onClick={() => setShowShare((v) => !v)} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600" aria-label="مشاركة"><Share2 className="w-4 h-4" /></button>
               {showShare && <div className="absolute top-12 left-0 z-50 w-64 bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-2xl p-1.5 text-right">
