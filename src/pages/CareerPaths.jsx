@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useLanguage } from "@/lib/i18n";
+import { useAuth } from "@/lib/AuthContext";
+import useCareerRepositioning from "@/lib/repositioning/useCareerRepositioning";
 import { repositioningFingerprint } from "@/lib/repositioning/contract";
 import CareerPathCard from "@/components/repositioning/CareerPathCard";
 import OpportunityCard from "@/components/repositioning/OpportunityCard";
@@ -13,7 +15,10 @@ import { ArrowRight, Loader2, Compass, RefreshCcw } from "lucide-react";
  */
 export default function CareerPaths() {
   const navigate = useNavigate();
-  const { dir } = useLanguage();
+  const { dir, lang } = useLanguage();
+  const { isAuthenticated } = useAuth();
+  const [latestCV, setLatestCV] = useState(null);
+  const repositioning = useCareerRepositioning({ cvId: latestCV?.id, data: latestCV?.data, isAuthenticated, uiLanguage: lang });
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState(null);
   const [running, setRunning] = useState(false);
@@ -22,12 +27,14 @@ export default function CareerPaths() {
   useEffect(() => {
     (async () => {
       try {
+        const saved = await base44.entities.SavedCV.list("-updated_date", 1000);
+        setLatestCV(saved?.[0] || null);
         const rows = await base44.entities.RepositioningAnalysis.list("-created_date", 10);
         const ready = rows.find((r) => r.status === "ready");
         setRunning(rows.some((r) => r.status === "running"));
         setAnalysis(ready || null);
         if (ready) {
-          const versions = await base44.entities.SavedCV.list("-updated_date", 20);
+          const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
           const fp = repositioningFingerprint({ approvedCvId: ready.cvId, versions });
           setStale(fp !== ready.cvFingerprint);
         }
