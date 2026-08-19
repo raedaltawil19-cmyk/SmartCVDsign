@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, ExternalLink, Loader2, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { useServices } from "@/hooks/useServices";
+import { base44 } from "@/api/base44Client";
 
 export default function SuitableJobsPanel({ data }) {
   const { jobs: jobsService } = useServices();
@@ -14,6 +15,7 @@ export default function SuitableJobsPanel({ data }) {
   const [salaryLoading, setSalaryLoading] = useState(false);
   const [similarJobs, setSimilarJobs] = useState([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [savedApplication, setSavedApplication] = useState(false);
 
   const defaultQuery = useMemo(() => [data?.titel, ...(data?.fardigheter || []).map((s) => s?.namn).filter(Boolean).slice(0, 4)].filter(Boolean).join(" "), [data]);
 
@@ -37,6 +39,7 @@ export default function SuitableJobsPanel({ data }) {
     setSelected(job);
     setSalary(null);
     setSimilarJobs([]);
+    setSavedApplication(false);
     setSalaryLoading(true);
     setSimilarLoading(true);
 
@@ -46,6 +49,24 @@ export default function SuitableJobsPanel({ data }) {
 
     similarPromise.then((result) => setSimilarJobs(result?.jobs || [])).catch(() => setSimilarJobs([])).finally(() => setSimilarLoading(false));
     salaryPromise.then((result) => setSalary(result?.salary ? { ...result.salary, reason: `مبني على ${result.experienceYears ?? 0} سنة خبرة مرتبطة بالمهنة، وبيانات SCB.`, source: result.sources?.[0]?.name } : null)).catch(() => setSalary(null)).finally(() => setSalaryLoading(false));
+  };
+
+  const saveApplication = async () => {
+    if (!selected?.rubrik) return;
+    try {
+      const existing = selected.id ? await base44.entities.JobApplication.filter({ jobAdId: selected.id }, "-created_date", 1) : [];
+      if (!existing?.length) {
+        await base44.entities.JobApplication.create({
+          rubrik: selected.rubrik,
+          arbetsgivare: selected.arbetsgivare || "",
+          plats: [selected.kommun, selected.lan].filter(Boolean).join(", "),
+          url: selected.webbadress || "",
+          jobAdId: selected.id || "",
+          status: "saved"
+        });
+      }
+      setSavedApplication(true);
+    } catch {}
   };
 
   return (
@@ -59,7 +80,8 @@ export default function SuitableJobsPanel({ data }) {
       </div>
       {selected && <div className="absolute left-[300px] top-0 bottom-0 w-[330px] bg-white border-r border-slate-200 shadow-xl z-20 p-4 overflow-y-auto" dir="rtl"><div className="flex justify-between gap-2"><div><h3 className="font-semibold text-sm">{selected.rubrik}</h3><p className="text-xs text-slate-500 mt-1">{selected.arbetsgivare}</p></div><button onClick={() => setSelected(null)}><X className="w-4 h-4 text-slate-400" /></button></div><div className="mt-4 rounded-xl bg-[#F1F6DF] p-3"><div className="text-xs text-[#526B35] font-semibold">Personalized Salary Recommendation</div>{salaryLoading ? <Loader2 className="w-5 h-5 animate-spin mt-2 text-[#526B35]" /> : salary ? <div className="mt-2"><div className="text-xl font-bold text-slate-900">{salary.min ?? "—"} – {salary.max ?? "—"} {salary.currency || "SEK"}</div>{salary.reason && <p className="text-[11px] text-slate-600 mt-1">{salary.reason}</p>}{salary.source && <p className="text-[10px] text-slate-500 mt-2">Källa: {salary.source}</p>}{salary.median && <p className="text-[10px] text-slate-500 mt-1">Marknadens median: {salary.median.toLocaleString("sv-SE")} SEK/mån</p>}</div> : <p className="text-[11px] text-slate-500 mt-2">لم تتوفر تقديرات كافية.</p>}</div>{selected.matchReason && <p className="text-xs text-slate-600 leading-relaxed mt-4">{selected.matchReason}</p>}
         <div className="mt-5"><div className="text-xs font-semibold text-slate-800">وجدنا لك وظائف مشابهة</div>{similarLoading ? <Loader2 className="w-4 h-4 animate-spin mt-2 text-slate-400" /> : similarJobs.length ? <div className="mt-2 space-y-2">{similarJobs.map((job) => <div key={job.id} className="rounded-lg border border-slate-200 p-2.5"><div className="text-[11px] font-semibold text-slate-800">{job.rubrik}</div><div className="text-[10px] text-slate-500 mt-1">{job.arbetsgivare}</div><div className="text-[10px] text-slate-400 mt-1">{[job.kommun, job.lan].filter(Boolean).join(", ") || "Sweden"}{Number.isFinite(job.distanceKm) ? ` · ${job.distanceKm.toFixed(1)} km` : ""}</div><div className="text-[10px] text-[#526B35] mt-1">{job.similarityPercent ? `${job.similarityPercent}% liknande` : ""}</div></div>)}</div> : <p className="text-[11px] text-slate-400 mt-2">لم نجد وظائف مشابهة إضافية حاليًا.</p>}</div>
-        {selected.webbadress && <a href={selected.webbadress} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#526B35]"><ExternalLink className="w-3.5 h-3.5" /> فتح الإعلان</a>}</div>}
+        <button onClick={saveApplication} disabled={savedApplication} className="mt-4 w-full min-h-9 rounded-lg bg-[#000066] text-white text-xs font-semibold disabled:opacity-60">{savedApplication ? "تمت إضافة الوظيفة إلى طلباتي" : "حفظ الوظيفة في طلباتي"}</button>
+        {selected.webbadress && <a href={selected.webbadress} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#526B35]"><ExternalLink className="w-3.5 h-3.5" /> فتح الإعلان</a>}</div>}
     </aside>
   );
 }
