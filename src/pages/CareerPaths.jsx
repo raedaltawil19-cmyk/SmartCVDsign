@@ -48,7 +48,15 @@ export default function CareerPaths() {
 
   const openTailor = (job) => {
     if (!analysis?.cvId) return;
-    navigate(`/builder/${analysis.cvId}`, { state: { cvId: analysis.cvId, openTailor: true, tailorJobTitle: job.title } });
+    navigate(`/builder/${analysis.cvId}`, { state: { cvId: analysis.cvId, openTailor: true, tailorJobTitle: job.title, tailorJob: {
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      url: job.url,
+      description: job.description || job.beskrivning || job.summary || "",
+      requirements: job.requirements || { mandatory: job.mandatoryRequirements || [] },
+      salary: job.salary || null
+    } } });
   };
 
   const result = analysis?.result || null;
