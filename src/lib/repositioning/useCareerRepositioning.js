@@ -1,17 +1,27 @@
 /**
  * Career Repositioning trigger/orchestration.
- * Input policy: analyze all saved CV versions up to a maximum window of 20.
- * With 1–20 versions, analyze all available versions. With more than 20,
- * analyze only the latest 20. The 20-version number is NOT a minimum threshold.
- * After an automatic analysis, repeated ordinary saves do not trigger another run;
- * an explicit manual request can start a new analysis when appropriate.
+ *
+ * CV version window policy:
+ *   • 1 – 20 saved versions  → analyze ALL available versions.
+ *   • > 20 saved versions    → analyze the LATEST 20 only (sliding window).
+ *   The number 20 is a window CAP, NOT a minimum threshold to start analysis.
+ *
+ * Deduplication policy (fingerprint-based):
+ *   • Each analysis is identified by a fingerprint of the exact version set
+ *     that entered it (IDs + updated_date + content hash).
+ *   • Same fingerprint → skip (already analyzed / currently running).
+ *   • Different fingerprint (new version added, window shifted) → allow new analysis.
+ *   • No two concurrent analyses for the same user+fingerprint are allowed.
+ *
+ * Trigger policy is UNCHANGED — do not add new triggers here.
  */
 import { useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { createRepositioningConversation, sendRepositioningInput, locationFromCV } from "@/lib/repositioning/session";
 import { parseRepositioningResult, repositioningFingerprint, isUsefulResult } from "@/lib/repositioning/contract";
 
-const AUTO_THRESHOLD = 20;
+/** Maximum number of versions that enter the analysis window. */
+const WINDOW_SIZE = 20;
 const POLLS = [4000, 10000, 20000, 32000, 45000, 60000, 78000, 95000, 115000, 135000];
 
 export default function useCareerRepositioning({ cvId, data, isAuthenticated, uiLanguage }) {
@@ -37,21 +47,20 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
     let record = null;
     try {
-      // The analysis window is capped at 20 versions, not gated by 20 versions.
-      // 1–20 versions => analyze all. More than 20 => analyze the latest 20.
+      // Fetch all saved versions sorted newest-first.
+      // Window: 1–20 versions → analyze all; >20 → analyze the latest WINDOW_SIZE.
+      // WINDOW_SIZE is a CAP, not a minimum threshold — analysis starts from version 1.
       const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
       const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
-      const versions = Array.isArray(allVersions) ? allVersions.slice(0, AUTO_THRESHOLD) : [];
+      // slice(0, WINDOW_SIZE) on a newest-first list gives the latest WINDOW_SIZE versions.
+      const versions = Array.isArray(allVersions) ? allVersions.slice(0, WINDOW_SIZE) : [];
       const explicit = trigger === "manual";
 
-      if (!explicit && versionCount >= AUTO_THRESHOLD) {
-        const autoRuns = await base44.entities.RepositioningAnalysis.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
-        if (Array.isArray(autoRuns) && autoRuns.length) {
-          runningRef.current = false;
-          return { ok: true, skipped: true, reason: "automatic_analysis_already_processed" };
-        }
-      }
-
+      // ── Deduplication is fingerprint-only (NO trigger-name guard here) ──────────
+      // Checking only for existing `auto_20_versions` records would permanently block
+      // re-analysis when the version window shifts (e.g. going from versions 1–20 to
+      // versions 2–21). The fingerprint already captures which exact versions were
+      // analyzed, so it is the sole source of truth for deduplication.
       const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
       const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint }, "-created_date", 20);
       if (existing.some((r) => r.status === "running")) {
