@@ -29,13 +29,14 @@ export default function CareerPaths() {
       try {
         const saved = await base44.entities.SavedCV.list("-updated_date", 1000);
         setLatestCV(saved?.[0] || null);
-        const rows = await base44.entities.RepositioningAnalysis.list("-created_date", 10);
-        const ready = rows.find((r) => r.status === "ready");
-        setRunning(rows.some((r) => r.status === "running"));
+        const rows = await base44.entities.RepositioningAnalysis.list("-created_date", 50);
+        const latest = rows[0] || null;
+        const latestRunning = latest?.status === "running";
+        const ready = !latestRunning ? latest : null;
+        setRunning(latestRunning);
         setAnalysis(ready || null);
         if (ready) {
-          const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
-          const fp = repositioningFingerprint({ approvedCvId: ready.cvId, versions });
+          const fp = repositioningFingerprint({ approvedCvId: ready.cvId, versions: saved });
           setStale(fp !== ready.cvFingerprint);
         }
       } catch {
