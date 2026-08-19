@@ -11,6 +11,7 @@ import MyApplications from '@/pages/MyApplications';
 import CareerDashboard from '@/pages/CareerDashboard';
 import TemplateAdvisor from '@/pages/TemplateAdvisor';
 import RecommendedCourses from '@/pages/RecommendedCourses';
+import CareerPaths from '@/pages/CareerPaths';
 import SharedCV from '@/pages/SharedCV';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
@@ -46,6 +47,7 @@ const AuthenticatedApp = () => {
         <Route path="/applications" element={<MyApplications />} />
         <Route path="/dashboard" element={<CareerDashboard />} />
         <Route path="/courses" element={<RecommendedCourses />} />
+        <Route path="/career-paths" element={<CareerPaths />} />
         {/* Legacy routes are compatibility redirects; the canonical workflows live inside Builder. */}
         <Route path="/agent" element={<Navigate to="/" replace />} />
         <Route path="/tailor/:cvId" element={<LegacyTailorRedirect />} />

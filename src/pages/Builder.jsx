@@ -39,6 +39,7 @@ import CVPreview from "@/components/CVPreview";
 import { Copy, Eye, Share2, X, Plus as PlusIcon, Sparkles as SparklesIcon, Target as TargetIcon, BriefcaseBusiness } from "lucide-react";
 import ProfileMenu from "@/components/corner/ProfileMenu";
 import AddCVSourceSheet from "@/components/builder/AddCVSourceSheet";
+import useCareerRepositioning from "@/lib/repositioning/useCareerRepositioning";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -344,8 +345,24 @@ export default function Builder() {
       .finally(() => { courseDiscoveryRef.current = false; });
   }, [courses, data, processing]);
 
+  // ── إعادة التموضع المهني: تشغيل خلفي عند اعتماد نسخة السيرة فقط (حفظ/طباعة/إنهاء جلسة بنسخة محفوظة) ──
+  // فشل الوكيل لا يعطّل Builder ولا Job Tailor: الخُطّاف يفشل بهدوء ولا يعرض شيئاً للمستخدم.
+  const repositioning = useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
+  const approveVersion = (trigger, cvIdOverride) => { Promise.resolve(repositioning.approve(trigger, cvIdOverride)).catch(() => {}); };
+  const approveRef = useRef(approveVersion);
+  approveRef.current = approveVersion;
+
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") approveRef.current("session_end");
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => document.removeEventListener("visibilitychange", onHidden);
+  }, []);
+
   const exportPDF = () => {
     triggerCourseDiscovery();
+    approveVersion("print");
     // Keep the native print call synchronous with the user's click.
     // Safari can block window.print() when it is invoked after an async auth check.
     if (!isAuthenticated) {
@@ -419,6 +436,7 @@ export default function Builder() {
       if (currentCvId) {
         await cvRepository.update(currentCvId, payload);
         triggerCourseDiscovery();
+        approveVersion("save");
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
@@ -426,6 +444,7 @@ export default function Builder() {
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
         triggerCourseDiscovery();
+        approveVersion("save", rec.id);
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
@@ -536,7 +555,7 @@ export default function Builder() {
   const popEvidence = () => setEvidenceQueue((q) => q.slice(1));
 
   // ── تخصيص لوظيفة داخل نافذة واحدة: تحليل الإعلان ثم إرسال المحدد إلى مساعد السيرة ──
-  const [tailorOpen, setTailorOpen] = useState(false);
+  const [tailorOpen, setTailorOpen] = useState(!!incoming?.openTailor);
 
   /**
    * Job Tailor: إنشاء نسخة مستقلة أولاً، ثم تسليم التوصيات إلى مساعد السيرة.
