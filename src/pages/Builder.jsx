@@ -462,7 +462,7 @@ export default function Builder() {
 
       if (mode === "new_version") {
         const isTailoredVersion = currentCvId && currentType === TAILORED;
-        const sourceRec = isTailoredVersion ? (persisted || await cvRepository.get(currentCvId)) : null;
+        const sourceRec = isTailoredVersion ? persisted : null;
         const createPayload = isTailoredVersion
           ? {
               ...payload,

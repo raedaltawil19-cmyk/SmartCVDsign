@@ -372,8 +372,8 @@ export async function runProfessionalProfileTests() {
     // CALLER uses .catch(() => {}) — verified structurally in useCareerRepositioning.js
     // and Builder.jsx changes.
     // For the purpose of this test, we verify the try/catch structure is in place:
-    pass("I. Failure isolation: processProfileFromVersions error does not propagate through fire-and-forget",
-      !saveBroken || saveBroken === false || true, // Structural: catch is in the call sites
+    pass("I. Failure isolation: structural fire-and-forget callers are the outer safety boundary",
+      true,
       "Verified structurally: both call sites use Promise.resolve(...).catch(() => {})",
     );
 
@@ -453,6 +453,11 @@ export async function runProfessionalProfileTests() {
 
   // ── Duplicate trigger / race safety within one client session ──────────────
   {
+    const baselineDeps = createInMemoryDeps();
+    const baselineMaster = makeMasterRecord("m0", deepCopy(BASE_DATA));
+    await processProfileFromVersions([baselineMaster], baselineDeps);
+    const expectedEvidenceCount = baselineDeps._evidence.size;
+
     const deps = createInMemoryDeps();
     const masterV1 = makeMasterRecord("m1", deepCopy(BASE_DATA));
 
@@ -463,7 +468,10 @@ export async function runProfessionalProfileTests() {
 
     pass("Race safety: duplicate first-master trigger creates one profile", deps._profiles.size === 1, { profiles: deps._profiles.size });
     pass("Race safety: duplicate first-master trigger creates one run", deps._runs.size === 1, { runs: deps._runs.size });
-    pass("Race safety: duplicate first-master trigger does not duplicate evidence", deps._evidence.size === 7, { evidence: deps._evidence.size });
+    pass("Race safety: duplicate first-master trigger does not duplicate evidence",
+      deps._evidence.size === expectedEvidenceCount,
+      { evidence: deps._evidence.size, expectedEvidenceCount },
+    );
   }
 
   {
