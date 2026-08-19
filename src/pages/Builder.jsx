@@ -350,7 +350,6 @@ export default function Builder() {
   const repositioning = useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
 
   const exportPDF = () => {
-    triggerCourseDiscovery();
     // Keep the native print call synchronous with the user's click.
     // Safari can block window.print() when it is invoked after an async auth check.
     if (!isAuthenticated) {
