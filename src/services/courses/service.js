@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { repositioningFingerprint } from "@/lib/repositioning/contract";
+import { latestMasterVersions } from "@/lib/cvProfiles";
 
 function normalizeUrl(url = "") {
   try {
@@ -88,15 +89,17 @@ export function createCoursesService({ notifications, llm, jobs }) {
     async discoverForCV({ cv, jobTitle, trigger = "auto" } = {}) {
       if (!llm || !jobs || !cv) return { newCourses: [], searched: false };
 
-      // The course-discovery analysis window is capped at 20 versions, not gated by 20 versions.
-      // 1–20 versions => analyze all available versions. More than 20 => analyze only the latest 20.
+      // The course-discovery analysis window is capped at 20 PROFESSIONAL MASTER versions.
+      // 1–20 MASTER versions => analyze all available versions. More than 20 => analyze only the latest 20.
       const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
-      const versions = Array.isArray(allVersions) ? allVersions.slice(0, 20) : [];
+      const masters = latestMasterVersions(allVersions);
+      const versionCount = masters.length;
+      const versions = masters.slice(0, 20);
+      if (!versions.length) return { newCourses: [], searched: false, skipped: true, reason: "no_master_versions" };
       const explicit = trigger === "manual";
 
-      const cvId = cv.id || cv.cvId || "current";
-      const fingerprint = repositioningFingerprint({ approvedCvId: cvId, versions });
+      const approvedCvId = versions[0]?.id || cv.id || cv.cvId || "current";
+      const fingerprint = repositioningFingerprint({ approvedCvId, versions });
       if (!explicit) {
         const autoRuns = await base44.entities.CourseDiscoveryRun.filter({ cvFingerprint: fingerprint, trigger: "auto_20_versions" }, "-created_date", 10);
         if (Array.isArray(autoRuns) && autoRuns.some((r) => r.status === "running" || r.status === "ready")) {
@@ -106,7 +109,7 @@ export function createCoursesService({ notifications, llm, jobs }) {
       const existingRuns = await base44.entities.CourseDiscoveryRun.filter({ cvFingerprint: fingerprint }, "-created_date", 10);
       if (existingRuns.some((r) => r.status === "running")) return { newCourses: [], searched: false, skipped: true, reason: "already_running" };
       if (explicit && existingRuns.some((r) => r.status === "ready")) return { newCourses: [], searched: false, skipped: true, reason: "already_analyzed" };
-      const run = await base44.entities.CourseDiscoveryRun.create({ cvId, cvFingerprint: fingerprint, versionCount, trigger: explicit ? "manual" : "auto_20_versions", status: "running" });
+      const run = await base44.entities.CourseDiscoveryRun.create({ cvId: approvedCvId, cvFingerprint: fingerprint, versionCount, trigger: explicit ? "manual" : "auto_20_versions", status: "running" });
       const title = jobTitle || cv.titel || "";
       if (!title.trim()) {
         await base44.entities.CourseDiscoveryRun.update(run.id, { status: "no_results" });

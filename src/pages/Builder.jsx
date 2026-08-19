@@ -29,7 +29,7 @@ import { buildCVIndex, summarizeIndex } from "@/lib/agent/cvIndex";
 import { cvLanguageTag } from "@/lib/agent/cvLanguage";
 import { resolveSaveTarget } from "@/lib/cvSaveTarget";
 import { resolveBaseCV, adFromUserText } from "@/lib/tailoringSession";
-import { createTailoredCV } from "@/lib/cvProfiles";
+import { createTailoredCV, cvTypeOf, DRAFT, MASTER, TAILORED, isMaster } from "@/lib/cvProfiles";
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
@@ -173,7 +173,16 @@ export default function Builder() {
           if (rec.layout) setLayout(normalizeLayout(rec.layout, rec.templateId || templateId));
           if (rec.templateSource) setTemplateSource(rec.templateSource);
           if (rec.templateReviewStatus) setTemplateReviewStatus(rec.templateReviewStatus);
-          setCvMeta({ cvType: rec.cvType, parentCvId: rec.parentCvId, jobApplicationId: rec.jobApplicationId, titel: rec.titel });
+          setCvMeta({
+            cvType: cvTypeOf(rec),
+            parentCvId: rec.parentCvId,
+            sourceMasterCvId: rec.sourceMasterCvId,
+            jobApplicationId: rec.jobApplicationId,
+            tailoredForJobTitle: rec.tailoredForJobTitle,
+            tailoredForCompany: rec.tailoredForCompany,
+            tailoredForJobDescription: rec.tailoredForJobDescription,
+            titel: rec.titel
+          });
           setCurrentCvId(rec.id);
         }
       } catch (e) {
@@ -250,8 +259,18 @@ export default function Builder() {
             try {
               // سيرة جديدة = سجل جديد مستقل. لا قراءة لقائمة السجلات، ولا تبنّي لأحدثها،
               // ولا حذف لأي سجل آخر — تعدّد الـMasters والنسخ المخصّصة مصون.
-              const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current });
+              const rec = await cvRepository.create({ titel, ...draft, ...templateOriginRef.current, cvType: DRAFT });
               setCurrentCvId(rec.id);
+              setCvMeta({
+                cvType: DRAFT,
+                parentCvId: rec.parentCvId,
+                sourceMasterCvId: rec.sourceMasterCvId,
+                jobApplicationId: rec.jobApplicationId,
+                tailoredForJobTitle: rec.tailoredForJobTitle,
+                tailoredForCompany: rec.tailoredForCompany,
+                tailoredForJobDescription: rec.tailoredForJobDescription,
+                titel: rec.titel || titel
+              });
               navigate(`/builder/${rec.id}`, { replace: true });
             } finally {
               creatingRef.current = false;
@@ -413,25 +432,83 @@ export default function Builder() {
     }
   };
 
-  const saveCV = async (name) => {
+  const saveCV = async (name, mode = "save") => {
     const titel = (name && name.trim()) || data.titel || "Min CV";
     setSaving(true);
     try {
       const ok = await auth.requireAuth({ draft: { data, templateId, layout }, nextUrl: nextUrl() });
       if (!ok) return;
       const payload = { titel, data, templateId, layout };
-      if (currentCvId) {
-        await cvRepository.update(currentCvId, payload);
+      const persisted = currentCvId ? await cvRepository.get(currentCvId).catch(() => null) : null;
+      const currentType = cvTypeOf(persisted || { cvType: cvMeta?.cvType });
+      const updateMeta = (rec, fallbackType) => {
+        setCvMeta({
+          cvType: cvTypeOf({ cvType: rec?.cvType || fallbackType }),
+          parentCvId: rec?.parentCvId,
+          sourceMasterCvId: rec?.sourceMasterCvId,
+          jobApplicationId: rec?.jobApplicationId,
+          tailoredForJobTitle: rec?.tailoredForJobTitle,
+          tailoredForCompany: rec?.tailoredForCompany,
+          tailoredForJobDescription: rec?.tailoredForJobDescription,
+          titel: rec?.titel || titel
+        });
+      };
+      const maybeTriggerProfessionalAnalysis = (type, idOverride = null) => {
+        if (!isMaster({ cvType: type })) return;
         triggerCourseDiscovery();
-        Promise.resolve(repositioning.approve("auto")).catch(() => {});
+        Promise.resolve(repositioning.approve("auto", idOverride || currentCvId)).catch(() => {});
+      };
+
+      if (mode === "new_version") {
+        const isTailoredVersion = currentCvId && currentType === TAILORED;
+        const sourceRec = isTailoredVersion ? (persisted || await cvRepository.get(currentCvId)) : null;
+        const createPayload = isTailoredVersion
+          ? {
+              ...payload,
+              cvType: TAILORED,
+              parentCvId: sourceRec?.parentCvId || cvMeta?.parentCvId,
+              sourceMasterCvId: sourceRec?.sourceMasterCvId || cvMeta?.sourceMasterCvId,
+              jobApplicationId: sourceRec?.jobApplicationId || cvMeta?.jobApplicationId,
+              tailoredForJobTitle: sourceRec?.tailoredForJobTitle || cvMeta?.tailoredForJobTitle,
+              tailoredForCompany: sourceRec?.tailoredForCompany || cvMeta?.tailoredForCompany,
+              tailoredForJobDescription: sourceRec?.tailoredForJobDescription || cvMeta?.tailoredForJobDescription,
+              templateSource,
+              templateReviewStatus
+            }
+          : {
+              ...payload,
+              cvType: MASTER,
+              templateSource,
+              templateReviewStatus,
+              ...(currentCvId ? {} : templateOriginRef.current)
+            };
+        const rec = await cvRepository.create(createPayload);
+        setCurrentCvId(rec.id);
+        updateMeta(rec, createPayload.cvType);
+        navigate(`/builder/${rec.id}`, { replace: true });
+        maybeTriggerProfessionalAnalysis(createPayload.cvType, rec.id);
+        toast({ title: "تم حفظ نسخة جديدة", description: titel });
+        setSaveOpen(false);
+        return;
+      }
+
+      if (currentCvId) {
+        const nextType = currentType === DRAFT ? MASTER : currentType;
+        const updatePayload = {
+          ...payload,
+          cvType: nextType
+        };
+        await cvRepository.update(currentCvId, updatePayload);
+        updateMeta({ ...cvMeta, ...updatePayload }, nextType);
+        maybeTriggerProfessionalAnalysis(nextType, currentCvId);
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
-        const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current });
+        const rec = await cvRepository.create({ ...payload, ...templateOriginRef.current, cvType: MASTER });
         setCurrentCvId(rec.id);
+        updateMeta(rec, MASTER);
         navigate(`/builder/${rec.id}`, { replace: true });
-        triggerCourseDiscovery();
-        Promise.resolve(repositioning.approve("auto", rec.id)).catch(() => {});
+        maybeTriggerProfessionalAnalysis(MASTER, rec.id);
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
@@ -571,9 +648,13 @@ export default function Builder() {
       if (next.layout) setLayout(normalizeLayout(next.layout, next.templateId || templateId));
       setCurrentCvId(next.id);
       setCvMeta({
-        cvType: next.cvType,
+        cvType: cvTypeOf(next),
         parentCvId: next.parentCvId,
+        sourceMasterCvId: next.sourceMasterCvId,
         jobApplicationId: next.jobApplicationId,
+        tailoredForJobTitle: next.tailoredForJobTitle,
+        tailoredForCompany: next.tailoredForCompany,
+        tailoredForJobDescription: next.tailoredForJobDescription,
         titel: next.titel,
       });
       logAction("cv_version_created", {

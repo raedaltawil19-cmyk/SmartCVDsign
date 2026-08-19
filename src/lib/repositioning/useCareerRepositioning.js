@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { createRepositioningConversation, sendRepositioningInput, locationFromCV } from "@/lib/repositioning/session";
 import { parseRepositioningResult, repositioningFingerprint, isUsefulResult } from "@/lib/repositioning/contract";
+import { latestMasterVersions } from "@/lib/cvProfiles";
 
 /** Maximum number of versions that enter the analysis window. */
 const WINDOW_SIZE = 20;
@@ -48,12 +49,18 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
     let record = null;
     try {
       // Fetch all saved versions sorted newest-first.
-      // Window: 1–20 versions → analyze all; >20 → analyze the latest WINDOW_SIZE.
+      // Window: 1–20 MASTER versions → analyze all; >20 → analyze the latest WINDOW_SIZE MASTERs.
       // WINDOW_SIZE is a CAP, not a minimum threshold — analysis starts from version 1.
       const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
+      const masterVersions = latestMasterVersions(allVersions);
+      const versionCount = masterVersions.length;
       // slice(0, WINDOW_SIZE) on a newest-first list gives the latest WINDOW_SIZE versions.
-      const versions = Array.isArray(allVersions) ? allVersions.slice(0, WINDOW_SIZE) : [];
+      const versions = masterVersions.slice(0, WINDOW_SIZE);
+      if (versions.length === 0) {
+        runningRef.current = false;
+        return { ok: false, skipped: true, reason: "no_master_versions" };
+      }
+      const approvedCvId = versions[0]?.id || s.cvId;
       const explicit = trigger === "manual";
 
       // ── Deduplication is fingerprint-only (NO trigger-name guard here) ──────────
@@ -61,7 +68,7 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
       // re-analysis when the version window shifts (e.g. going from versions 1–20 to
       // versions 2–21). The fingerprint already captures which exact versions were
       // analyzed, so it is the sole source of truth for deduplication.
-      const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
+      const fingerprint = repositioningFingerprint({ approvedCvId, versions });
       const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint }, "-created_date", 20);
       if (existing.some((r) => r.status === "running")) {
         doneFingerprintsRef.current.add(fingerprint);
@@ -76,7 +83,7 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
       const startLocation = locationFromCV(s.data);
       record = await base44.entities.RepositioningAnalysis.create({
-        cvId: s.cvId,
+        cvId: approvedCvId,
         cvFingerprint: fingerprint,
         status: "running",
         trigger: explicit ? "manual" : "auto_20_versions",
@@ -110,7 +117,7 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
           isRead: false,
           targetType: "career_paths",
           targetId: record.id,
-          metadata: { cvId: s.cvId, analysisId: record.id }
+          metadata: { cvId: approvedCvId, analysisId: record.id }
         });
       };
 
@@ -125,7 +132,7 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
       unsubRef.current = base44.agents.subscribeToConversation(conversation.id, (p) => handle(p?.messages));
       const sent = await sendRepositioningInput(conversation, {
-        approvedCvId: s.cvId,
+        approvedCvId,
         versions,
         startLocation,
         uiLanguage: s.uiLanguage

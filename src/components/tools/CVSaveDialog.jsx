@@ -12,7 +12,11 @@ export default function CVSaveDialog({ defaultTitel, saving, onSave, onClose }) 
 
   const submit = (e) => {
     e.preventDefault();
-    onSave(name.trim() || "Min CV");
+    onSave(name.trim() || "Min CV", "save");
+  };
+
+  const saveAsNewVersion = () => {
+    onSave(name.trim() || "Min CV", "new_version");
   };
 
   return (
@@ -32,6 +36,9 @@ export default function CVSaveDialog({ defaultTitel, saving, onSave, onClose }) 
         />
         <div className="flex gap-2 justify-end mt-4">
           <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">إلغاء</button>
+          <button type="button" onClick={saveAsNewVersion} disabled={saving} className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+            حفظ كنسخة جديدة
+          </button>
           <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#1B4FD8] text-white hover:bg-[#1640b0] disabled:opacity-40">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {saving ? "نحفظ..." : "حفظ"}

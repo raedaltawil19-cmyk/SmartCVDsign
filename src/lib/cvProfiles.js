@@ -13,6 +13,7 @@ import { localMatchScore, matchDetails } from "@/lib/jobMatcher";
 
 export const MASTER = "master";
 export const TAILORED = "tailored";
+export const DRAFT = "draft";
 
 /** فارق الدرجة الذي دونه يصبح الاختيار غير حاسم */
 export const WEAK_MARGIN = 8;
@@ -38,11 +39,19 @@ export const TAILORED_SOURCE_THRESHOLD = 35;
  * ولا يُكتب أي شيء في قاعدة البيانات لتصحيحها.
  */
 export function cvTypeOf(rec) {
+  if (rec?.cvType === DRAFT) return DRAFT;
   return rec?.cvType === TAILORED ? TAILORED : MASTER;
 }
 
 export const isMaster = (rec) => cvTypeOf(rec) === MASTER;
 export const isTailored = (rec) => cvTypeOf(rec) === TAILORED;
+export const isDraft = (rec) => cvTypeOf(rec) === DRAFT;
+
+/** أحدث النسخ المهنية فقط (master)، مع حدّ أقصى اختياري */
+export function latestMasterVersions(list, limit = Infinity) {
+  const masters = (Array.isArray(list) ? list : []).filter(isMaster);
+  return Number.isFinite(limit) ? masters.slice(0, Math.max(0, limit)) : masters;
+}
 
 /** النسخ الأساسية المرشّحة لأن تكون أساساً لتخصيص جديد */
 export function baseCandidates(list) {
