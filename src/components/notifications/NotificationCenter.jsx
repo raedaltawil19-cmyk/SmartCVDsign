@@ -37,6 +37,8 @@ export default function NotificationCenter() {
       navigate("/courses");
     } else if (item.targetType === "applications") {
       navigate("/applications");
+    } else if (item.targetType === "career_paths") {
+      navigate("/career-paths");
     }
     setOpen(false);
   };
