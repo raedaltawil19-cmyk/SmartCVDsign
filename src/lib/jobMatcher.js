@@ -73,7 +73,15 @@ export function cvStemKeywords(cv) {
 }
 
 function adStems(ad) {
-  const body = [ad?.rubrik, ad?.beskrivning, (ad?.krav || []).map((k) => k?.namn).join(" ")]
+  // krav قد يأتي نصاً أو كائناً أو مصفوفة — نطبّعه قبل القراءة
+  const krav = Array.isArray(ad?.krav)
+    ? ad.krav.map((k) => (typeof k === "string" ? k : k?.namn)).filter(Boolean).join(" ")
+    : typeof ad?.krav === "string"
+      ? ad.krav
+      : ad?.krav && typeof ad.krav === "object"
+        ? Object.values(ad.krav).flat().map((k) => (typeof k === "string" ? k : k?.namn)).filter(Boolean).join(" ")
+        : "";
+  const body = [ad?.rubrik, ad?.beskrivning, krav]
     .filter(Boolean)
     .join(" ");
   return { all: new Set(stems(tokenize(body))), rubrik: new Set(stems(tokenize(ad?.rubrik))) };
