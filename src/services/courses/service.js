@@ -103,8 +103,17 @@ export function createCoursesService({ notifications, llm, jobs }) {
       if (existingRuns.some((r) => r.status === "running" || r.status === "ready")) return { newCourses: [], searched: false, skipped: true, reason: "already_analyzed" };
       const run = await base44.entities.CourseDiscoveryRun.create({ cvId, cvFingerprint: fingerprint, versionCount, trigger: explicit ? "manual" : "auto_20_versions", status: "running" });
       const title = jobTitle || cv.titel || "";
-      if (!title.trim()) return { newCourses: [], searched: false };
-      const search = await jobs.search({ q: title, publishedDays: 21, limit: 18 });
+      if (!title.trim()) {
+        await base44.entities.CourseDiscoveryRun.update(run.id, { status: "no_results" });
+        return { newCourses: [], searched: false };
+      }
+      let search;
+      try {
+        search = await jobs.search({ q: title, publishedDays: 21, limit: 18 });
+      } catch (error) {
+        await base44.entities.CourseDiscoveryRun.update(run.id, { status: "failed", error: String(error?.message || error) });
+        throw error;
+      }
       const list = search?.data?.jobs || [];
       let ranked = list;
       if (list.length) {
