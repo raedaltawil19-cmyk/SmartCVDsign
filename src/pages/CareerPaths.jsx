@@ -62,6 +62,25 @@ export default function CareerPaths() {
 
   const result = analysis?.result || null;
 
+  const saveApplication = async (job) => {
+    try {
+      const existing = job?.id ? await base44.entities.JobApplication.filter({ jobAdId: job.id }, "-created_date", 1) : [];
+      if (!existing?.length) {
+        await base44.entities.JobApplication.create({
+          rubrik: job.title,
+          arbetsgivare: job.company || "",
+          plats: job.location || "",
+          url: job.url || "",
+          jobAdId: job.id || "",
+          status: "saved"
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <div dir={dir} className="min-h-screen bg-[#F5F5F5] text-slate-900">
       <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -152,7 +171,7 @@ export default function CareerPaths() {
               <section className="space-y-3">
                 <h2 className="text-sm font-semibold">فرص حقيقية متاحة</h2>
                 {result.searchScope?.note && <p className="text-[12px] text-slate-500">{result.searchScope.note}</p>}
-                {result.opportunities.map((j) => <OpportunityCard key={j.id || j.url} job={j} onTailor={openTailor} />)}
+                {result.opportunities.map((j) => <OpportunityCard key={j.id || j.url} job={j} onTailor={openTailor} onSaveApplication={saveApplication} />)}
               </section>
             )}
           </>
