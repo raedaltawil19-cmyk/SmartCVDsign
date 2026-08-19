@@ -88,19 +88,24 @@ export function createCoursesService({ notifications, llm, jobs }) {
     async discoverForCV({ cv, jobTitle, trigger = "auto" } = {}) {
       if (!llm || !jobs || !cv) return { newCourses: [], searched: false };
 
-      const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versionCount = Array.isArray(versions) ? versions.length : 0;
+      // The course-discovery analysis window is capped at 20 versions, not gated by 20 versions.
+      // 1–20 versions => analyze all available versions. More than 20 => analyze only the latest 20.
+      const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
+      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
+      const versions = Array.isArray(allVersions) ? allVersions.slice(0, 20) : [];
       const explicit = trigger === "manual";
-      if (!explicit && versionCount < 20) return { newCourses: [], searched: false, skipped: true, reason: "threshold_not_reached" };
 
       const cvId = cv.id || cv.cvId || "current";
       const fingerprint = repositioningFingerprint({ approvedCvId: cvId, versions });
       if (!explicit) {
-        const autoRuns = await base44.entities.CourseDiscoveryRun.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
-        if (Array.isArray(autoRuns) && autoRuns.length) return { newCourses: [], searched: false, skipped: true, reason: "automatic_threshold_already_processed" };
+        const autoRuns = await base44.entities.CourseDiscoveryRun.filter({ cvFingerprint: fingerprint, trigger: "auto_20_versions" }, "-created_date", 10);
+        if (Array.isArray(autoRuns) && autoRuns.some((r) => r.status === "running" || r.status === "ready")) {
+          return { newCourses: [], searched: false, skipped: true, reason: "automatic_analysis_already_processed" };
+        }
       }
       const existingRuns = await base44.entities.CourseDiscoveryRun.filter({ cvFingerprint: fingerprint }, "-created_date", 10);
-      if (existingRuns.some((r) => r.status === "running" || r.status === "ready")) return { newCourses: [], searched: false, skipped: true, reason: "already_analyzed" };
+      if (existingRuns.some((r) => r.status === "running")) return { newCourses: [], searched: false, skipped: true, reason: "already_running" };
+      if (explicit && existingRuns.some((r) => r.status === "ready")) return { newCourses: [], searched: false, skipped: true, reason: "already_analyzed" };
       const run = await base44.entities.CourseDiscoveryRun.create({ cvId, cvFingerprint: fingerprint, versionCount, trigger: explicit ? "manual" : "auto_20_versions", status: "running" });
       const title = jobTitle || cv.titel || "";
       if (!title.trim()) {
