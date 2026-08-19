@@ -347,7 +347,7 @@ export default function Builder() {
 
   // Career Repositioning is no longer tied to save/print/page visibility.
   // It runs automatically once at the 20-saved-version threshold, or explicitly from Career Paths.
-  useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
+  const repositioning = useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
 
   const exportPDF = () => {
     triggerCourseDiscovery();
@@ -424,6 +424,7 @@ export default function Builder() {
       if (currentCvId) {
         await cvRepository.update(currentCvId, payload);
         triggerCourseDiscovery();
+        Promise.resolve(repositioning.approve("auto")).catch(() => {});
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
@@ -431,6 +432,7 @@ export default function Builder() {
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
         triggerCourseDiscovery();
+        Promise.resolve(repositioning.approve("auto", rec.id)).catch(() => {});
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
