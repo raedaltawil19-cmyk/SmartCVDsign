@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CVPages from "@/components/CVPages";
 import CVSideToolbar from "@/components/tools/CVSideToolbar";
 import LayoutEditor from "@/components/tools/LayoutEditor";
-import { ArrowRight, Loader2, LayoutTemplate } from "lucide-react";
+import { ArrowRight, Loader2, LayoutTemplate, Save } from "lucide-react";
 import CVSaveDialog from "@/components/tools/CVSaveDialog";
 import { EditProvider } from "@/components/templates/EditContext";
 import ActionLogPanel from "@/components/ActionLogPanel";
@@ -791,6 +791,7 @@ export default function Builder() {
             </button>
             <button onClick={() => setShowTemplates(true)} className="min-h-10 px-3 rounded-full hover:bg-slate-100 text-sm text-slate-600 hidden sm:inline-flex">القوالب</button>
             <NotificationCenter />
+            <button onClick={() => setSaveOpen(true)} disabled={saving} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600 disabled:opacity-40" aria-label="حفظ السيرة"><Save className="w-4 h-4" /></button>
             <div className="relative">
               <button onClick={() => setShowShare((v) => !v)} className="w-10 h-10 rounded-full hover:bg-slate-100 grid place-items-center text-slate-600" aria-label="مشاركة"><Share2 className="w-4 h-4" /></button>
               {showShare && <div className="absolute top-12 left-0 z-50 w-64 bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-2xl p-1.5 text-right">
