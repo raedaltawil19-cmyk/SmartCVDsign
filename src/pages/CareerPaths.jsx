@@ -113,7 +113,7 @@ export default function CareerPaths() {
             {stale && (
               <div className="bg-amber-50 border border-amber-100 text-amber-900 rounded-2xl p-3 text-[12px] inline-flex items-center gap-2">
                 <RefreshCcw className="w-3.5 h-3.5" />
-                هذه النتيجة مبنية على نسخة أقدم من سيرتك. اعتمد نسختك الأحدث (حفظ أو طباعة) لإعادة التحليل.
+                هذه النتيجة مبنية على نسخة أقدم من سيرتك. يمكنك طلب تحليل جديد من زر «اكتشف مسارات مهنية جديدة».
               </div>
             )}
 
