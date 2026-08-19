@@ -16,9 +16,9 @@ const MESSAGES = {
  * السيرة الحالية معروفة من Builder، فلا يُطلَب معرّف سيرة إطلاقاً.
  * لا تعدّل النسخة المصدر مباشرة: onSend ينشئ/يختار نسخة التخصيص ثم يسلّم التوصيات إلى مساعد السيرة لتنفيذ التعديلات عليها.
  */
-export default function JobTailorDialog({ cvId, templateId, data, cvTitle, onSend, onClose }) {
-  const [adText, setAdText] = useState("");
-  const [adUrl, setAdUrl] = useState("");
+export default function JobTailorDialog({ cvId, templateId, data, cvTitle, initialJob, onSend, onClose }) {
+  const [adText, setAdText] = useState(initialJob?.description || "");
+  const [adUrl, setAdUrl] = useState(initialJob?.url || "");
   const [sendError, setSendError] = useState("");
   const [sentIds, setSentIds] = useState([]);
   const [position, setPosition] = useState({ x: 0, y: 0 });
