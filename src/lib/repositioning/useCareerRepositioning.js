@@ -20,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 import { createRepositioningConversation, sendRepositioningInput, locationFromCV } from "@/lib/repositioning/session";
 import { parseRepositioningResult, repositioningFingerprint, isUsefulResult } from "@/lib/repositioning/contract";
 import { latestMasterVersions } from "@/lib/cvProfiles";
+import { processProfileFromVersions } from "@/services/professionalProfile/profileIntegration";
 
 /** Maximum number of versions that enter the analysis window. */
 const WINDOW_SIZE = 20;
@@ -109,6 +110,9 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
           pathCount: parsed.paths.length,
           jobCount: parsed.opportunities.length
         });
+        // Phase 3B: update professional profile from the same master version window.
+        // Fire-and-forget: profile processing failure must never affect repositioning.
+        Promise.resolve(processProfileFromVersions(versions)).catch(() => {});
         if (!useful) return;
         await base44.entities.Notification.create({
           type: "career_repositioning",

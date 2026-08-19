@@ -33,6 +33,7 @@ import { createTailoredCV, cvTypeOf, DRAFT, MASTER, TAILORED, isMaster } from "@
 import CVRelationBar from "@/components/cv/CVRelationBar";
 import JobTailorDialog from "@/components/tailor/JobTailorDialog";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import { processTailoredCvForProfile } from "@/services/professionalProfile/profileIntegration";
 import SuitableJobsPanel from "@/components/jobs/SuitableJobsPanel";
 import TemplatePickerModal from "@/components/tools/TemplatePickerModal";
 import CVPreview from "@/components/CVPreview";
@@ -487,6 +488,11 @@ export default function Builder() {
         updateMeta(rec, createPayload.cvType);
         navigate(`/builder/${rec.id}`, { replace: true });
         maybeTriggerProfessionalAnalysis(createPayload.cvType, rec.id);
+        // Phase 3B: extract professional evidence from new tailored CV version.
+        // Fire-and-forget: failure must never affect CV saving.
+        if (isTailoredVersion) {
+          Promise.resolve(processTailoredCvForProfile(rec, (id) => cvRepository.get(id))).catch(() => {});
+        }
         toast({ title: "تم حفظ نسخة جديدة", description: titel });
         setSaveOpen(false);
         return;
