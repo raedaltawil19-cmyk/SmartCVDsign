@@ -71,10 +71,31 @@ export default function CareerPaths() {
         )}
 
         {!loading && !result && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-sm text-slate-600">
-            {running
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-sm text-slate-600 space-y-4">
+            <div>{running
               ? "نعمل الآن على تحليل نسخ سيرتك المعتمدة. سنُشعرك عند وجود نتائج مفيدة."
-              : "لا توجد نتائج بعد. احفظ أو اطبع نسخة من سيرتك، وسنبحث لك عن مسارات وفرص مهنية جديدة في الخلفية."}
+              : "لا توجد نتائج بعد. يمكنك طلب اكتشاف المسارات المهنية الآن."}</div>
+            {latestCV && !running && (
+              <button
+                onClick={() => repositioning.runManual()}
+                className="min-h-10 px-4 rounded-xl bg-[#000066] text-white text-[12px] font-semibold inline-flex items-center gap-2"
+              >
+                <Compass className="w-4 h-4" /> اكتشف المسارات المهنية الآن
+              </button>
+            )}
+          </div>
+        )}
+
+        {!loading && result && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => repositioning.runManual()}
+              disabled={running}
+              className="min-h-10 px-4 rounded-xl bg-[#000066] text-white text-[12px] font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+              {running ? "جارٍ التحليل…" : "اكتشف مسارات مهنية جديدة"}
+            </button>
           </div>
         )}
 
