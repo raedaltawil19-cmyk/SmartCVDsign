@@ -1,8 +1,10 @@
 /**
  * Career Repositioning trigger/orchestration.
- * Automatic policy: run once when the user reaches 20 saved CV versions.
- * After that, only an explicit manual request can start another analysis.
- * Page visibility, print and ordinary saves are NOT analysis triggers.
+ * Input policy: analyze all saved CV versions up to a maximum window of 20.
+ * With 1–20 versions, analyze all available versions. With more than 20,
+ * analyze only the latest 20. The 20-version number is NOT a minimum threshold.
+ * After an automatic analysis, repeated ordinary saves do not trigger another run;
+ * an explicit manual request can start a new analysis when appropriate.
  */
 import { useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
@@ -35,20 +37,18 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
     let record = null;
     try {
-      // No limit of 20 here: the agent must receive ALL saved versions.
-      const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versionCount = Array.isArray(versions) ? versions.length : 0;
+      // The analysis window is capped at 20 versions, not gated by 20 versions.
+      // 1–20 versions => analyze all. More than 20 => analyze the latest 20.
+      const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
+      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
+      const versions = Array.isArray(allVersions) ? allVersions.slice(0, AUTO_THRESHOLD) : [];
       const explicit = trigger === "manual";
 
-      if (!explicit && versionCount < AUTO_THRESHOLD) {
-        runningRef.current = false;
-        return { ok: true, skipped: true, reason: "threshold_not_reached", versionCount };
-      }
       if (!explicit && versionCount >= AUTO_THRESHOLD) {
         const autoRuns = await base44.entities.RepositioningAnalysis.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
         if (Array.isArray(autoRuns) && autoRuns.length) {
           runningRef.current = false;
-          return { ok: true, skipped: true, reason: "automatic_threshold_already_processed" };
+          return { ok: true, skipped: true, reason: "automatic_analysis_already_processed" };
         }
       }
 
