@@ -47,7 +47,11 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
       const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
       const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint }, "-created_date", 20);
-      if (existing.some((r) => r.status === "ready" || r.status === "running")) {
+      if (existing.some((r) => r.status === "running")) {
+        doneFingerprintsRef.current.add(fingerprint);
+        return { ok: true, skipped: true, reason: "already_running" };
+      }
+      if (!explicit && existing.some((r) => r.status === "ready" || r.status === "no_results")) {
         doneFingerprintsRef.current.add(fingerprint);
         return { ok: true, skipped: true, reason: "already_analyzed" };
       }
