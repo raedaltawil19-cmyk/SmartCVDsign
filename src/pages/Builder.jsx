@@ -762,7 +762,7 @@ export default function Builder() {
       )}
 
       <div className="flex-1 flex min-h-0">
-        {!processing && <div className="hidden xl:block shrink-0"><SuitableJobsPanel data={data} /></div>}
+        {!processing && <div className="hidden md:block shrink-0"><SuitableJobsPanel data={data} /></div>}
         {processing && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
             <Loader2 className="w-8 h-8 animate-spin text-[#000066]" />
