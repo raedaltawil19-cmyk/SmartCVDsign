@@ -1,0 +1,173 @@
+name: Agent Prompt Completion
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: agent-prompt-complete-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  finalize-completed-prompt:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve linked prompt issue
+        id: resolve
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = context.payload.pull_request.number;
+
+            const result = await github.graphql(
+              `
+                query PromptCompletion($owner: String!, $repo: String!, $pullNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $pullNumber) {
+                      title
+                      url
+                      mergedAt
+                      closingIssuesReferences(first: 20) {
+                        nodes {
+                          number
+                          title
+                          url
+                          body
+                        }
+                      }
+                    }
+                  }
+                }
+              `,
+              { owner, repo, pullNumber },
+            );
+
+            const pullRequest = result.repository.pullRequest;
+            const promptIssue = pullRequest.closingIssuesReferences.nodes.find((issue) => /<!--\s*prompt-file:\s*.+?\s*-->/.test(issue.body || ''));
+
+            if (!promptIssue) {
+              core.notice('No prompt-tracking issue is linked to this merged pull request.');
+              core.setOutput('matched', 'false');
+              return;
+            }
+
+            const promptFile = promptIssue.body.match(/<!--\s*prompt-file:\s*(.+?)\s*-->/)?.[1];
+            const promptSlug = require('path')
+              .basename(promptFile, '.md')
+              .replace(/^\d+[-_]?/, '')
+              .replace(/[^a-zA-Z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .toLowerCase() || 'prompt';
+            const mergedDate = (pullRequest.mergedAt || new Date().toISOString()).slice(0, 10);
+
+            core.setOutput('matched', 'true');
+            core.setOutput('prompt_file', promptFile);
+            core.setOutput('prompt_slug', promptSlug);
+            core.setOutput('merged_date', mergedDate);
+            core.setOutput('issue_number', String(promptIssue.number));
+            core.setOutput('issue_title', promptIssue.title);
+            core.setOutput('issue_url', promptIssue.url);
+            core.setOutput('pr_title', pullRequest.title);
+            core.setOutput('pr_url', pullRequest.url);
+
+      - name: Checkout default branch
+        if: steps.resolve.outputs.matched == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Update prompt status and reports
+        if: steps.resolve.outputs.matched == 'true'
+        env:
+          PROMPT_FILE: ${{ steps.resolve.outputs.prompt_file }}
+          PROMPT_SLUG: ${{ steps.resolve.outputs.prompt_slug }}
+          MERGED_DATE: ${{ steps.resolve.outputs.merged_date }}
+          ISSUE_NUMBER: ${{ steps.resolve.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.resolve.outputs.issue_title }}
+          ISSUE_URL: ${{ steps.resolve.outputs.issue_url }}
+          PR_TITLE: ${{ steps.resolve.outputs.pr_title }}
+          PR_URL: ${{ steps.resolve.outputs.pr_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "$PROMPT_FILE" ]; then
+            echo "Prompt file not found: $PROMPT_FILE" >&2
+            exit 1
+          fi
+
+          if grep -q '^STATUS: READY$' "$PROMPT_FILE"; then
+            perl -0pi -e 's/^STATUS: READY$/STATUS: COMPLETED/m' "$PROMPT_FILE"
+          elif ! grep -q '^STATUS: COMPLETED$' "$PROMPT_FILE"; then
+            echo "Prompt file does not contain STATUS: READY or STATUS: COMPLETED" >&2
+            exit 1
+          fi
+
+          mkdir -p docs/agent-reports
+          report_path="docs/agent-reports/${MERGED_DATE}-${PROMPT_SLUG}.md"
+
+          cat > "$report_path" <<EOF
+# Agent Execution Report
+
+- Date: ${MERGED_DATE}
+- Prompt: \`${PROMPT_FILE}\`
+- Tracking issue: [#${ISSUE_NUMBER}](${ISSUE_URL})
+- Copilot pull request: [#${PR_NUMBER}](${PR_URL})
+- Merge commit: \`${MERGE_COMMIT_SHA}\`
+
+## Summary
+
+- GitHub Actions detected the next \`STATUS: READY\` prompt and synchronized a tracking issue.
+- The tracking issue was delegated to GitHub Copilot through the supported issue-assignment workflow.
+- After the Copilot pull request merged, the queue finalizer marked the prompt \`COMPLETED\` and refreshed the latest report files automatically.
+
+## References
+
+- Issue title: ${ISSUE_TITLE}
+- Pull request title: ${PR_TITLE}
+EOF
+
+          cp "$report_path" AGENT_REPORT.md
+
+      - name: Commit finalization changes
+        if: steps.resolve.outputs.matched == 'true'
+        env:
+          PROMPT_FILE: ${{ steps.resolve.outputs.prompt_file }}
+          PROMPT_SLUG: ${{ steps.resolve.outputs.prompt_slug }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "No prompt finalization changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add AGENT_REPORT.md docs/agent-reports "$PROMPT_FILE"
+          git commit -m "Finalize prompt ${PROMPT_SLUG} after Copilot PR #${PR_NUMBER}"
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin "$DEFAULT_BRANCH"
+            if git push origin "HEAD:${DEFAULT_BRANCH}"; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+
+          echo "Failed to push prompt finalization changes after 3 attempts." >&2
+          exit 1

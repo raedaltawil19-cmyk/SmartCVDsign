@@ -8,9 +8,14 @@ on:
 
 permissions:
   contents: read
+  issues: write
+
+concurrency:
+  group: agent-prompt-queue
+  cancel-in-progress: false
 
 jobs:
-  validate-prompt-queue:
+  sync-ready-prompt:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -25,3 +30,219 @@ jobs:
           echo 'READY prompts:'
           grep -R -l '^STATUS: READY$' prompts --include='*.md' || true
           echo 'Queue validation complete.'
+
+      - name: Create or update tracking issue
+        id: tracking-issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const promptsRoot = path.join(process.env.GITHUB_WORKSPACE, 'prompts');
+
+            function walk(dir) {
+              return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                  return walk(fullPath);
+                }
+                return [fullPath];
+              });
+            }
+
+            function promptOrder(fileName) {
+              const match = /^(\d+)/.exec(path.basename(fileName));
+              return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+            }
+
+            function displayTitle(filePath, body) {
+              const heading = body.match(/^#\s+(.+)$/m)?.[1]?.trim();
+              if (heading) return heading;
+              return path.basename(filePath, '.md').replace(/^\d+[-_]?/, '').replace(/[-_]+/g, ' ').trim();
+            }
+
+            const promptFiles = walk(promptsRoot)
+              .filter((fullPath) => fullPath.endsWith('.md'))
+              .filter((fullPath) => path.relative(promptsRoot, fullPath) !== 'README.md')
+              .map((fullPath) => {
+                const body = fs.readFileSync(fullPath, 'utf8');
+                return {
+                  fullPath,
+                  relativePath: path.relative(process.env.GITHUB_WORKSPACE, fullPath).replace(/\\/g, '/'),
+                  body,
+                  status: body.match(/^STATUS:\s*(.+)$/m)?.[1]?.trim() ?? '',
+                  order: promptOrder(fullPath),
+                  title: displayTitle(fullPath, body),
+                };
+              })
+              .sort((a, b) => a.order - b.order || a.relativePath.localeCompare(b.relativePath));
+
+            const readyPrompts = promptFiles.filter((prompt) => prompt.status === 'READY');
+            if (readyPrompts.length === 0) {
+              core.notice('No READY prompts found.');
+              return '';
+            }
+
+            const prompt = readyPrompts[0];
+            const queueNote = readyPrompts.length > 1
+              ? `\n> Queue note: ${readyPrompts.length} READY prompts exist. This workflow only delegates the earliest READY prompt.\n`
+              : '';
+            const issueTitle = `Prompt Queue: ${path.basename(prompt.relativePath, '.md')}`;
+            const issueMarker = `<!-- prompt-file: ${prompt.relativePath} -->`;
+            const issueBody = `${issueMarker}
+<!-- prompt-status: READY -->
+<!-- prompt-queue: managed -->
+
+## Prompt source
+- File: \`${prompt.relativePath}\`
+- Queue position: next READY prompt
+
+## Execution requirements
+- Read \`prompts/README.md\`, \`AGENT_REPORT.md\`, and the latest report under \`docs/agent-reports/\` before making changes.
+- Preserve the repository prompt/report conventions.
+- When opening the implementation pull request, include a closing reference back to this Issue.
+- Mark the prompt \`COMPLETED\` only after the Copilot implementation pull request is merged.
+- If the task is blocked, ambiguous, unsafe, or conflicts with the repository architecture, stop and report instead of guessing.${queueNote}
+
+## Prompt content
+
+\`\`\`md
+${prompt.body.trim()}
+\`\`\`
+`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'all',
+              per_page: 100,
+            });
+
+            const existingIssue = issues.find((issue) => !issue.pull_request && (issue.body || '').includes(issueMarker));
+
+            if (existingIssue) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                title: issueTitle,
+                body: issueBody,
+                state: 'open',
+              });
+              core.notice(`Updated tracking issue #${existingIssue.number} for ${prompt.relativePath}.`);
+              core.setOutput('issue_number', String(existingIssue.number));
+              return String(existingIssue.number);
+            }
+
+            const { data: createdIssue } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: issueTitle,
+              body: issueBody,
+            });
+
+            core.notice(`Created tracking issue #${createdIssue.number} for ${prompt.relativePath}.`);
+            core.setOutput('issue_number', String(createdIssue.number));
+            return String(createdIssue.number);
+
+      - name: Assign tracking issue to Copilot
+        if: steps.tracking-issue.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        env:
+          COPILOT_AGENT_TOKEN: ${{ secrets.COPILOT_AGENT_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.tracking-issue.outputs.issue_number }}
+        with:
+          github-token: ${{ secrets.COPILOT_AGENT_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const token = process.env.COPILOT_AGENT_TOKEN;
+
+            if (!token) {
+              core.setFailed('Missing COPILOT_AGENT_TOKEN secret. Configure a fine-grained PAT that can assign issues in this repository.');
+              return;
+            }
+
+            const query = `
+              query PromptAutomation($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                    nodes {
+                      __typename
+                      login
+                      ... on Bot { id }
+                      ... on User { id }
+                    }
+                  }
+                  issue(number: $issueNumber) {
+                    id
+                    assignees(first: 20) {
+                      nodes {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const response = await github.graphql(query, {
+              owner,
+              repo,
+              issueNumber,
+            });
+
+            const repository = response.repository;
+            const issue = repository.issue;
+            if (!issue) {
+              core.setFailed(`Tracking issue #${issueNumber} no longer exists.`);
+              return;
+            }
+
+            if (issue.assignees.nodes.some((node) => (node.login || '').toLowerCase().includes('copilot'))) {
+              core.notice(`Tracking issue #${issueNumber} is already assigned to Copilot.`);
+              return;
+            }
+
+            const copilotActor = repository.suggestedActors.nodes.find((node) => node.login === 'copilot-swe-agent');
+            if (!copilotActor?.id) {
+              core.setFailed('Copilot is not assignable in this repository. Confirm the repository is private/internal, Copilot cloud agent is enabled, and the PAT owner can assign Copilot.');
+              return;
+            }
+
+            const mutation = `
+              mutation PromptAutomationAssign($assignableId: ID!, $assigneeIds: [ID!]!) {
+                addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+                  assignable {
+                    ... on Issue {
+                      number
+                    }
+                  }
+                }
+              }
+            `;
+
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              try {
+                await github.graphql(mutation, {
+                  assignableId: issue.id,
+                  assigneeIds: [copilotActor.id],
+                });
+                core.notice(`Assigned tracking issue #${issueNumber} to Copilot.`);
+                return;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  core.setFailed(`Failed to assign issue #${issueNumber} to Copilot after ${maxAttempts} attempts: ${error.message}`);
+                  return;
+                }
+                core.warning(`Copilot assignment attempt ${attempt} failed: ${error.message}`);
+                await new Promise((resolve) => setTimeout(resolve, attempt * 5000));
+              }
+            }
