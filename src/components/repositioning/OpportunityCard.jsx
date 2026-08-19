@@ -1,4 +1,5 @@
-import { Building2, MapPin, Coins, Target, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Building2, MapPin, Coins, Target, ExternalLink, BookmarkCheck } from "lucide-react";
 
 const Score = ({ label, value }) => (
   <div className="text-center">
@@ -8,8 +9,14 @@ const Score = ({ label, value }) => (
 );
 
 /** فرصة وظيفية حقيقية واحدة + مدخل إلى Job Tailor القائم */
-export default function OpportunityCard({ job, onTailor }) {
+export default function OpportunityCard({ job, onTailor, onSaveApplication }) {
   const s = job.scores || {};
+  const [saved, setSaved] = useState(false);
+  const save = async () => {
+    if (!onSaveApplication) return;
+    const ok = await onSaveApplication(job);
+    if (ok) setSaved(true);
+  };
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -56,6 +63,9 @@ export default function OpportunityCard({ job, onTailor }) {
       <div className="flex items-center gap-2 pt-1">
         <button onClick={() => onTailor(job)} className="min-h-10 px-3 rounded-xl bg-[#000066] text-white text-[12px] font-semibold inline-flex items-center gap-1.5">
           <Target className="w-4 h-4" /> خصّص سيرتي لهذه الوظيفة
+        </button>
+        <button onClick={save} disabled={saved} className="min-h-10 px-3 rounded-xl border border-slate-200 text-[12px] text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-60">
+          <BookmarkCheck className="w-4 h-4" /> {saved ? "تم الحفظ" : "حفظ الوظيفة"}
         </button>
         {job.url && (
           <a href={job.url} target="_blank" rel="noreferrer" className="min-h-10 px-3 rounded-xl border border-slate-200 text-[12px] text-slate-700 inline-flex items-center gap-1.5">
