@@ -31,6 +31,7 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
   const run = useCallback(async (trigger = "manual", overrideCvId = null) => {
     const s = { ...stateRef.current, cvId: overrideCvId || stateRef.current.cvId };
     if (!s.isAuthenticated || !s.cvId || runningRef.current) return { ok: false, skipped: true };
+    runningRef.current = true;
 
     let record = null;
     try {
@@ -39,24 +40,31 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
       const versionCount = Array.isArray(versions) ? versions.length : 0;
       const explicit = trigger === "manual";
 
-      if (!explicit && versionCount < AUTO_THRESHOLD) return { ok: true, skipped: true, reason: "threshold_not_reached", versionCount };
+      if (!explicit && versionCount < AUTO_THRESHOLD) {
+        runningRef.current = false;
+        return { ok: true, skipped: true, reason: "threshold_not_reached", versionCount };
+      }
       if (!explicit && versionCount >= AUTO_THRESHOLD) {
         const autoRuns = await base44.entities.RepositioningAnalysis.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
-        if (Array.isArray(autoRuns) && autoRuns.length) return { ok: true, skipped: true, reason: "automatic_threshold_already_processed" };
+        if (Array.isArray(autoRuns) && autoRuns.length) {
+          runningRef.current = false;
+          return { ok: true, skipped: true, reason: "automatic_threshold_already_processed" };
+        }
       }
 
       const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
       const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint }, "-created_date", 20);
       if (existing.some((r) => r.status === "running")) {
         doneFingerprintsRef.current.add(fingerprint);
+        runningRef.current = false;
         return { ok: true, skipped: true, reason: "already_running" };
       }
       if (!explicit && existing.some((r) => r.status === "ready" || r.status === "no_results")) {
         doneFingerprintsRef.current.add(fingerprint);
+        runningRef.current = false;
         return { ok: true, skipped: true, reason: "already_analyzed" };
       }
 
-      runningRef.current = true;
       const startLocation = locationFromCV(s.data);
       record = await base44.entities.RepositioningAnalysis.create({
         cvId: s.cvId,
