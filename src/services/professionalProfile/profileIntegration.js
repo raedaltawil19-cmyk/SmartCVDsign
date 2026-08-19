@@ -73,12 +73,10 @@ export async function processProfileFromVersions(masterVersions, svcDeps = null)
   const svc = createProfessionalProfileService(svcDeps);
 
   // Get or create the profile record.
-  let profile = await svc.getCurrentProfile();
-  if (!profile) {
-    profile = await svc.createProfile();
-  }
+  const profile = await svc.getOrCreateCurrentProfile();
 
   let newEvidenceCount = 0;
+  let successfulRunCount = 0;
 
   for (let i = 0; i < versions.length; i++) {
     const curr = versions[i];
@@ -86,13 +84,9 @@ export async function processProfileFromVersions(masterVersions, svcDeps = null)
 
     const fingerprint = cvContentFingerprint(curr.data);
 
-    // Idempotency — skip if already processed or currently running.
-    const existingRun = await svc.getRunByFingerprint(profile.id, fingerprint);
-    if (existingRun?.status === "ready" || existingRun?.status === "running") continue;
-
     let run = null;
     try {
-      run = await svc.createRun({
+      const runResult = await svc.createRunIfAbsent({
         profileId:     profile.id,
         cvId:          curr.id,
         cvFingerprint: fingerprint,
@@ -100,6 +94,8 @@ export async function processProfileFromVersions(masterVersions, svcDeps = null)
         status:        "running",
         evidenceCount: 0,
       });
+      if (!runResult.created) continue;
+      run = runResult.record;
 
       // Compute diff against the previous version.
       // For the very first version (i === 0), diff against null so every fact
@@ -127,6 +123,7 @@ export async function processProfileFromVersions(masterVersions, svcDeps = null)
       }
 
       await svc.updateRun(run.id, { status: "ready", evidenceCount: runEvidenceCount });
+      successfulRunCount++;
     } catch (err) {
       if (run) {
         await svc.updateRun(run.id, {
@@ -138,9 +135,9 @@ export async function processProfileFromVersions(masterVersions, svcDeps = null)
   }
 
   // Mark profile as initialized and update the denormalized count.
-  if (newEvidenceCount > 0 || !profile.isInitialized) {
+  if (newEvidenceCount > 0 || (!profile.isInitialized && successfulRunCount > 0)) {
     await svc.updateProfile(profile.id, {
-      isInitialized:      true,
+      ...(profile.isInitialized ? {} : { isInitialized: true }),
       totalEvidenceCount: (profile.totalEvidenceCount || 0) + newEvidenceCount,
     });
   }
@@ -176,13 +173,9 @@ export async function processTailoredCvForProfile(tailoredRecord, cvGetFn, svcDe
 
   const fingerprint = cvContentFingerprint(tailoredRecord.data);
 
-  // Idempotency
-  const existingRun = await svc.getRunByFingerprint(profile.id, fingerprint);
-  if (existingRun?.status === "ready" || existingRun?.status === "running") return;
-
   let run = null;
   try {
-    run = await svc.createRun({
+    const runResult = await svc.createRunIfAbsent({
       profileId:     profile.id,
       cvId:          tailoredRecord.id,
       cvFingerprint: fingerprint,
@@ -190,6 +183,8 @@ export async function processTailoredCvForProfile(tailoredRecord, cvGetFn, svcDe
       status:        "running",
       evidenceCount: 0,
     });
+    if (!runResult.created) return;
+    run = runResult.record;
 
     // Resolve source master (best-effort; diff handles null gracefully).
     let sourceMasterRecord = null;

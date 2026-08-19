@@ -1,5 +1,25 @@
 import { base44 } from "@/api/base44Client";
 
+const profileLocks = new Map();
+const evidenceLocks = new Map();
+const runLocks = new Map();
+
+function withLock(map, key, work) {
+  const existing = map.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      return await work();
+    } finally {
+      if (map.get(key) === promise) map.delete(key);
+    }
+  })();
+
+  map.set(key, promise);
+  return promise;
+}
+
 /**
  * ProfessionalProfileService — persistence boundary for ProfessionalProfile,
  * ProfessionalEvidence, and ProfessionalProfileRun entities.
@@ -29,6 +49,19 @@ export function createProfessionalProfileService(deps = {}) {
     async getCurrentProfile() {
       const rows = await Profile.list("-created_date", 1);
       return rows?.[0] ?? null;
+    },
+
+    /**
+     * Get or create the authenticated user's ProfessionalProfile.
+     * Best-effort in-session locking avoids duplicate initialization when the
+     * same processing path is triggered twice concurrently in one client.
+     */
+    getOrCreateCurrentProfile() {
+      return withLock(profileLocks, "current-profile", async () => {
+        const current = await Profile.list("-created_date", 1);
+        if (current?.[0]) return current[0];
+        return Profile.create({ isInitialized: false, totalEvidenceCount: 0 });
+      });
     },
 
     /**
@@ -70,32 +103,34 @@ export function createProfessionalProfileService(deps = {}) {
     async addEvidence(profileId, item) {
       if (!item?.observationId) return { created: false, record: null };
 
-      const existing = await Evidence.filter(
-        { profileId, observationId: item.observationId },
-        "-created_date",
-        1,
-      );
-      if (existing?.length > 0) return { created: false, record: existing[0] };
+      return withLock(evidenceLocks, `${profileId}|${item.observationId}`, async () => {
+        const existing = await Evidence.filter(
+          { profileId, observationId: item.observationId },
+          "-created_date",
+          1,
+        );
+        if (existing?.length > 0) return { created: false, record: existing[0] };
 
-      const record = await Evidence.create({
-        profileId,
-        factId:             item.factId,
-        observationId:      item.observationId,
-        changeType:         item.changeType,
-        category:           item.category,
-        field:              item.field,
-        itemKey:            item.itemKey ?? "",
-        value:              item.value ?? null,
-        previousValue:      item.previousValue ?? null,
-        sourceCvId:         item.sourceCvId,
-        sourceType:         item.sourceType,
-        sourceMasterCvId:   item.sourceMasterCvId ?? null,
-        contentFingerprint: item.contentFingerprint,
-        // REMOVAL evidence is stored as inactive (historical fact, not current state).
-        // FACT_ADDITION and CONTENT_REWRITE are stored as active.
-        status: item.changeType === "REMOVAL" ? "inactive" : "active",
+        const record = await Evidence.create({
+          profileId,
+          factId:             item.factId,
+          observationId:      item.observationId,
+          changeType:         item.changeType,
+          category:           item.category,
+          field:              item.field,
+          itemKey:            item.itemKey ?? "",
+          value:              item.value ?? null,
+          previousValue:      item.previousValue ?? null,
+          sourceCvId:         item.sourceCvId,
+          sourceType:         item.sourceType,
+          sourceMasterCvId:   item.sourceMasterCvId ?? null,
+          contentFingerprint: item.contentFingerprint,
+          // REMOVAL evidence is stored as inactive (historical fact, not current state).
+          // FACT_ADDITION and CONTENT_REWRITE are stored as active.
+          status: item.changeType === "REMOVAL" ? "inactive" : "active",
+        });
+        return { created: true, record };
       });
-      return { created: true, record };
     },
 
     /**
@@ -119,6 +154,28 @@ export function createProfessionalProfileService(deps = {}) {
      */
     createRun(payload) {
       return Runs.create(payload);
+    },
+
+    /**
+     * Create a run if the same fingerprint is not already ready/running.
+     * Best-effort in-session locking avoids duplicate runs for duplicate clicks
+     * or overlapping fire-and-forget triggers in the same client.
+     */
+    createRunIfAbsent(payload) {
+      const key = `${payload?.profileId}|${payload?.cvFingerprint}`;
+      return withLock(runLocks, key, async () => {
+        const rows = await Runs.filter(
+          { profileId: payload.profileId, cvFingerprint: payload.cvFingerprint },
+          "-created_date",
+          5,
+        );
+        const existing = rows?.[0] ?? null;
+        if (existing?.status === "ready" || existing?.status === "running") {
+          return { created: false, record: existing };
+        }
+        const record = await Runs.create(payload);
+        return { created: true, record };
+      });
     },
 
     /**

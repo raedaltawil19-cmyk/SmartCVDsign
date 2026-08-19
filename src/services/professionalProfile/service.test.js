@@ -376,6 +376,20 @@ export async function runProfessionalProfileTests() {
       !saveBroken || saveBroken === false || true, // Structural: catch is in the call sites
       "Verified structurally: both call sites use Promise.resolve(...).catch(() => {})",
     );
+
+    const failingDeps = createInMemoryDeps();
+    failingDeps.evidence.create = async () => { throw new Error("SIMULATED_EVIDENCE_FAILURE"); };
+    await processProfileFromVersions([makeMasterRecord("m1", deepCopy(BASE_DATA))], failingDeps);
+    const failedProfile = [...failingDeps._profiles.values()][0];
+    const failedRun = [...failingDeps._runs.values()][0];
+    pass("I. Failure isolation: failed processing does not initialize profile",
+      failedProfile?.isInitialized === false,
+      failedProfile,
+    );
+    pass("I. Failure isolation: failed processing records failed run",
+      failedRun?.status === "failed",
+      failedRun,
+    );
   }
 
   // ── J. Phase 2 save/new-version behavior remains intact (architectural) ────
@@ -435,6 +449,46 @@ export async function runProfessionalProfileTests() {
     pass("Service dedup: first insert creates record", r1.created === true, null);
     pass("Service dedup: second insert is no-op", r2.created === false, null);
     pass("Service dedup: only one record in store", deps._evidence.size === 1, { size: deps._evidence.size });
+  }
+
+  // ── Duplicate trigger / race safety within one client session ──────────────
+  {
+    const deps = createInMemoryDeps();
+    const masterV1 = makeMasterRecord("m1", deepCopy(BASE_DATA));
+
+    await Promise.all([
+      processProfileFromVersions([masterV1], deps),
+      processProfileFromVersions([masterV1], deps),
+    ]);
+
+    pass("Race safety: duplicate first-master trigger creates one profile", deps._profiles.size === 1, { profiles: deps._profiles.size });
+    pass("Race safety: duplicate first-master trigger creates one run", deps._runs.size === 1, { runs: deps._runs.size });
+    pass("Race safety: duplicate first-master trigger does not duplicate evidence", deps._evidence.size === 7, { evidence: deps._evidence.size });
+  }
+
+  {
+    const deps = createInMemoryDeps();
+    const masterV1 = makeMasterRecord("m1", deepCopy(BASE_DATA));
+    await processProfileFromVersions([masterV1], deps);
+
+    const tailoredData = deepCopy(BASE_DATA);
+    tailoredData.fardigheter.push({ namn: "Docker", niva: 60 });
+    const tailored = makeTailoredRecord("t1", tailoredData, "m1", "m1");
+    const cvGetFn = async (id) => id === "m1" ? masterV1 : null;
+
+    await Promise.all([
+      processTailoredCvForProfile(tailored, cvGetFn, deps),
+      processTailoredCvForProfile(tailored, cvGetFn, deps),
+    ]);
+
+    const tailoredRuns = [...deps._runs.values()].filter((r) => r.sourceType === "tailored");
+    const dockerEvidence = [...deps._evidence.values()].filter(
+      (e) => e.sourceType === "tailored"
+        && e.category === "fardigheter"
+        && e.itemKey === "docker",
+    );
+    pass("Race safety: duplicate tailored trigger creates one tailored run", tailoredRuns.length === 1, tailoredRuns);
+    pass("Race safety: duplicate tailored trigger stores Docker evidence once", dockerEvidence.length === 1, dockerEvidence);
   }
 
   // ── REMOVAL evidence stored as inactive ───────────────────────────────────

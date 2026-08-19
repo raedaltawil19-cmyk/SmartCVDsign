@@ -29,6 +29,7 @@ import { cvContentFingerprint } from "./cvDiff";
 /**
  * @typedef {Object} ProfessionalEvidenceItem
  * @property {string}             id                — deterministic identity key
+ * @property {string}             key               — stable cvDiff item key
  * @property {EvidenceChangeType} changeType
  * @property {EvidenceCategory}   category
  * @property {string}             field             — specific field
@@ -59,6 +60,7 @@ export function buildEvidenceItem(change, source) {
   });
   return {
     id,
+    key: change.key || "",
     changeType: change.changeType,
     category: change.category,
     field: change.field,
