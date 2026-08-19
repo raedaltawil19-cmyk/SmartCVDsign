@@ -100,6 +100,7 @@ jobs:
           PR_URL: ${{ steps.resolve.outputs.pr_url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          REPORT_PATH: docs/agent-reports/${{ steps.resolve.outputs.merged_date }}-${{ steps.resolve.outputs.prompt_slug }}.md
         run: |
           set -euo pipefail
 
@@ -116,30 +117,35 @@ jobs:
           fi
 
           mkdir -p docs/agent-reports
-          report_path="docs/agent-reports/${MERGED_DATE}-${PROMPT_SLUG}.md"
+          python <<'PY'
+          import os
+          from pathlib import Path
 
-          cat > "$report_path" <<EOF
-# Agent Execution Report
-
-- Date: ${MERGED_DATE}
-- Prompt: \`${PROMPT_FILE}\`
-- Tracking issue: [#${ISSUE_NUMBER}](${ISSUE_URL})
-- Copilot pull request: [#${PR_NUMBER}](${PR_URL})
-- Merge commit: \`${MERGE_COMMIT_SHA}\`
-
-## Summary
-
-- GitHub Actions detected the next \`STATUS: READY\` prompt and synchronized a tracking issue.
-- The tracking issue was delegated to GitHub Copilot through the supported issue-assignment workflow.
-- After the Copilot pull request merged, the queue finalizer marked the prompt \`COMPLETED\` and refreshed the latest report files automatically.
-
-## References
-
-- Issue title: ${ISSUE_TITLE}
-- Pull request title: ${PR_TITLE}
-EOF
-
-          cp "$report_path" AGENT_REPORT.md
+          report_path = Path(os.environ["REPORT_PATH"])
+          content = "\n".join([
+              "# Agent Execution Report",
+              "",
+              f"- Date: {os.environ['MERGED_DATE']}",
+              f"- Prompt: `{os.environ['PROMPT_FILE']}`",
+              f"- Tracking issue: [#{os.environ['ISSUE_NUMBER']}]({os.environ['ISSUE_URL']})",
+              f"- Copilot pull request: [#{os.environ['PR_NUMBER']}]({os.environ['PR_URL']})",
+              f"- Merge commit: `{os.environ['MERGE_COMMIT_SHA']}`",
+              "",
+              "## Summary",
+              "",
+              "- GitHub Actions detected the next `STATUS: READY` prompt and synchronized a tracking issue.",
+              "- The tracking issue was delegated to GitHub Copilot through the supported issue-assignment workflow.",
+              "- After the Copilot pull request merged, the queue finalizer marked the prompt `COMPLETED` and refreshed the latest report files automatically.",
+              "",
+              "## References",
+              "",
+              f"- Issue title: {os.environ['ISSUE_TITLE']}",
+              f"- Pull request title: {os.environ['PR_TITLE']}",
+              "",
+          ])
+          report_path.write_text(content, encoding="utf-8")
+          Path("AGENT_REPORT.md").write_text(content, encoding="utf-8")
+          PY
 
       - name: Commit finalization changes
         if: steps.resolve.outputs.matched == 'true'

@@ -94,27 +94,29 @@ jobs:
               : '';
             const issueTitle = `Prompt Queue: ${path.basename(prompt.relativePath, '.md')}`;
             const issueMarker = `<!-- prompt-file: ${prompt.relativePath} -->`;
-            const issueBody = `${issueMarker}
-<!-- prompt-status: READY -->
-<!-- prompt-queue: managed -->
-
-## Prompt source
-- File: \`${prompt.relativePath}\`
-- Queue position: next READY prompt
-
-## Execution requirements
-- Read \`prompts/README.md\`, \`AGENT_REPORT.md\`, and the latest report under \`docs/agent-reports/\` before making changes.
-- Preserve the repository prompt/report conventions.
-- When opening the implementation pull request, include a closing reference back to this Issue.
-- Mark the prompt \`COMPLETED\` only after the Copilot implementation pull request is merged.
-- If the task is blocked, ambiguous, unsafe, or conflicts with the repository architecture, stop and report instead of guessing.${queueNote}
-
-## Prompt content
-
-\`\`\`md
-${prompt.body.trim()}
-\`\`\`
-`;
+            const issueBody = [
+              issueMarker,
+              '<!-- prompt-status: READY -->',
+              '<!-- prompt-queue: managed -->',
+              '',
+              '## Prompt source',
+              `- File: \`${prompt.relativePath}\``,
+              '- Queue position: next READY prompt',
+              '',
+              '## Execution requirements',
+              '- Read `prompts/README.md`, `AGENT_REPORT.md`, and the latest report under `docs/agent-reports/` before making changes.',
+              '- Preserve the repository prompt/report conventions.',
+              '- When opening the implementation pull request, include a closing reference back to this Issue.',
+              '- Mark the prompt `COMPLETED` only after the Copilot implementation pull request is merged.',
+              `- If the task is blocked, ambiguous, unsafe, or conflicts with the repository architecture, stop and report instead of guessing.${queueNote}`,
+              '',
+              '## Prompt content',
+              '',
+              '```md',
+              prompt.body.trim(),
+              '```',
+              '',
+            ].join('\n');
 
             const { data: issues } = await github.rest.issues.listForRepo({
               owner,
