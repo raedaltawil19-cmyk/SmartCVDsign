@@ -1,0 +1,53 @@
+{
+  "name": "CourseDiscoveryRun",
+  "type": "object",
+  "properties": {
+    "cvId": {
+      "type": "string"
+    },
+    "cvFingerprint": {
+      "type": "string"
+    },
+    "versionCount": {
+      "type": "number"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "auto_20_versions",
+        "manual"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "ready",
+        "no_results",
+        "failed"
+      ],
+      "default": "running"
+    },
+    "error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "cvId",
+    "cvFingerprint"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { repositioningFingerprint } from "@/lib/repositioning/contract";
 
 function normalizeUrl(url = "") {
   try {
@@ -84,8 +85,23 @@ export function createCoursesService({ notifications, llm, jobs }) {
       });
     },
 
-    async discoverForCV({ cv, jobTitle } = {}) {
+    async discoverForCV({ cv, jobTitle, trigger = "auto" } = {}) {
       if (!llm || !jobs || !cv) return { newCourses: [], searched: false };
+
+      const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
+      const versionCount = Array.isArray(versions) ? versions.length : 0;
+      const explicit = trigger === "manual";
+      if (!explicit && versionCount < 20) return { newCourses: [], searched: false, skipped: true, reason: "threshold_not_reached" };
+
+      const cvId = cv.id || cv.cvId || "current";
+      const fingerprint = repositioningFingerprint({ approvedCvId: cvId, versions });
+      if (!explicit) {
+        const autoRuns = await base44.entities.CourseDiscoveryRun.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
+        if (Array.isArray(autoRuns) && autoRuns.length) return { newCourses: [], searched: false, skipped: true, reason: "automatic_threshold_already_processed" };
+      }
+      const existingRuns = await base44.entities.CourseDiscoveryRun.filter({ cvFingerprint: fingerprint }, "-created_date", 10);
+      if (existingRuns.some((r) => r.status === "running" || r.status === "ready")) return { newCourses: [], searched: false, skipped: true, reason: "already_analyzed" };
+      const run = await base44.entities.CourseDiscoveryRun.create({ cvId, cvFingerprint: fingerprint, versionCount, trigger: explicit ? "manual" : "auto_20_versions", status: "running" });
       const title = jobTitle || cv.titel || "";
       if (!title.trim()) return { newCourses: [], searched: false };
       const search = await jobs.search({ q: title, publishedDays: 21, limit: 18 });
@@ -104,10 +120,14 @@ export function createCoursesService({ notifications, llm, jobs }) {
       const ads = ranked.slice(0, 8).map((j) => ({ rubrik: j.rubrik, arbetsgivare: j.arbetsgivare, plats: [j.kommun, j.lan].filter(Boolean).join(", "), matchPercent: j.matchPercent }));
       const courses = await llm.recommendSwedishCourses({ cv, jobTitle: title, weakSkills: weak, currentMatch: ranked.length ? Math.round(ranked.reduce((s, j) => s + (j.matchPercent || 0), 0) / ranked.length) : null, jobAds: ads });
       const candidates = (Array.isArray(courses) ? courses : []).filter((c) => c?.title && c?.url && !existingKeys.has(courseKey(c)));
-      if (!candidates.length) return { newCourses: [], searched: true };
+      if (!candidates.length) {
+        await base44.entities.CourseDiscoveryRun.update(run.id, { status: "no_results" });
+        return { newCourses: [], searched: true };
+      }
       const saved = await this.upsertMany(candidates);
       const fresh = saved.filter((x) => x.isNew);
       if (fresh.length) await this.notifyNewCourses(fresh);
+      await base44.entities.CourseDiscoveryRun.update(run.id, { status: "ready" });
       return { newCourses: fresh, searched: true };
     },
 
