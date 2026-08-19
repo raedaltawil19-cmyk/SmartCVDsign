@@ -345,24 +345,12 @@ export default function Builder() {
       .finally(() => { courseDiscoveryRef.current = false; });
   }, [courses, data, processing]);
 
-  // ── إعادة التموضع المهني: تشغيل خلفي عند اعتماد نسخة السيرة فقط (حفظ/طباعة/إنهاء جلسة بنسخة محفوظة) ──
-  // فشل الوكيل لا يعطّل Builder ولا Job Tailor: الخُطّاف يفشل بهدوء ولا يعرض شيئاً للمستخدم.
-  const repositioning = useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
-  const approveVersion = (trigger, cvIdOverride) => { Promise.resolve(repositioning.approve(trigger, cvIdOverride)).catch(() => {}); };
-  const approveRef = useRef(approveVersion);
-  approveRef.current = approveVersion;
-
-  useEffect(() => {
-    const onHidden = () => {
-      if (document.visibilityState === "hidden") approveRef.current("session_end");
-    };
-    document.addEventListener("visibilitychange", onHidden);
-    return () => document.removeEventListener("visibilitychange", onHidden);
-  }, []);
+  // Career Repositioning is no longer tied to save/print/page visibility.
+  // It runs automatically once at the 20-saved-version threshold, or explicitly from Career Paths.
+  useCareerRepositioning({ cvId: currentCvId, data, isAuthenticated, uiLanguage: lang });
 
   const exportPDF = () => {
     triggerCourseDiscovery();
-    approveVersion("print");
     // Keep the native print call synchronous with the user's click.
     // Safari can block window.print() when it is invoked after an async auth check.
     if (!isAuthenticated) {
@@ -436,7 +424,6 @@ export default function Builder() {
       if (currentCvId) {
         await cvRepository.update(currentCvId, payload);
         triggerCourseDiscovery();
-        approveVersion("save");
         toast({ title: "تم الحفظ", description: titel });
         setSaveOpen(false);
       } else {
@@ -444,7 +431,6 @@ export default function Builder() {
         setCurrentCvId(rec.id);
         navigate(`/builder/${rec.id}`, { replace: true });
         triggerCourseDiscovery();
-        approveVersion("save", rec.id);
         toast({ title: "تم حفظ السيرة", description: titel });
         setSaveOpen(false);
       }
