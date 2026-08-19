@@ -1,0 +1,27 @@
+name: Agent Prompt Queue
+
+on:
+  push:
+    paths:
+      - 'prompts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prompt-queue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate prompt queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f prompts/README.md
+          echo 'Prompt queue detected.'
+          echo 'READY prompts:'
+          grep -R -l '^STATUS: READY$' prompts --include='*.md' || true
+          echo 'Queue validation complete.'
