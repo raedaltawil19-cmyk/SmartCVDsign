@@ -924,6 +924,7 @@ export default function Builder() {
           templateId={templateId}
           data={data}
           cvTitle={data.titel || ""}
+          initialJob={incoming?.tailorJob}
           onSend={sendTailorToAssistant}
           onClose={() => setTailorOpen(false)}
         />
