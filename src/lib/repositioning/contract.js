@@ -11,9 +11,15 @@ const STATUSES = ["ready", "no_results", "insufficient_data"];
 export function repositioningFingerprint({ approvedCvId, versions }) {
   const list = Array.isArray(versions) ? versions : [];
   const parts = list
-    .map((v) => `${v.id}:${(v.updated_date || "")}:${JSON.stringify(v.data || {}).length}`)
+    .map((v) => `${v.id}:${(v.updated_date || "")}:${stableStringify(v.data || {})}`)
     .sort();
   return `${approvedCvId || "none"}|${list.length}|${hash(parts.join("~"))}`;
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+  return JSON.stringify(value);
 }
 
 function hash(text) {
