@@ -1,16 +1,15 @@
 /**
- * useCareerRepositioning — تشغيل خلفي لوكيل إعادة التموضع المهني بعد اعتماد نسخة سيرة.
- *
- * قواعد معمارية:
- * - لا يُشغَّل عند رفع CV ولا عند كل تعديل — فقط عند إشارة اعتماد صريحة (حفظ/طباعة/إنهاء جلسة بنسخة محفوظة).
- * - لا يعدّل السيرة ولا يحفظها ولا يفتح أي واجهة؛ لا يعرض أخطاءً للمستخدم.
- * - فشل آمن تماماً: أي خطأ يُسجَّل في السجل ولا يعطّل Builder أو Job Tailor أو أي مسار آخر.
+ * Career Repositioning trigger/orchestration.
+ * Automatic policy: run once when the user reaches 20 saved CV versions.
+ * After that, only an explicit manual request can start another analysis.
+ * Page visibility, print and ordinary saves are NOT analysis triggers.
  */
 import { useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { createRepositioningConversation, sendRepositioningInput, locationFromCV } from "@/lib/repositioning/session";
 import { parseRepositioningResult, repositioningFingerprint, isUsefulResult } from "@/lib/repositioning/contract";
 
+const AUTO_THRESHOLD = 20;
 const POLLS = [4000, 10000, 20000, 32000, 45000, 60000, 78000, 95000, 115000, 135000];
 
 export default function useCareerRepositioning({ cvId, data, isAuthenticated, uiLanguage }) {
@@ -29,31 +28,40 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
   useEffect(() => cleanup, [cleanup]);
 
-  /** إشارة الاعتماد — trigger: save | print | session_end */
-  const approve = useCallback(async (trigger, overrideCvId) => {
+  const run = useCallback(async (trigger = "manual", overrideCvId = null) => {
     const s = { ...stateRef.current, cvId: overrideCvId || stateRef.current.cvId };
-    if (!s.isAuthenticated || !s.cvId || runningRef.current) return;
-    runningRef.current = true;
+    if (!s.isAuthenticated || !s.cvId || runningRef.current) return { ok: false, skipped: true };
+
     let record = null;
     try {
-      const versions = await base44.entities.SavedCV.list("-updated_date", 20);
-      const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
-      if (doneFingerprintsRef.current.has(fingerprint)) { runningRef.current = false; return; }
+      // No limit of 20 here: the agent must receive ALL saved versions.
+      const versions = await base44.entities.SavedCV.list("-updated_date", 1000);
+      const versionCount = Array.isArray(versions) ? versions.length : 0;
+      const explicit = trigger === "manual";
 
-      const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint });
-      if (existing.some((r) => r.status === "ready" || r.status === "running")) {
-        doneFingerprintsRef.current.add(fingerprint);
-        runningRef.current = false;
-        return;
+      if (!explicit && versionCount < AUTO_THRESHOLD) return { ok: true, skipped: true, reason: "threshold_not_reached", versionCount };
+      if (!explicit && versionCount >= AUTO_THRESHOLD) {
+        const autoRuns = await base44.entities.RepositioningAnalysis.filter({ trigger: "auto_20_versions" }, "-created_date", 10);
+        if (Array.isArray(autoRuns) && autoRuns.length) return { ok: true, skipped: true, reason: "automatic_threshold_already_processed" };
       }
 
+      const fingerprint = repositioningFingerprint({ approvedCvId: s.cvId, versions });
+      const existing = await base44.entities.RepositioningAnalysis.filter({ cvFingerprint: fingerprint }, "-created_date", 20);
+      if (existing.some((r) => r.status === "ready" || r.status === "running")) {
+        doneFingerprintsRef.current.add(fingerprint);
+        return { ok: true, skipped: true, reason: "already_analyzed" };
+      }
+
+      runningRef.current = true;
       const startLocation = locationFromCV(s.data);
       record = await base44.entities.RepositioningAnalysis.create({
         cvId: s.cvId,
         cvFingerprint: fingerprint,
         status: "running",
-        trigger: trigger || "save",
-        startLocation
+        trigger: explicit ? "manual" : "auto_20_versions",
+        startLocation,
+        pathCount: 0,
+        jobCount: 0
       });
       doneFingerprintsRef.current.add(fingerprint);
 
@@ -61,27 +69,27 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
       if (!conversation) throw new Error("AGENT_START_FAILED");
 
       let settled = false;
-      const finish = async (result) => {
+      const finish = async (parsed) => {
         if (settled) return;
         settled = true;
         cleanup();
         runningRef.current = false;
-        const useful = isUsefulResult(result);
+        const useful = isUsefulResult(parsed);
         await base44.entities.RepositioningAnalysis.update(record.id, {
-          status: result.analysisStatus === "ready" && useful ? "ready" : "no_results",
-          result,
-          pathCount: result.paths.length,
-          jobCount: result.opportunities.length
+          status: parsed.analysisStatus === "ready" && useful ? "ready" : "no_results",
+          result: parsed,
+          pathCount: parsed.paths.length,
+          jobCount: parsed.opportunities.length
         });
         if (!useful) return;
         await base44.entities.Notification.create({
           type: "career_repositioning",
           title: "اكتشفنا مسارات وفرصاً مهنية جديدة",
-          message: `بناءً على سيرتك المعتمدة، وجدنا ${result.paths.length} مساراً مهنياً و${result.opportunities.length} فرصة حقيقية.`,
+          message: `بناءً على سيرتك المعتمدة، وجدنا ${parsed.paths.length} مساراً مهنياً و${parsed.opportunities.length} فرصة حقيقية.`,
           isRead: false,
           targetType: "career_paths",
           targetId: record.id,
-          metadata: { cvId: s.cvId }
+          metadata: { cvId: s.cvId, analysisId: record.id }
         });
       };
 
@@ -108,10 +116,9 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
         try {
           const conv = await base44.agents.getConversation(conversation.id);
           handle(conv?.messages);
-        } catch { /* الاشتراك يبقى المصدر */ }
+        } catch {}
       };
       timersRef.current = POLLS.map((ms) => setTimeout(poll, ms));
-      // مهلة نهائية: لا نترك السجل معلّقاً على "running" للأبد
       timersRef.current.push(setTimeout(async () => {
         if (settled) return;
         settled = true;
@@ -119,14 +126,20 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
         runningRef.current = false;
         try { await base44.entities.RepositioningAnalysis.update(record.id, { status: "failed", error: "TIMEOUT" }); } catch {}
       }, 180000));
+
+      return { ok: true, analysisId: record.id, versionCount };
     } catch (e) {
       cleanup();
       runningRef.current = false;
       if (record) {
         try { await base44.entities.RepositioningAnalysis.update(record.id, { status: "failed", error: String(e?.message || e) }); } catch {}
       }
+      return { ok: false, error: String(e?.message || e) };
     }
   }, [cleanup]);
 
-  return { approve };
+  const approve = useCallback((trigger = "manual", overrideCvId = null) => run(trigger, overrideCvId), [run]);
+  const runManual = useCallback(() => run("manual"), [run]);
+
+  return { approve, runManual };
 }
