@@ -44,36 +44,36 @@ jobs:
           prompt_dir = Path("prompts")
 
           def is_ready(path: Path) -> bool:
-            text = path.read_text(encoding="utf-8")
-            return re.search(r"^STATUS:\s*READY\s*$", text, flags=re.MULTILINE) is not None
+              text = path.read_text(encoding="utf-8")
+              return re.search(r"^STATUS:\s*READY\s*$", text, flags=re.MULTILINE) is not None
 
           prompt_files = sorted(
-            path for path in prompt_dir.glob("*.md") if path.name != "README.md"
+              path for path in prompt_dir.glob("*.md") if path.name != "README.md"
           )
 
           selected = None
           if prompt_path_input:
-            candidate = Path(prompt_path_input)
-            if not candidate.exists():
-              raise SystemExit(f"Prompt file not found: {prompt_path_input}")
-            if candidate.parent != prompt_dir:
-              raise SystemExit("Manual prompt_path must point to a file inside prompts/.")
-            if not is_ready(candidate):
-              raise SystemExit(f"Prompt is not READY: {prompt_path_input}")
-            selected = candidate
+              candidate = Path(prompt_path_input)
+              if not candidate.exists():
+                  raise SystemExit(f"Prompt file not found: {prompt_path_input}")
+              if candidate.parent != prompt_dir:
+                  raise SystemExit("Manual prompt_path must point to a file inside prompts/.")
+              if not is_ready(candidate):
+                  raise SystemExit(f"Prompt is not READY: {prompt_path_input}")
+              selected = candidate
           else:
-            for candidate in prompt_files:
-              if is_ready(candidate):
-                selected = candidate
-                break
+              for candidate in prompt_files:
+                  if is_ready(candidate):
+                      selected = candidate
+                      break
 
           with output_path.open("a", encoding="utf-8") as output:
-            if selected is None:
-              output.write("should_queue=false\n")
-            else:
-              output.write("should_queue=true\n")
-              output.write(f"prompt_path={selected.as_posix()}\n")
-              output.write(f"prompt_basename={selected.stem}\n")
+              if selected is None:
+                  output.write("should_queue=false\n")
+              else:
+                  output.write("should_queue=true\n")
+                  output.write(f"prompt_path={selected.as_posix()}\n")
+                  output.write(f"prompt_basename={selected.stem}\n")
           PY
 
       - name: Skip when no READY prompt exists
@@ -102,65 +102,41 @@ jobs:
           issue_title = f"[Prompt Queue] Execute {prompt_path}"
 
           existing = subprocess.run(
-            [
-              "gh",
-              "issue",
-              "list",
-              "--repo",
-              repo,
-              "--state",
-              "open",
-              "--search",
-              f'"{issue_title}" in:title',
-              "--json",
-              "number,title",
-              "--jq",
-              ".[0].number // \"\"",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
+              [
+                  "gh", "issue", "list", "--repo", repo, "--state", "open",
+                  "--search", f'"{issue_title}" in:title',
+                  "--json", "number,title", "--jq", ".[0].number // \"\"",
+              ],
+              check=True, capture_output=True, text=True,
           ).stdout.strip()
           if existing:
-            print(existing)
-            raise SystemExit(0)
+              print(existing)
+              raise SystemExit(0)
 
           prompt_body = prompt_file.read_text(encoding="utf-8").strip()
           report_slug = prompt_file.stem.lower()
           issue_body = textwrap.dedent(
-            f"""\
-            Execute the READY repository prompt at `{prompt_path}`.
+              f"""\
+              Execute the READY repository prompt at `{prompt_path}`.
 
-            ## Required rules
-            - Treat `{prompt_path}` as the only prompt input for this task.
-            - Create the execution report only in `docs/agent-reports/YYYY-MM-DD-{report_slug}.md`.
-            - Do not create reports in `/prompts/`, `AGENT_REPORT.md`, or any other directory.
-            - Update `{prompt_path}` from `STATUS: READY` to `STATUS: COMPLETED` after the work and report are finished.
-            - Do not treat anything inside `docs/agent-reports/` as a prompt.
-            - Do not modify SmartCVDsign application code unless the prompt explicitly requires it.
+              ## Required rules
+              - Treat `{prompt_path}` as the only prompt input for this task.
+              - Create the execution report only in `docs/agent-reports/YYYY-MM-DD-{report_slug}.md`.
+              - Do not create reports in `/prompts/`, `AGENT_REPORT.md`, or any other directory.
+              - Update `{prompt_path}` from `STATUS: READY` to `STATUS: COMPLETED` after the work and report are finished.
+              - Do not treat anything inside `docs/agent-reports/` as a prompt.
+              - Do not modify SmartCVDsign application code unless the prompt explicitly requires it.
 
-            ## Prompt file contents
-            ```md
-            {prompt_body}
-            ```
-            """
+              ## Prompt file contents
+              ```md
+              {prompt_body}
+              ```
+              """
           )
 
           issue_url = subprocess.run(
-            [
-              "gh",
-              "issue",
-              "create",
-              "--repo",
-              repo,
-              "--title",
-              issue_title,
-              "--body",
-              issue_body,
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
+              ["gh", "issue", "create", "--repo", repo, "--title", issue_title, "--body", issue_body],
+              check=True, capture_output=True, text=True,
           ).stdout.strip()
           print(issue_url.rsplit("/", 1)[-1])
           PY
@@ -168,17 +144,35 @@ jobs:
           echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
           echo "Queued issue #$issue_number for $PROMPT_PATH"
 
-      - name: Assign issue to GitHub Copilot
+      - name: Assign issue to GitHub Copilot cloud agent
         if: steps.prompt.outputs.should_queue == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.COPILOT_AGENT_TOKEN }}
           REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ steps.issue.outputs.issue_number }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "Missing required repository secret: COPILOT_AGENT_TOKEN" >&2
             exit 1
           fi
-          gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-assignee copilot
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/assignees" \
+            --input - <<JSON
+          {
+            "assignees": ["copilot-swe-agent[bot]"],
+            "agent_assignment": {
+              "target_repo": "${REPO}",
+              "base_branch": "${BASE_BRANCH}",
+              "custom_instructions": "Execute the prompt in the issue. Write the completion report only under docs/agent-reports/ and update the prompt status to COMPLETED.",
+              "custom_agent": "",
+              "model": ""
+            }
+          }
+          JSON
