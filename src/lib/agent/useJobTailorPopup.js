@@ -85,6 +85,14 @@ export default function useJobTailorPopup({ cvRecord }) {
         }
       }, ms));
 
+      // مهلة نهائية: لا يبقى المستخدم في انتظار مفتوح إن لم تصل كتلة توصيات مقبولة
+      pollTimersRef.current.push(setTimeout(() => {
+        setAnalyzing((busy) => {
+          if (busy) setError("ANALYZE_FAILED");
+          return false;
+        });
+      }, 100000));
+
     } catch {
       setAnalyzing(false);
       setError("ANALYZE_FAILED");

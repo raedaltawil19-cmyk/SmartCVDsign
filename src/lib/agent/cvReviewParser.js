@@ -45,7 +45,7 @@ const isFilledString = (v) => typeof v === "string" && v.trim() !== "";
  * @returns {object|null} null إن غابت الافتتاحية، أو لم تُغلق بعد (بثّ جارٍ)، أو تعذّر تحليل JSON.
  */
 export function extractCVReview(content) {
-  const text = String(content || "");
+  const text = normalizeFencedBlock(String(content || ""));
   const start = text.indexOf(REVIEW_OPEN);
   if (start === -1) return null;
   const end = text.indexOf(REVIEW_CLOSE, start + REVIEW_OPEN.length);
@@ -60,9 +60,22 @@ export function extractCVReview(content) {
   }
 }
 
+/**
+ * صياغة بديلة يُخرجها الوكيل أحياناً: ```CV_REVIEW … ``` بدل الفواصل المتفق عليها.
+ * نحوّلها إلى الشكل المعتمد قبل الاستخراج — التحقّق الصارم يبقى كما هو بلا تخفيف.
+ */
+function normalizeFencedBlock(text) {
+  const open = text.indexOf("```CV_REVIEW");
+  if (open === -1) return text;
+  const bodyStart = open + "```CV_REVIEW".length;
+  const close = text.indexOf("```", bodyStart);
+  if (close === -1) return text; // البثّ لم يُغلق الكتلة بعد
+  return `${text.slice(0, open)}${REVIEW_OPEN}\n${text.slice(bodyStart, close).trim()}\n${REVIEW_CLOSE}${text.slice(close + 3)}`;
+}
+
 /** يحذف كتلة CV_REVIEW ويُبقي الشرح البشري كما هو */
 export function stripCVReview(content) {
-  const text = String(content || "");
+  const text = normalizeFencedBlock(String(content || ""));
   const start = text.indexOf(REVIEW_OPEN);
   if (start === -1) return text;
   const end = text.indexOf(REVIEW_CLOSE, start + REVIEW_OPEN.length);

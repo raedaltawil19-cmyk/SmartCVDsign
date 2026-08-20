@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "isInitialized": {
+      "type": "boolean",
+      "default": false
+    },
+    "totalEvidenceCount": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [],
+  "name": "ProfessionalProfile"
+}

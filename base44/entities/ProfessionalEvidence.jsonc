@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "profileId": {
+      "type": "string"
+    },
+    "factId": {
+      "type": "string"
+    },
+    "observationId": {
+      "type": "string"
+    },
+    "changeType": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "field": {
+      "type": "string"
+    },
+    "itemKey": {
+      "type": "string"
+    },
+    "value": {
+      "type": "object"
+    },
+    "previousValue": {
+      "type": "object"
+    },
+    "sourceCvId": {
+      "type": "string"
+    },
+    "sourceType": {
+      "type": "string"
+    },
+    "sourceMasterCvId": {
+      "type": "string"
+    },
+    "contentFingerprint": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "default": "active"
+    }
+  },
+  "required": [
+    "profileId",
+    "factId",
+    "observationId",
+    "changeType",
+    "category",
+    "field",
+    "itemKey",
+    "sourceCvId",
+    "sourceType",
+    "status"
+  ],
+  "name": "ProfessionalEvidence"
+}

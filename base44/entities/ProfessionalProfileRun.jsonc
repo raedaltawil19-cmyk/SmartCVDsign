@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "profileId": {
+      "type": "string"
+    },
+    "cvId": {
+      "type": "string"
+    },
+    "cvFingerprint": {
+      "type": "string"
+    },
+    "sourceType": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "evidenceCount": {
+      "type": "number",
+      "default": 0
+    },
+    "error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "profileId",
+    "cvId",
+    "cvFingerprint",
+    "sourceType",
+    "status"
+  ],
+  "name": "ProfessionalProfileRun"
+}
