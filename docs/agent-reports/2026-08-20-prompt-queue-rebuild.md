@@ -23,3 +23,5 @@
 - Workflow YAML parsed successfully with Ruby.
 - `npm run lint` passed.
 - `npm run build` passed.
+- `codeql_checker` reported no alerts for the workflow changes.
+- `code_review` returned no comments and reported that its local review binary was unavailable in this environment.
