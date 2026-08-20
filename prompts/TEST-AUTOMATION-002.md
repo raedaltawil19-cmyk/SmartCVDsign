@@ -1,4 +1,4 @@
-STATUS: READY
+STATUS: COMPLETED
 
 # TEST-AUTOMATION-002 — Real prompt queue test
 
