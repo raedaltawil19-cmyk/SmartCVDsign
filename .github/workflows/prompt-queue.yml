@@ -1,0 +1,184 @@
+name: Prompt Queue
+
+on:
+  push:
+    paths:
+      - "prompts/*.md"
+      - "prompts/**/*.md"
+      - "!prompts/README.md"
+  workflow_dispatch:
+    inputs:
+      prompt_path:
+        description: "Optional prompt file path to queue manually"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  queue-ready-prompt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve prompt to queue
+        id: prompt
+        shell: bash
+        env:
+          PROMPT_PATH_INPUT: ${{ inputs.prompt_path }}
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          prompt_path_input = os.environ.get("PROMPT_PATH_INPUT", "").strip()
+          prompt_dir = Path("prompts")
+
+          def is_ready(path: Path) -> bool:
+            text = path.read_text(encoding="utf-8")
+            return re.search(r"^STATUS:\s*READY\s*$", text, flags=re.MULTILINE) is not None
+
+          prompt_files = sorted(
+            path for path in prompt_dir.glob("*.md") if path.name != "README.md"
+          )
+
+          selected = None
+          if prompt_path_input:
+            candidate = Path(prompt_path_input)
+            if not candidate.exists():
+              raise SystemExit(f"Prompt file not found: {prompt_path_input}")
+            if candidate.parent != prompt_dir:
+              raise SystemExit("Manual prompt_path must point to a file inside prompts/.")
+            if not is_ready(candidate):
+              raise SystemExit(f"Prompt is not READY: {prompt_path_input}")
+            selected = candidate
+          else:
+            for candidate in prompt_files:
+              if is_ready(candidate):
+                selected = candidate
+                break
+
+          with output_path.open("a", encoding="utf-8") as output:
+            if selected is None:
+              output.write("should_queue=false\n")
+            else:
+              output.write("should_queue=true\n")
+              output.write(f"prompt_path={selected.as_posix()}\n")
+              output.write(f"prompt_basename={selected.stem}\n")
+          PY
+
+      - name: Skip when no READY prompt exists
+        if: steps.prompt.outputs.should_queue != 'true'
+        run: echo "No READY prompt is waiting in /prompts."
+
+      - name: Create or reuse Copilot execution issue
+        if: steps.prompt.outputs.should_queue == 'true'
+        id: issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PROMPT_PATH: ${{ steps.prompt.outputs.prompt_path }}
+        run: |
+          set -euo pipefail
+          issue_number="$(python <<'PY'
+          import os
+          import subprocess
+          import textwrap
+          from pathlib import Path
+
+          repo = os.environ["REPO"]
+          prompt_path = os.environ["PROMPT_PATH"]
+          prompt_file = Path(prompt_path)
+          issue_title = f"[Prompt Queue] Execute {prompt_path}"
+
+          existing = subprocess.run(
+            [
+              "gh",
+              "issue",
+              "list",
+              "--repo",
+              repo,
+              "--state",
+              "open",
+              "--search",
+              f'"{issue_title}" in:title',
+              "--json",
+              "number,title",
+              "--jq",
+              ".[0].number // \"\"",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+          ).stdout.strip()
+          if existing:
+            print(existing)
+            raise SystemExit(0)
+
+          prompt_body = prompt_file.read_text(encoding="utf-8").strip()
+          report_slug = prompt_file.stem.lower()
+          issue_body = textwrap.dedent(
+            f"""\
+            Execute the READY repository prompt at `{prompt_path}`.
+
+            ## Required rules
+            - Treat `{prompt_path}` as the only prompt input for this task.
+            - Create the execution report only in `docs/agent-reports/YYYY-MM-DD-{report_slug}.md`.
+            - Do not create reports in `/prompts/`, `AGENT_REPORT.md`, or any other directory.
+            - Update `{prompt_path}` from `STATUS: READY` to `STATUS: COMPLETED` after the work and report are finished.
+            - Do not treat anything inside `docs/agent-reports/` as a prompt.
+            - Do not modify SmartCVDsign application code unless the prompt explicitly requires it.
+
+            ## Prompt file contents
+            ```md
+            {prompt_body}
+            ```
+            """
+          )
+
+          issue_url = subprocess.run(
+            [
+              "gh",
+              "issue",
+              "create",
+              "--repo",
+              repo,
+              "--title",
+              issue_title,
+              "--body",
+              issue_body,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+          ).stdout.strip()
+          print(issue_url.rsplit("/", 1)[-1])
+          PY
+          )"
+          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
+          echo "Queued issue #$issue_number for $PROMPT_PATH"
+
+      - name: Assign issue to GitHub Copilot
+        if: steps.prompt.outputs.should_queue == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_AGENT_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.issue_number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing required repository secret: COPILOT_AGENT_TOKEN" >&2
+            exit 1
+          fi
+          gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-assignee copilot
