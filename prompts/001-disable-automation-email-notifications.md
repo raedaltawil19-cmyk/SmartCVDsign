@@ -1,4 +1,4 @@
-STATUS: READY
+STATUS: COMPLETED
 
 # Disable automation email notifications
 
