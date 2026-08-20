@@ -1,6 +1,5 @@
 import { base44 } from "@/api/base44Client";
 import { repositioningFingerprint } from "@/lib/repositioning/contract";
-import { latestMasterVersions } from "@/lib/cvProfiles";
 
 function normalizeUrl(url = "") {
   try {
@@ -89,12 +88,11 @@ export function createCoursesService({ notifications, llm, jobs }) {
     async discoverForCV({ cv, jobTitle, trigger = "auto" } = {}) {
       if (!llm || !jobs || !cv) return { newCourses: [], searched: false };
 
-      // The course-discovery analysis window is capped at 20 master versions, not gated by 20 versions.
-      // Tailored CVs are excluded — they are derived artifacts, not canonical professional evidence.
-      // 1–20 master versions => analyze all available versions. More than 20 => analyze only the latest 20.
+      // The course-discovery analysis window is capped at 20 versions, not gated by 20 versions.
+      // 1–20 versions => analyze all available versions. More than 20 => analyze only the latest 20.
       const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versions = latestMasterVersions(allVersions);
-      const versionCount = versions.length;
+      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
+      const versions = Array.isArray(allVersions) ? allVersions.slice(0, 20) : [];
       const explicit = trigger === "manual";
 
       const cvId = cv.id || cv.cvId || "current";

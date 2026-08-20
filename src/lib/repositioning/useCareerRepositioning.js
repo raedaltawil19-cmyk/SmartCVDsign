@@ -10,7 +10,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { createRepositioningConversation, sendRepositioningInput, locationFromCV } from "@/lib/repositioning/session";
 import { parseRepositioningResult, repositioningFingerprint, isUsefulResult } from "@/lib/repositioning/contract";
-import { latestMasterVersions } from "@/lib/cvProfiles";
 
 const AUTO_THRESHOLD = 20;
 const POLLS = [4000, 10000, 20000, 32000, 45000, 60000, 78000, 95000, 115000, 135000];
@@ -38,12 +37,11 @@ export default function useCareerRepositioning({ cvId, data, isAuthenticated, ui
 
     let record = null;
     try {
-      // The analysis window is capped at 20 master versions, not gated by 20 versions.
-      // Tailored CVs are excluded — they are derived artifacts, not canonical professional evidence.
-      // 1–20 master versions => analyze all. More than 20 => analyze the latest 20.
+      // The analysis window is capped at 20 versions, not gated by 20 versions.
+      // 1–20 versions => analyze all. More than 20 => analyze the latest 20.
       const allVersions = await base44.entities.SavedCV.list("-updated_date", 1000);
-      const versions = latestMasterVersions(allVersions);
-      const versionCount = versions.length;
+      const versionCount = Array.isArray(allVersions) ? allVersions.length : 0;
+      const versions = Array.isArray(allVersions) ? allVersions.slice(0, AUTO_THRESHOLD) : [];
       const explicit = trigger === "manual";
 
       if (!explicit && versionCount >= AUTO_THRESHOLD) {

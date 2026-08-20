@@ -5,7 +5,6 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import useCareerRepositioning from "@/lib/repositioning/useCareerRepositioning";
 import { repositioningFingerprint } from "@/lib/repositioning/contract";
-import { latestMasterVersions } from "@/lib/cvProfiles";
 import CareerPathCard from "@/components/repositioning/CareerPathCard";
 import OpportunityCard from "@/components/repositioning/OpportunityCard";
 import { ArrowRight, Loader2, Compass, RefreshCcw } from "lucide-react";
@@ -29,8 +28,7 @@ export default function CareerPaths() {
     (async () => {
       try {
         const saved = await base44.entities.SavedCV.list("-updated_date", 1000);
-        const masters = latestMasterVersions(saved);
-        setLatestCV(masters[0] || null);
+        setLatestCV(saved?.[0] || null);
         const rows = await base44.entities.RepositioningAnalysis.list("-created_date", 50);
         const latest = rows[0] || null;
         const latestRunning = latest?.status === "running";
@@ -38,7 +36,7 @@ export default function CareerPaths() {
         setRunning(latestRunning);
         setAnalysis(ready || null);
         if (ready) {
-          const fp = repositioningFingerprint({ approvedCvId: ready.cvId, versions: masters });
+          const fp = repositioningFingerprint({ approvedCvId: ready.cvId, versions: saved });
           setStale(fp !== ready.cvFingerprint);
         }
       } catch {

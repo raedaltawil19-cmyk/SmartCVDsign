@@ -121,20 +121,4 @@ export function tailoredChildrenOf(list, baseId) {
   return (Array.isArray(list) ? list : []).filter((r) => isTailored(r) && r.parentCvId === baseId);
 }
 
-/**
- * نافذة التحليل المهني — النسخ الأساسية فقط، بحدٍّ أقصى قابل للضبط.
- *
- * القاعدة: نسخ التحليل (إعادة التموضع / اكتشاف الدورات) يجب أن تستند إلى النسخ
- * الأساسية (master) فقط. النسخ المخصَّصة (tailored) هي مشتقّات وظيفية مؤقتة
- * ولا تعكس الملف المهني الحقيقي للمستخدم.
- *
- * @param {Array}  cvList  قائمة SavedCV مرتَّبة بالأحدث أولاً (من base44)
- * @param {number} max     الحدّ الأقصى لعدد النسخ في النافذة (افتراضي: 20)
- * @returns {Array} أحدث `max` نسخة أساسية كحدٍّ أقصى
- */
-export function latestMasterVersions(cvList, max = 20) {
-  const masters = (Array.isArray(cvList) ? cvList : []).filter(isMaster);
-  return masters.slice(0, max);
-}
-
 export { localMatchScore };
