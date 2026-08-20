@@ -144,6 +144,27 @@ jobs:
           echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
           echo "Queued issue #$issue_number for $PROMPT_PATH"
 
+      - name: Mute issue notifications for repository owner
+        if: steps.prompt.outputs.should_queue == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_AGENT_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.issue_number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "COPILOT_AGENT_TOKEN is not configured; skipping notification mute."
+            exit 0
+          fi
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/subscription" \
+            -f subscribed=false \
+            -f ignored=true
+
       - name: Assign issue to GitHub Copilot cloud agent
         if: steps.prompt.outputs.should_queue == 'true'
         shell: bash
