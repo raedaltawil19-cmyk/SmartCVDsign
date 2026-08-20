@@ -13,6 +13,8 @@ export function cvContextBlock(record) {
   return `\n\n<<<CV_CONTEXT\n${JSON.stringify({
     cvId: record.id,
     templateId: record.templateId,
+    // المحتوى الفعلي لازم للمطابقة: الفهرس وحده يعطي معرّفات بلا نصوص، فيعود الوكيل بلا توصيات
+    CV_DATA: record.data,
     CV_INDEX: summarizeIndex(buildCVIndex(record.data))
   })}\nCV_CONTEXT>>>`;
 }
