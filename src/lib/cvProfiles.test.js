@@ -7,6 +7,7 @@ import { localMatchScore, matchDetails, cvKeywords } from "./jobMatcher";
 import {
   MASTER, TAILORED, cvTypeOf, isMaster, isTailored, baseCandidates,
   rankBaseCVs, pickBestBaseCV, buildTailoredPayload, createTailoredCV, tailoredChildrenOf,
+  latestMasterVersions,
 } from "./cvProfiles";
 
 /* ── بيانات وهمية: 4 ملفات سيرة + نسخة مخصّصة قائمة ── */
@@ -182,6 +183,44 @@ export function runCvProfilesTests() {
 
       /* 14. أبناء نسخة أساس */
       add("14. تتبّع النسخ المشتقّة", tailoredChildrenOf(ALL, "cv_coach").map((c) => c.id).join() === "cv_t1");
+
+      /* ─────────────────────────────────────────────────────
+       * 15–20. latestMasterVersions — نافذة التحليل المهني
+       * ───────────────────────────────────────────────────── */
+
+      /* 15. قائمة فارغة ⇒ مصفوفة فارغة */
+      add("15. latestMasterVersions([]) ⇒ []", latestMasterVersions([]).length === 0);
+
+      /* 16. null / undefined ⇒ مصفوفة فارغة */
+      add("16. latestMasterVersions(null) ⇒ []", latestMasterVersions(null).length === 0);
+
+      /* 17. نسخ مخصّصة تُستبعد */
+      {
+        const list = [CV_COACH, CV_DEV, CV_EXISTING_TAILORED];
+        const result = latestMasterVersions(list);
+        add("17. النسخ المخصّصة مستبعدة من النافذة", result.every(isMaster) && result.length === 2);
+      }
+
+      /* 18. الحدّ الأقصى يُحترم */
+      {
+        const many = Array.from({ length: 25 }, (_, i) => ({ id: `m${i}`, cvType: MASTER }));
+        const result = latestMasterVersions(many, 20);
+        add("18. latestMasterVersions يعيد ≤ 20 نسخة", result.length === 20);
+      }
+
+      /* 19. حدّ مخصّص يعمل */
+      {
+        const five = Array.from({ length: 8 }, (_, i) => ({ id: `x${i}`, cvType: MASTER }));
+        const result = latestMasterVersions(five, 5);
+        add("19. حدّ مخصّص 5 يُرجع 5 فقط", result.length === 5);
+      }
+
+      /* 20. الحدّ الأقصى = 20 وعدد النسخ أقلّ ⇒ تُرجَع كلّها */
+      {
+        const few = [CV_COACH, CV_NURSE, CV_DEV];
+        const result = latestMasterVersions(few);
+        add("20. أقلّ من 20 نسخة أساسية ⇒ تُرجَع كلّها", result.length === 3);
+      }
 
       const passed = results.filter((r) => r.pass).length;
       return { passed, total: results.length, allPassed: passed === results.length, results };
