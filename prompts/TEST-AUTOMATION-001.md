@@ -1,4 +1,4 @@
-STATUS: READY
+STATUS: COMPLETED
 
 # Automation Pipeline Test
 
